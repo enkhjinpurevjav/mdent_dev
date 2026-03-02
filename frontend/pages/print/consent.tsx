@@ -204,6 +204,263 @@ function RootCanalTemplate({
   );
 }
 
+function DottedField({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | null;
+}) {
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <span style={{ fontWeight: 600 }}>{label}: </span>
+      <span
+        style={{
+          display: "inline-block",
+          minWidth: 200,
+          borderBottom: "1px dotted #000",
+          paddingBottom: 1,
+        }}
+      >
+        {value || ""}
+      </span>
+    </div>
+  );
+}
+
+function CheckboxField({
+  label,
+  checked,
+}: {
+  label: string;
+  checked?: boolean | null;
+}) {
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <span
+        style={{
+          display: "inline-block",
+          width: 13,
+          height: 13,
+          border: "1px solid #000",
+          textAlign: "center",
+          lineHeight: "13px",
+          fontSize: 10,
+          marginRight: 6,
+          verticalAlign: "middle",
+        }}
+      >
+        {checked ? "✓" : ""}
+      </span>
+      <span style={{ verticalAlign: "middle" }}>{label}</span>
+    </div>
+  );
+}
+
+function SurgeryTemplate({
+  encounter,
+  consent,
+}: {
+  encounter: Encounter;
+  consent: EncounterConsent;
+}) {
+  const answers = (consent.answers || {}) as Record<string, unknown>;
+  const surgeryMode = (answers.surgeryMode as string) || "SURGERY";
+  const title =
+    surgeryMode === "PROCEDURE"
+      ? "МЭС АЖИЛБАР ХИЙЛГЭХ ТУХАЙ ЗӨВШӨӨРЛИЙН ХУУДАС"
+      : "МЭС ЗАСАЛ ХИЙЛГЭХ ТУХАЙ ЗӨВШӨӨРЛИЙН ХУУДАС";
+
+  const doctorName = formatDoctorDisplayName(encounter.doctor);
+  const patientName = (answers.patientName as string) || "";
+  const patientSig = consent.patientSignaturePath || encounter.patientSignaturePath || null;
+  const doctorSig = consent.doctorSignaturePath || encounter.doctorSignaturePath || null;
+
+  const incapacityReason = (answers.incapacityReason as { minor?: boolean } | undefined) || {};
+
+  return (
+    <div
+      style={{
+        fontFamily: "'Times New Roman', Times, serif",
+        fontSize: 11,
+        lineHeight: 1.45,
+        color: "#000",
+        padding: "10mm 14mm",
+        maxWidth: "210mm",
+        margin: "0 auto",
+        boxSizing: "border-box",
+      }}
+    >
+      {/* Header */}
+      <div style={{ textAlign: "center", marginBottom: 8 }}>
+        <img
+          src="https://mdent.cloud/clinic-logo.png"
+          alt="Clinic logo"
+          style={{ maxHeight: 60, maxWidth: 180 }}
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = "none";
+          }}
+        />
+        <div style={{ fontSize: 11 }}>Утас: 7777-1234 | Хаяг: Улаанбаатар</div>
+      </div>
+
+      {/* Title */}
+      <div
+        style={{
+          textAlign: "center",
+          fontWeight: 700,
+          fontSize: 13,
+          textDecoration: "underline",
+          marginBottom: 12,
+        }}
+      >
+        {title}
+      </div>
+
+      {/* Section A */}
+      <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 6, textDecoration: "underline" }}>
+        А) МЭДЭЭЛЛИЙН ХУУДАС
+      </div>
+
+      <DottedField label="Хийгдэх мэс засал/ажилбарын нэр" value={answers.name as string} />
+      <DottedField label="Үр дүн" value={answers.outcome as string} />
+      <DottedField label="Эрсдэлүүд" value={answers.risks as string} />
+      <DottedField label="Хүндрэлүүд" value={answers.complications as string} />
+      <DottedField label="Нэмэлт ажилбарууд" value={answers.additionalProcedures as string} />
+      <DottedField label="Өөр эмчилгээний аргууд" value={answers.alternativeTreatments as string} />
+      <DottedField label="Давуу талууд" value={answers.advantages as string} />
+
+      <div style={{ marginBottom: 4, fontWeight: 600 }}>Мэдээ алдуулалтын хэлбэр:</div>
+      <CheckboxField label="Ерөнхий мэдээ алдуулалт" checked={answers.anesthesiaGeneral as boolean} />
+      <CheckboxField label="Нурууны мэдээ алдуулалт" checked={answers.anesthesiaSpinal as boolean} />
+
+      <DottedField label="Үйлчлүүлэгчийн асуулт" value={answers.patientQuestions as string} />
+      <DottedField label="Асуултын хураангуй" value={answers.questionSummary as string} />
+      <DottedField label="Эмчийн утас" value={answers.doctorPhone as string} />
+
+      <CheckboxField
+        label="Үйлчлүүлэгч дээрх мэдээллийг ойлгосон"
+        checked={answers.acknowledged as boolean}
+      />
+      {answers.doctorExplained !== undefined && (
+        <CheckboxField
+          label="Эмч тайлбарласан"
+          checked={answers.doctorExplained as boolean}
+        />
+      )}
+
+      {/* Section B */}
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: 12,
+          marginTop: 14,
+          marginBottom: 6,
+          textDecoration: "underline",
+        }}
+      >
+        Б) ҮЙЛЧЛҮҮЛЭГЧИЙН ЗӨВШӨӨРӨЛ
+      </div>
+
+      <CheckboxField
+        label="Үйлчлүүлэгч мэс засал/ажилбарыг хийлгэхэд зөвшөөрч байна"
+        checked={answers.patientConsentMain as boolean}
+      />
+      <CheckboxField
+        label="Үйлчлүүлэгч мэдээллийг хүлээн авсан"
+        checked={answers.patientConsentInfo as boolean}
+      />
+
+      <DottedField label="Үйлчлүүлэгчийн нэр" value={answers.patientSignatureName as string} />
+      <DottedField label="Асран хамгаалагчийн нэр" value={answers.guardianName as string} />
+      <DottedField
+        label="Асран хамгаалагчийн харилцааны тайлбар"
+        value={answers.guardianRelationDescription as string}
+      />
+
+      <div style={{ marginBottom: 4, fontWeight: 600 }}>Чадамжгүйн шалтгаан:</div>
+      <CheckboxField label="Насанд хүрээгүй" checked={incapacityReason.minor as boolean} />
+
+      <CheckboxField
+        label="Нөхөр/эхнэрийн зөвшөөрөл авсан"
+        checked={answers.husbandConsent as boolean}
+      />
+      <DottedField label="Нөхөр/эхнэрийн нэр" value={answers.husbandName as string} />
+      <DottedField
+        label="Татгалзсан шалтгаан"
+        value={answers.husbandRefuseReason as string}
+      />
+
+      {/* Signature block */}
+      <div
+        style={{
+          display: "flex",
+          gap: 16,
+          marginTop: 16,
+          borderTop: "1px solid #000",
+          paddingTop: 10,
+        }}
+      >
+        {/* Patient column */}
+        <div style={{ flex: 1 }}>
+          <div style={{ marginBottom: 6, fontSize: 11 }}>
+            Үйлчлүүлэгч: <strong>{patientName}</strong>
+          </div>
+          {patientSig ? (
+            <img
+              src={patientSig}
+              alt="Patient signature"
+              style={{
+                maxWidth: "100%",
+                maxHeight: 70,
+                border: "1px solid #ccc",
+                display: "block",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                height: 50,
+                borderBottom: "1px solid #000",
+                width: "80%",
+              }}
+            />
+          )}
+          <div style={{ fontSize: 10, marginTop: 2 }}>Гарын үсэг</div>
+        </div>
+
+        {/* Doctor column */}
+        <div style={{ flex: 1 }}>
+          <div style={{ marginBottom: 6, fontSize: 11 }}>
+            Эмчлэгч эмч: <strong>{doctorName}</strong>
+          </div>
+          {doctorSig ? (
+            <img
+              src={doctorSig}
+              alt="Doctor signature"
+              style={{
+                maxWidth: "100%",
+                maxHeight: 70,
+                border: "1px solid #ccc",
+                display: "block",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                height: 50,
+                borderBottom: "1px solid #000",
+                width: "80%",
+              }}
+            />
+          )}
+          <div style={{ fontSize: 10, marginTop: 2 }}>Гарын үсэг</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ConsentPrintPage() {
   const router = useRouter();
   const { encounterId: encIdParam, type: typeParam } = router.query;
@@ -302,7 +559,17 @@ export default function ConsentPrintPage() {
         </div>
       )}
 
-      {!loading && !error && encounter && type !== "root_canal" && (
+      {!loading && !error && encounter && type === "surgery" && consent && (
+        <SurgeryTemplate encounter={encounter} consent={consent} />
+      )}
+
+      {!loading && !error && encounter && type === "surgery" && !consent && (
+        <div style={{ padding: 32, fontFamily: "sans-serif" }}>
+          Энэ үзлэгт surgery зөвшөөрлийн маягт байхгүй байна.
+        </div>
+      )}
+
+      {!loading && !error && encounter && type !== "root_canal" && type !== "surgery" && (
         <div style={{ padding: 32, fontFamily: "sans-serif" }}>
           <strong>Template not implemented</strong> — "{type}" төрлийн зөвшөөрлийн
           маягтын загвар одоогоор бэлэн болоогүй байна.
