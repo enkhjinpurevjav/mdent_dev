@@ -12,6 +12,7 @@ type AppointmentDetailsModalProps = {
   slotTime?: string; // HH:MM
   date?: string; // YYYY-MM-DD
   appointments: Appointment[];
+  slotAppointmentCount?: number;
   onStatusUpdated?: (updated: Appointment) => void;
   onEditAppointment?: (a: Appointment) => void;
   onCreateAppointmentInSlot?: () => void;
@@ -52,6 +53,7 @@ export default function AppointmentDetailsModal({
   slotTime,
   date,
   appointments,
+  slotAppointmentCount,
   onStatusUpdated,
   onEditAppointment,
   onCreateAppointmentInSlot,
@@ -75,7 +77,10 @@ export default function AppointmentDetailsModal({
     editingStatus === "no_show" ||
     editingStatus === "cancelled" ||
     editingStatus === "other";
-  
+
+  const effectiveSlotCount = slotAppointmentCount ?? appointments.length;
+  const isSlotFull = effectiveSlotCount >= 2;
+
   if (!open) return null;
 
     const handleCancelEdit = () => {
@@ -261,17 +266,21 @@ export default function AppointmentDetailsModal({
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <button
               type="button"
-              onClick={() => onCreateAppointmentInSlot?.()}
-              disabled={appointments.length >= 2}
-              title={appointments.length >= 2 ? "Энэ цагт 2 захиалга бүртгэгдсэн байна" : undefined}
+              onClick={() => {
+                if (isSlotFull) return;
+                onCreateAppointmentInSlot?.();
+              }}
+              disabled={isSlotFull}
+              title={isSlotFull ? "Энэ цаг дээр хамгийн ихдээ 2 захиалга үүсгэх боломжтой." : undefined}
               style={{
                 padding: "3px 10px",
                 borderRadius: 6,
-                border: "1px solid #2563eb",
-                background: appointments.length >= 2 ? "#f3f4f6" : "#eff6ff",
-                color: appointments.length >= 2 ? "#9ca3af" : "#1d4ed8",
+                border: `1px solid ${isSlotFull ? "#d1d5db" : "#2563eb"}`,
+                background: isSlotFull ? "#f3f4f6" : "#eff6ff",
+                color: isSlotFull ? "#9ca3af" : "#1d4ed8",
                 fontSize: 12,
-                cursor: appointments.length >= 2 ? "not-allowed" : "pointer",
+                cursor: isSlotFull ? "not-allowed" : "pointer",
+                opacity: isSlotFull ? 0.6 : 1,
               }}
             >
               Шинэ цаг захиалах

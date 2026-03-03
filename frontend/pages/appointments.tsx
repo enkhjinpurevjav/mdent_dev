@@ -1744,6 +1744,7 @@ const totalCompletedPatientsForDay = useMemo(() => {
     slotTime?: string;
     date?: string;
     appointments: Appointment[];
+    slotAppointmentCount?: number;
   }>({
     open: false,
     appointments: [],
@@ -2734,6 +2735,18 @@ const handleCancelDraft = (appointmentId: number) => {
                         if (isDragging || hasPendingSave || activeDrag) return;
                         
                         e.stopPropagation();
+                        const aStart = new Date(a.scheduledAt);
+                        const aSlotStart = floorToSlotStart(aStart, SLOT_MINUTES);
+                        const aSlotEnd = new Date(aSlotStart.getTime() + SLOT_MINUTES * 60 * 1000);
+                        const slotAppointmentCount = doctorAppointments.filter((other) => {
+                          const otherStart = new Date(other.scheduledAt);
+                          if (Number.isNaN(otherStart.getTime())) return false;
+                          const otherEnd =
+                            other.endAt && !Number.isNaN(new Date(other.endAt).getTime())
+                              ? new Date(other.endAt)
+                              : new Date(otherStart.getTime() + SLOT_MINUTES * 60 * 1000);
+                          return otherStart < aSlotEnd && otherEnd > aSlotStart;
+                        }).length;
                         setDetailsModalState({
                           open: true,
                           doctor: doc,
@@ -2741,6 +2754,7 @@ const handleCancelDraft = (appointmentId: number) => {
                           slotTime: "",
                           date: filterDate,
                           appointments: [a],
+                          slotAppointmentCount,
                         });
                       };
 
@@ -2881,6 +2895,7 @@ const handleCancelDraft = (appointmentId: number) => {
   slotTime={detailsModalState.slotTime}
   date={detailsModalState.date}
   appointments={detailsModalState.appointments}
+  slotAppointmentCount={detailsModalState.slotAppointmentCount}
   onStatusUpdated={(updated) => {
     // update main list
     setAppointments((prev) =>
