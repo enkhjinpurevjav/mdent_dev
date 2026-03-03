@@ -132,7 +132,7 @@ function AppointmentForm({
   const [form, setForm] = useState({
     patientQuery: "",
     doctorId: "",
-    branchId: branches.length ? String(branches[0].id) : "",
+    branchId: selectedBranchId || "",
     date: selectedDate || todayStr,
     startTime: "",
     endTime: "",
@@ -177,10 +177,12 @@ function AppointmentForm({
 
   // keep branch in form in sync
   useEffect(() => {
+    // Only auto-default when a specific branch is already selected (not "Бүх салбар")
+    if (!selectedBranchId) return;
     if (!form.branchId && branches.length > 0) {
       setForm((prev) => ({ ...prev, branchId: String(branches[0].id) }));
     }
-  }, [branches, form.branchId]);
+  }, [branches, form.branchId, selectedBranchId]);
 
   useEffect(() => {
     if (selectedDate) {
@@ -1113,6 +1115,28 @@ if (quickPatientForm.regNo.trim()) {
     />
   </label>
 
+  {/* РД (optional) */}
+  <label
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      gap: 4,
+    }}
+  >
+    РД
+    <input
+      name="regNo"
+      value={quickPatientForm.regNo}
+      onChange={handleQuickPatientChange}
+      placeholder="РД оруулна уу"
+      style={{
+        borderRadius: 6,
+        border: "1px solid #d1d5db",
+        padding: "6px 8px",
+      }}
+    />
+  </label>
+
   {/* Салбар (required – already enforced in logic) */}
   <label
     style={{
@@ -1139,28 +1163,6 @@ if (quickPatientForm.regNo.trim()) {
         </option>
       ))}
     </select>
-  </label>
-
-  {/* РД (optional) */}
-  <label
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: 4,
-    }}
-  >
-    РД
-    <input
-      name="regNo"
-      value={quickPatientForm.regNo}
-      onChange={handleQuickPatientChange}
-      placeholder="РД оруулна уу"
-      style={{
-        borderRadius: 6,
-        border: "1px solid #d1d5db",
-        padding: "6px 8px",
-      }}
-    />
   </label>
 
   
@@ -1755,6 +1757,7 @@ const totalCompletedPatientsForDay = useMemo(() => {
     doctorId?: number;
     date: string;
     time: string;
+    branchId?: string;
   }>({
     open: false,
     date: filterDate,
@@ -2529,11 +2532,14 @@ const handleCancelDraft = (appointmentId: number) => {
                       appointments: validApps,
                     });
                   } else {
+                    const cellSchedule = (doc.schedules || []).find((s: any) => s.date === filterDate);
+                    const cellBranchId = cellSchedule ? String(cellSchedule.branchId) : (effectiveBranchId || filterBranchId);
                     setQuickModalState({
                       open: true,
                       doctorId: doc.id,
                       date: filterDate,
                       time: slotTimeStr,
+                      branchId: cellBranchId,
                     });
                   }
                 };
@@ -2915,11 +2921,17 @@ const handleCancelDraft = (appointmentId: number) => {
   }}
   onCreateAppointmentInSlot={() => {
     setDetailsModalState((prev) => ({ ...prev, open: false }));
+    const slotDate = detailsModalState.date || filterDate;
+    const slotDocId = detailsModalState.doctor?.id;
+    const slotScheduledDoc = slotDocId != null ? scheduledDoctors.find((sd) => sd.id === slotDocId) : null;
+    const slotSchedule = slotScheduledDoc ? (slotScheduledDoc.schedules || []).find((s) => s.date === slotDate) : null;
+    const slotBranchId = slotSchedule ? String(slotSchedule.branchId) : (effectiveBranchId || filterBranchId);
     setQuickModalState({
       open: true,
-      doctorId: detailsModalState.doctor?.id,
-      date: detailsModalState.date || filterDate,
+      doctorId: slotDocId,
+      date: slotDate,
       time: detailsModalState.slotTime || "09:00",
+      branchId: slotBranchId,
     });
   }}
 />
@@ -2938,7 +2950,8 @@ const handleCancelDraft = (appointmentId: number) => {
   doctors={doctors}
   scheduledDoctors={scheduledDoctors}
   appointments={appointments}
-  selectedBranchId={effectiveBranchId || filterBranchId}
+  selectedBranchId={quickModalState.branchId ?? (effectiveBranchId || filterBranchId)}
+  allowAutoDefaultBranch={false}
   onCreated={(a) => {
     setAppointments((prev) => [a, ...prev]);
     // close create mode

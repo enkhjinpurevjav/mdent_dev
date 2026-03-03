@@ -20,6 +20,9 @@ type QuickAppointmentModalProps = {
 
   editingAppointment?: Appointment | null;
   onUpdated?: (a: Appointment) => void;
+
+  /** When false, disables the effect that auto-fills branch to branches[0] when no branch is selected. */
+  allowAutoDefaultBranch?: boolean;
 };
 
 export default function QuickAppointmentModal({
@@ -36,6 +39,7 @@ export default function QuickAppointmentModal({
   onCreated,
   editingAppointment,
   onUpdated,
+  allowAutoDefaultBranch = true,
 }: QuickAppointmentModalProps) {
   const isEditMode = Boolean(editingAppointment);
 
@@ -44,7 +48,7 @@ export default function QuickAppointmentModal({
     patientId: null as number | null,
 
     doctorId: defaultDoctorId ? String(defaultDoctorId) : "",
-    branchId: selectedBranchId || (branches.length ? String(branches[0].id) : ""),
+    branchId: selectedBranchId || (allowAutoDefaultBranch && branches.length ? String(branches[0].id) : ""),
 
     date: defaultDate,
     startTime: defaultTime,
@@ -158,7 +162,7 @@ export default function QuickAppointmentModal({
     setForm((prev) => ({
       ...prev,
       doctorId: defaultDoctorId ? String(defaultDoctorId) : "",
-      branchId: selectedBranchId || prev.branchId,
+      branchId: selectedBranchId || (allowAutoDefaultBranch ? prev.branchId : ""),
       date: defaultDate,
       startTime: defaultTime,
       endTime: addMinutesToTimeString(defaultTime, SLOT_MINUTES),
@@ -243,13 +247,14 @@ export default function QuickAppointmentModal({
   }, [form.date, form.doctorId, scheduledDoctors]);
 
   useEffect(() => {
+    if (!allowAutoDefaultBranch) return;
     if (!form.branchId && branches.length > 0) {
       setForm((prev) => ({
         ...prev,
         branchId: String(branches[0].id),
       }));
     }
-  }, [branches, form.branchId]);
+  }, [branches, form.branchId, allowAutoDefaultBranch]);
 
   const triggerPatientSearch = (rawQuery: string) => {
     const query = rawQuery.trim();
@@ -1068,6 +1073,16 @@ export default function QuickAppointmentModal({
                   </label>
 
                   <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    РД
+                    <input
+                      name="regNo"
+                      value={quickPatientForm.regNo}
+                      onChange={handleQuickPatientChange}
+                      style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px" }}
+                    />
+                  </label>
+
+                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     Салбар
                     <select
                       name="branchId"
@@ -1082,16 +1097,6 @@ export default function QuickAppointmentModal({
                         </option>
                       ))}
                     </select>
-                  </label>
-
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    РД
-                    <input
-                      name="regNo"
-                      value={quickPatientForm.regNo}
-                      onChange={handleQuickPatientChange}
-                      style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px" }}
-                    />
                   </label>
 
                   {quickPatientError && (
