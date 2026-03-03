@@ -14,6 +14,7 @@ type AppointmentDetailsModalProps = {
   appointments: Appointment[];
   onStatusUpdated?: (updated: Appointment) => void;
   onEditAppointment?: (a: Appointment) => void;
+  onCreateAppointmentInSlot?: () => void;
 };
 
 function formatDetailedTimeRange(start: Date, end: Date | null): string {
@@ -53,6 +54,7 @@ export default function AppointmentDetailsModal({
   appointments,
   onStatusUpdated,
   onEditAppointment,
+  onCreateAppointmentInSlot,
 }: AppointmentDetailsModalProps) {
   const router = useRouter();
 
@@ -256,23 +258,67 @@ export default function AppointmentDetailsModal({
           >
             Цагийн дэлгэрэнгүй
           </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              fontSize: 18,
-              lineHeight: 1,
-            }}
-            aria-label="Close"
-          >
-            ×
-          </button>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={() => onCreateAppointmentInSlot?.()}
+              disabled={appointments.length >= 2}
+              title={appointments.length >= 2 ? "Энэ цагт 2 захиалга бүртгэгдсэн байна" : undefined}
+              style={{
+                padding: "3px 10px",
+                borderRadius: 6,
+                border: "1px solid #2563eb",
+                background: appointments.length >= 2 ? "#f3f4f6" : "#eff6ff",
+                color: appointments.length >= 2 ? "#9ca3af" : "#1d4ed8",
+                fontSize: 12,
+                cursor: appointments.length >= 2 ? "not-allowed" : "pointer",
+              }}
+            >
+              Шинэ цаг захиалах
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                fontSize: 18,
+                lineHeight: 1,
+              }}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
         </div>
 
                 {/* Patient summary header */}
+        <div
+          style={{
+            marginBottom: 4,
+            color: "#4b5563",
+          }}
+        >
+          <strong>Эмч:</strong>{" "}
+          {(() => {
+            const d = doctor;
+            const rawName = (d?.name ?? "").toString().trim();
+            const rawOvog = (d?.ovog ?? "").toString().trim();
+            if (!rawName && !rawOvog) {
+              // fallback to first appointment's doctor fields
+              const a0 = appointments[0];
+              const aName = (a0?.doctorName ?? "").toString().trim();
+              const aOvog = (a0?.doctorOvog ?? "").toString().trim();
+              if (!aName && !aOvog) return "-";
+              if (aOvog && aName) return `${aOvog.charAt(0).toUpperCase()}.${aName}`;
+              return aName || "-";
+            }
+            if (rawOvog && rawName) return `${rawOvog.charAt(0).toUpperCase()}.${rawName}`;
+            return rawName || "-";
+          })()}
+        </div>
+
         <div
           style={{
             marginBottom: 8,
@@ -327,7 +373,7 @@ export default function AppointmentDetailsModal({
         : "";
 
     if (bookNumber) {
-      const url = `/patients/${encodeURIComponent(bookNumber)}`;
+      const url = `/patients/${encodeURIComponent(bookNumber)}?tab=patient_history`;
       window.open(url, "_blank", "noopener,noreferrer");
     }
   }}
