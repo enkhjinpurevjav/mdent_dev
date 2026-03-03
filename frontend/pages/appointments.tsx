@@ -2898,6 +2898,15 @@ const handleCancelDraft = (appointmentId: number) => {
     setEditingAppointment(a);
     setQuickOpen(true);
   }}
+  onCreateAppointmentInSlot={() => {
+    setDetailsModalState((prev) => ({ ...prev, open: false }));
+    setQuickModalState({
+      open: true,
+      doctorId: detailsModalState.doctor?.id,
+      date: detailsModalState.date || filterDate,
+      time: detailsModalState.slotTime || "09:00",
+    });
+  }}
 />
 
       <QuickAppointmentModal

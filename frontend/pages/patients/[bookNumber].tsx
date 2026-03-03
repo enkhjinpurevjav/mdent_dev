@@ -63,6 +63,8 @@ export default function PatientProfilePage() {
     const tabParam = router.query.tab as string | undefined;
     if (tabParam === "ortho" || tabParam === "ortho_card") {
       setActiveTab("ortho_card");
+    } else if (tabParam === "patient_history") {
+      setActiveTab("patient_history");
     }
   }, [router.query.tab]);
 
