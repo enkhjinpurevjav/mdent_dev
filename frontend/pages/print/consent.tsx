@@ -425,7 +425,7 @@ function OrthodonticTemplate({
         </li>
       </ol>
 
-      <ol start={5} style={{ paddingLeft: 20, marginBottom: 8 }}>
+      <ol start={6} style={{ paddingLeft: 20, marginBottom: 8 }}>
         <li>
           Гажиг заслын эмчилгээний явцад хэрэглэгдэх нэмэлт тоноглолууд (hook, open coil,
           stopper, torque spring, button, band г.м) тус бүр{" "}
@@ -433,7 +433,18 @@ function OrthodonticTemplate({
         </li>
         <li>
           Эмчилгээний явцад ирэхгүй 3 сар тутамд нэмэлт төлбөр{" "}
-          <strong>{orthoNoShowFee3m || "___"}</strong> төгрөг бодогдоно.
+          <span
+            style={{
+              display: "inline-block",
+              minWidth: 60,
+              borderBottom: "1px solid #000",
+              whiteSpace: "nowrap",
+              textAlign: "center",
+            }}
+          >
+            {orthoNoShowFee3m}
+          </span>{" "}
+          төгрөг бодогдоно.
         </li>
         <li>
           6 сар болон түүнээс дээш хугацаагаар эмчилгээндээ ирэхгүй тохиолдолд рентген
@@ -526,6 +537,149 @@ function OrthodonticTemplate({
           <div style={{ marginBottom: 6, fontSize: 11 }}>
             Үйлчлүүлэгч:{orthoPatientAgreeName ? <strong> {orthoPatientAgreeName}</strong> : null}
           </div>
+          {patientSig ? (
+            <img
+              src={patientSig}
+              alt="Patient signature"
+              style={{
+                maxWidth: "100%",
+                maxHeight: 70,
+                border: "1px solid #ccc",
+                display: "block",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                height: 50,
+                borderBottom: "1px solid #000",
+                width: "80%",
+              }}
+            />
+          )}
+          <div style={{ fontSize: 10, marginTop: 2 }}>Гарын үсэг</div>
+        </div>
+
+        {/* Doctor column */}
+        <div style={{ flex: 1 }}>
+          <div style={{ marginBottom: 6, fontSize: 11 }}>
+            Эмчлэгч эмч: <strong>{doctorName}</strong>
+          </div>
+          {doctorSig ? (
+            <img
+              src={doctorSig}
+              alt="Doctor signature"
+              style={{
+                maxWidth: "100%",
+                maxHeight: 70,
+                border: "1px solid #ccc",
+                display: "block",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                height: 50,
+                borderBottom: "1px solid #000",
+                width: "80%",
+              }}
+            />
+          )}
+          <div style={{ fontSize: 10, marginTop: 2 }}>Гарын үсэг</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProsthodonticTemplate({
+  encounter,
+  consent,
+}: {
+  encounter: Encounter;
+  consent: EncounterConsent;
+}) {
+  const answers = (consent.answers || {}) as Record<string, unknown>;
+  const doctorName = formatDoctorDisplayName(encounter.doctor);
+  const patientSig = encounter.patientSignaturePath || consent.patientSignaturePath || null;
+  const doctorSig = encounter.doctorSignaturePath || consent.doctorSignaturePath || null;
+
+  return (
+    <div
+      style={{
+        fontFamily: "'Times New Roman', Times, serif",
+        fontSize: 11,
+        lineHeight: 1.45,
+        color: "#000",
+        padding: "10mm 14mm",
+        maxWidth: "210mm",
+        margin: "0 auto",
+        boxSizing: "border-box",
+      }}
+    >
+      {/* Header — same as RootCanalTemplate */}
+      <div style={{ textAlign: "center", marginBottom: 8 }}>
+        <img
+          src="https://mdent.cloud/clinic-logo.png"
+          alt="Clinic logo"
+          style={{ maxHeight: 60, maxWidth: 180 }}
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = "none";
+          }}
+        />
+        <div style={{ fontSize: 11 }}>
+          Утас: 7777-1234 | Хаяг: Улаанбаатар
+        </div>
+      </div>
+
+      {/* Title */}
+      <div
+        style={{
+          textAlign: "center",
+          fontWeight: 700,
+          fontSize: 13,
+          textDecoration: "underline",
+          marginBottom: 10,
+        }}
+      >
+        НАСЗ заслын эмчилгээний танилцуулах зөвшөөрөл
+      </div>
+
+      {/* Intro text */}
+      {answers.prosthoIntroText && (
+        <div style={{ marginBottom: 8, textAlign: "justify", whiteSpace: "pre-wrap" }}>
+          {answers.prosthoIntroText as string}
+        </div>
+      )}
+
+      {/* Content fields */}
+      <PlainField label="Хоёрдох удаагийн ирэлтээр:" value={answers.prosthoSecondVisit as string} />
+      <PlainField label="Эмчилгээний сул тал:" value={answers.prosthoWeakPoints as string} />
+      <PlainField label="Эмчилгээний явц:" value={answers.prosthoCourse as string} />
+      <PlainField label="Эмчилгээний үнэ өртөг:" value={answers.prosthoCost as string} />
+      <PlainField
+        label="Танилцах зөвшөөрлийг уншиж танилцсан:"
+        value={answers.prosthoAcknowledgement as string}
+      />
+
+      {/* Doctor */}
+      <div style={{ marginBottom: 8, marginTop: 8 }}>
+        Эмчлэгч эмч: <strong>{doctorName}</strong>
+      </div>
+
+      {/* Signature block */}
+      <div
+        style={{
+          display: "flex",
+          gap: 16,
+          marginTop: 12,
+          borderTop: "1px solid #000",
+          paddingTop: 10,
+        }}
+      >
+        {/* Patient column */}
+        <div style={{ flex: 1 }}>
+          <div style={{ marginBottom: 6, fontSize: 11 }}>Үйлчлүүлэгч:</div>
           {patientSig ? (
             <img
               src={patientSig}
@@ -967,7 +1121,17 @@ export default function ConsentPrintPage() {
         </div>
       )}
 
-      {!loading && !error && encounter && type !== "root_canal" && type !== "surgery" && type !== "orthodontic" && (
+      {!loading && !error && encounter && type === "prosthodontic" && consent && (
+        <ProsthodonticTemplate encounter={encounter} consent={consent} />
+      )}
+
+      {!loading && !error && encounter && type === "prosthodontic" && !consent && (
+        <div style={{ padding: 32, fontFamily: "sans-serif" }}>
+          Энэ үзлэгт prosthodontic зөвшөөрлийн маягт байхгүй байна.
+        </div>
+      )}
+
+      {!loading && !error && encounter && type !== "root_canal" && type !== "surgery" && type !== "orthodontic" && type !== "prosthodontic" && (
         <div style={{ padding: 32, fontFamily: "sans-serif" }}>
           <strong>Template not implemented</strong> — "{type}" төрлийн зөвшөөрлийн
           маягтын загвар одоогоор бэлэн болоогүй байна.
