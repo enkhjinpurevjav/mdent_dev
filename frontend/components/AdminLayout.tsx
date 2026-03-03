@@ -54,7 +54,7 @@ const navItems: NavItem[] = [
 
  // 4. Үйлчлүүлэгчид  ✅ make it a direct link, remove children
 {
-  label: "Үйлчлүүлэгчдийн жагсаалт",
+  label: "Үйлчлүүлэгч",
   href: "/patients",
   icon: "👥",
 },
