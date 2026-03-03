@@ -247,12 +247,11 @@ export default function AdminLayout({ children }: Props) {
     >
       {/* LEFT SIDEBAR */}
       <aside
+        className="hidden lg:flex lg:flex-col"
         style={{
           width: 260,
           background: "#ffffff",
           borderRight: "1px solid #e5e7eb",
-          display: "flex",
-          flexDirection: "column",
         }}
       >
         {/* Header */}
