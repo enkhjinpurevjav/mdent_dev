@@ -141,6 +141,10 @@ function AppointmentForm({
   });
   const [error, setError] = useState("");
 
+  // duration selector state
+  const [durationMinutes, setDurationMinutes] = useState(30);
+  const [endTimeManuallySet, setEndTimeManuallySet] = useState(false);
+
   const [patientResults, setPatientResults] = useState<PatientLite[]>([]);
   const [patientSearchLoading, setPatientSearchLoading] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
@@ -293,25 +297,34 @@ function AppointmentForm({
     setForm((prev) => {
       if (name === "startTime") {
         const newStart = value;
-        let newEnd = prev.endTime;
-
-        if (!newEnd || newEnd <= newStart) {
-          newEnd = addMinutesToTimeString(newStart, SLOT_MINUTES);
+        let newEnd: string;
+        if (!endTimeManuallySet) {
+          newEnd = addMinutesToTimeString(newStart, durationMinutes);
+        } else {
+          newEnd = prev.endTime && prev.endTime > newStart
+            ? prev.endTime
+            : addMinutesToTimeString(newStart, SLOT_MINUTES);
         }
-
-        return {
-          ...prev,
-          startTime: newStart,
-          endTime: newEnd,
-        };
+        return { ...prev, startTime: newStart, endTime: newEnd };
       }
 
       if (name === "endTime") {
+        setEndTimeManuallySet(true);
         return { ...prev, endTime: value };
       }
 
       return { ...prev, [name]: value };
     });
+  };
+
+  const handleDurationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const mins = Number(e.target.value);
+    setDurationMinutes(mins);
+    setEndTimeManuallySet(false);
+    setForm((prev) => ({
+      ...prev,
+      endTime: prev.startTime ? addMinutesToTimeString(prev.startTime, mins) : prev.endTime,
+    }));
   };
 
   const triggerPatientSearch = (rawQuery: string) => {
@@ -669,6 +682,8 @@ if (quickPatientForm.regNo.trim()) {
         }));
         setSelectedPatientId(null);
         setPatientResults([]);
+        setDurationMinutes(30);
+        setEndTimeManuallySet(false);
       } else {
         setError((data as any).error || "Алдаа гарлаа");
       }
@@ -902,6 +917,27 @@ if (quickPatientForm.regNo.trim()) {
               {slot.label}
             </option>
           ))}
+        </select>
+      </div>
+
+      {/* Duration selector */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <label>Үргэлжлэх хугацаа</label>
+        <select
+          value={durationMinutes}
+          onChange={(e) => {
+            handleDurationChange(e);
+            setError("");
+          }}
+          style={{
+            borderRadius: 6,
+            border: "1px solid #d1d5db",
+            padding: "6px 8px",
+          }}
+        >
+          <option value={30}>30 мин</option>
+          <option value={60}>60 мин</option>
+          <option value={90}>90 мин</option>
         </select>
       </div>
 

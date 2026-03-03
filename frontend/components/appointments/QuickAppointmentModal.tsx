@@ -60,6 +60,10 @@ export default function QuickAppointmentModal({
 
   const [error, setError] = useState("");
 
+  // duration selector state (create mode only)
+  const [durationMinutes, setDurationMinutes] = useState(30);
+  const [endTimeManuallySet, setEndTimeManuallySet] = useState(false);
+
   const workingDoctors = scheduledDoctors.length ? scheduledDoctors : doctors;
 
   const [patientResults, setPatientResults] = useState<PatientLite[]>([]);
@@ -171,6 +175,8 @@ export default function QuickAppointmentModal({
       status: "booked",
       notes: "",
     }));
+    setDurationMinutes(30);
+    setEndTimeManuallySet(false);
     setError("");
     setPatientResults([]);
   }, [open, defaultDoctorId, defaultDate, defaultTime, selectedBranchId, editingAppointment]);
@@ -380,14 +386,21 @@ export default function QuickAppointmentModal({
     setForm((prev) => {
       if (name === "startTime") {
         const newStart = value;
-        let newEnd = prev.endTime;
-        if (!newEnd || newEnd <= newStart) {
-          newEnd = addMinutesToTimeString(newStart, SLOT_MINUTES);
+        let newEnd: string;
+        if (!isEditMode && !endTimeManuallySet) {
+          newEnd = addMinutesToTimeString(newStart, durationMinutes);
+        } else {
+          newEnd = prev.endTime && prev.endTime > newStart
+            ? prev.endTime
+            : addMinutesToTimeString(newStart, SLOT_MINUTES);
         }
         return { ...prev, startTime: newStart, endTime: newEnd };
       }
 
       if (name === "endTime") {
+        if (!isEditMode) {
+          setEndTimeManuallySet(true);
+        }
         return { ...prev, endTime: value };
       }
 
@@ -398,6 +411,16 @@ export default function QuickAppointmentModal({
 
       return { ...prev, [name]: value };
     });
+  };
+
+  const handleDurationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const mins = Number(e.target.value);
+    setDurationMinutes(mins);
+    setEndTimeManuallySet(false);
+    setForm((prev) => ({
+      ...prev,
+      endTime: prev.startTime ? addMinutesToTimeString(prev.startTime, mins) : prev.endTime,
+    }));
   };
 
   const handleQuickPatientChange = (
@@ -887,6 +910,26 @@ export default function QuickAppointmentModal({
               ))}
             </select>
           </div>
+
+          {/* Duration selector (create mode only) */}
+          {!isEditMode && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label>Үргэлжлэх хугацаа</label>
+              <select
+                value={durationMinutes}
+                onChange={handleDurationChange}
+                style={{
+                  borderRadius: 6,
+                  border: "1px solid #d1d5db",
+                  padding: "6px 8px",
+                }}
+              >
+                <option value={30}>30 мин</option>
+                <option value={60}>60 мин</option>
+                <option value={90}>90 мин</option>
+              </select>
+            </div>
+          )}
 
           {/* End time (editable) */}
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
