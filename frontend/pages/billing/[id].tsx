@@ -3683,13 +3683,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
             <div>
               <strong>Төрөл:</strong> {formatConsentTypeLabel(c.type)}
             </div>
-            <div style={{ color: "#6b7280", marginTop: 2 }}>
-              Өвчтөн гарын үсэг:{" "}
-              {c.patientSignedAt ? formatDateTime(c.patientSignedAt) : "—"}
-              {" • "}
-              Эмч гарын үсэг:{" "}
-              {c.doctorSignedAt ? formatDateTime(c.doctorSignedAt) : "—"}
-            </div>
+            
           </div>
 
           <button
