@@ -175,6 +175,17 @@ function formatMoney(v: number | null | undefined) {
   return new Intl.NumberFormat("mn-MN").format(Number(v));
 }
 
+const CONSENT_TYPE_LABELS: Record<string, string> = {
+  root_canal: "Сувгийн эмчилгээ",
+  surgery: "Мэс засал",
+  orthodontic: "Гажиг засал",
+  prosthodontic: "Согог засал",
+};
+
+function formatConsentTypeLabel(type: string): string {
+  return CONSENT_TYPE_LABELS[type] ?? type;
+}
+
 // ----------------- Payment section -----------------
 
 // Rounding tolerance (₮) when validating split allocation totals
@@ -3670,7 +3681,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
         >
           <div>
             <div>
-              <strong>Төрөл:</strong> {c.type}
+              <strong>Төрөл:</strong> {formatConsentTypeLabel(c.type)}
             </div>
             <div style={{ color: "#6b7280", marginTop: 2 }}>
               Өвчтөн гарын үсэг:{" "}
