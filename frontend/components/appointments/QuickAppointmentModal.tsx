@@ -936,7 +936,7 @@ export default function QuickAppointmentModal({
                 cursor: "pointer",
               }}
             >
-              Цуцлах
+              Хаах
             </button>
 
             <button
@@ -1063,7 +1063,7 @@ export default function QuickAppointmentModal({
                         cursor: quickPatientSaving ? "default" : "pointer",
                       }}
                     >
-                      Цуцлах
+                      Хаах
                     </button>
 
                     <button
