@@ -13,6 +13,7 @@ import { formatDoctorName, formatPatientLabel, formatGridShortLabel, formatPatie
 import AppointmentDetailsModal from "../components/appointments/AppointmentDetailsModal";
 import QuickAppointmentModal from "../components/appointments/QuickAppointmentModal";
 import PendingSaveBar from "../components/appointments/PendingSaveBar";
+import AgendaView from "../components/appointments/AgendaView";
 
 function groupByDate(appointments: Appointment[]) {
   const map: Record<string, Appointment[]> = {};
@@ -2042,6 +2043,41 @@ const handleCancelDraft = (appointmentId: number) => {
       fontFamily: "sans-serif",
     }}
   >
+{/* Mobile / Tablet agenda view (hidden on lg+) */}
+<div className="lg:hidden">
+  <AgendaView
+    filterDate={filterDate}
+    setFilterDate={setFilterDate}
+    dayAppointments={dayAppointments}
+    branches={branches}
+    filterBranchId={filterBranchId}
+    isLocked={isLocked}
+    effectiveBranchId={effectiveBranchId}
+    unlock={unlock}
+    onBranchChange={(branchId) => {
+      if (!isLocked) {
+        setFilterBranchId(branchId);
+        setActiveBranchTab(branchId);
+        const query = branchId ? { branchId } : {};
+        router.push({ pathname: "/appointments", query }, undefined, { shallow: true });
+      }
+    }}
+    onAppointmentClick={(a) => {
+      setDetailsModalState({
+        open: true,
+        doctor: doctors.find((d) => d.id === a.doctorId) as any ?? null,
+        slotLabel: "",
+        slotTime: "",
+        date: filterDate,
+        appointments: [a],
+        slotAppointmentCount: 1,
+      });
+    }}
+  />
+</div>
+
+{/* Desktop calendar view (hidden below lg) */}
+<div className="hidden lg:block">
 <h1 style={{ fontSize: 20, margin: "4px 0 8px" }}>Цаг захиалга</h1>
 <p style={{ color: "#6b7280", fontSize: 13, marginBottom: 12 }}>
   Эмч, үйлчлүүлэгч, салбарын цаг захиалгыг харах болон удирдах хэсэг
@@ -2939,6 +2975,7 @@ const handleCancelDraft = (appointmentId: number) => {
       {/* Day-grouped calendar (unchanged from your original) */}
       {/* ... and the raw table + modals, same as before ... */}
       {/* Keep your existing bottom sections exactly as they were. */}
+</div>{/* end hidden lg:block */}
 
      <AppointmentDetailsModal
   open={detailsModalState.open}
