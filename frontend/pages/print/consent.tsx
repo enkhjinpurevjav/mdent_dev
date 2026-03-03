@@ -213,17 +213,16 @@ function DottedField({
 }) {
   return (
     <div style={{ marginBottom: 6 }}>
-      <span style={{ fontWeight: 600 }}>{label}: </span>
-      <span
+      <div style={{ fontWeight: 600, marginBottom: 2 }}>{label}</div>
+      <div
         style={{
-          display: "inline-block",
-          minWidth: 200,
-          borderBottom: "1px dotted #000",
+          borderBottom: "1px solid #000",
+          minHeight: 18,
           paddingBottom: 1,
         }}
       >
         {value || ""}
-      </span>
+      </div>
     </div>
   );
 }
@@ -266,17 +265,36 @@ function SurgeryTemplate({
 }) {
   const answers = (consent.answers || {}) as Record<string, unknown>;
   const surgeryMode = (answers.surgeryMode as string) || "SURGERY";
-  const title =
-    surgeryMode === "PROCEDURE"
-      ? "МЭС АЖИЛБАР ХИЙЛГЭХ ТУХАЙ ЗӨВШӨӨРЛИЙН ХУУДАС"
-      : "МЭС ЗАСАЛ ХИЙЛГЭХ ТУХАЙ ЗӨВШӨӨРЛИЙН ХУУДАС";
+  const isProcedure = surgeryMode === "PROCEDURE";
+  const title = isProcedure
+    ? "МЭС АЖИЛБАР ХИЙЛГЭХ ТУХАЙ ЗӨВШӨӨРЛИЙН ХУУДАС"
+    : "МЭС ЗАСАЛ ХИЙЛГЭХ ТУХАЙ ЗӨВШӨӨРЛИЙН ХУУДАС";
 
   const doctorName = formatDoctorDisplayName(encounter.doctor);
-  const patientName = (answers.patientName as string) || "";
+  const patientSignatureName = (answers.patientSignatureName as string) || "";
   const patientSig = consent.patientSignaturePath || encounter.patientSignaturePath || null;
   const doctorSig = consent.doctorSignaturePath || encounter.doctorSignaturePath || null;
 
-  const incapacityReason = (answers.incapacityReason as { minor?: boolean } | undefined) || {};
+  const incapacityReason = (answers.incapacityReason as Record<string, unknown> | undefined) || {};
+
+  const nameLabel = isProcedure
+    ? "Санал болгож буй мэс ажилбарын нэр:"
+    : "Санал болгож буй мэс заслын нэр:";
+  const outcomeLabel = isProcedure
+    ? "Санал болгож буй мэс ажилбарын үр дүн (эмнэл зүйн туршлагын дүн, нотолгоонд тулгуурлан бүрэн эдгэрэлт, сайжралт, эндэгдэл, хүндрэлийн магадлалыг хувиар илэрхийлэн ойлгомжтойгоор тайлбарлана):"
+    : "Санал болгож буй мэс заслын үр дүн (эмнэл зүйн туршлагын дүн, нотолгоонд тулгуурлан бүрэн эдгэрэлт, сайжралт, эндэгдэл, хүндрэлийн магадлалыг хувиар илэрхийлэн тайлбарлана):";
+  const additionalProceduresLabel = isProcedure
+    ? "Тухайн мэс ажилбарын үед хийгдэж болох нэмэлт ажилбарууд (ажилбаруудыг нэг бүрчлэн дурдана):"
+    : "Тухайн мэс заслын үед хийгдэж болох нэмэлт ажилбарууд:";
+  const alternativeTreatmentsLabel = isProcedure
+    ? "Тухайн мэс ажилбар орлуулах боломжтой эмчилгээний бусад аргууд (бусад аргуудыг дурдана):"
+    : "Тухайн мэс заслыг орлуулах боломжтой бусад эмчилгээний аргууд:";
+  const advantagesLabel = isProcedure
+    ? "Санал болгож буй мэс ажилбарын давуу тал:"
+    : "Санал болгож буй мэс заслын давуу тал:";
+  const anesthesiaHeader = isProcedure
+    ? "Санал болгож буй мэс ажилбарын үед хийгдэх мэдээгүйжүүлэлт:"
+    : "Санал болгож буй мэс заслын үед хийгдэх мэдээгүйжүүлэлт:";
 
   return (
     <div
@@ -322,32 +340,37 @@ function SurgeryTemplate({
         А) МЭДЭЭЛЛИЙН ХУУДАС
       </div>
 
-      <DottedField label="Хийгдэх мэс засал/ажилбарын нэр" value={answers.name as string} />
-      <DottedField label="Үр дүн" value={answers.outcome as string} />
-      <DottedField label="Эрсдэлүүд" value={answers.risks as string} />
-      <DottedField label="Хүндрэлүүд" value={answers.complications as string} />
-      <DottedField label="Нэмэлт ажилбарууд" value={answers.additionalProcedures as string} />
-      <DottedField label="Өөр эмчилгээний аргууд" value={answers.alternativeTreatments as string} />
-      <DottedField label="Давуу талууд" value={answers.advantages as string} />
+      <DottedField label={nameLabel} value={answers.name as string} />
+      <DottedField label={outcomeLabel} value={answers.outcome as string} />
+      <DottedField
+        label="Гарч болох эрсдлүүд (эрсдлүүдийг нэг бүрчлэн дурдана):"
+        value={answers.risks as string}
+      />
+      <DottedField
+        label="Гарч болох хүндрэлүүд (хүндрэлүүдийг нэг бүрчлэн дурдана):"
+        value={answers.complications as string}
+      />
+      <DottedField label={additionalProceduresLabel} value={answers.additionalProcedures as string} />
+      <DottedField label={alternativeTreatmentsLabel} value={answers.alternativeTreatments as string} />
+      <DottedField label={advantagesLabel} value={answers.advantages as string} />
 
-      <div style={{ marginBottom: 4, fontWeight: 600 }}>Мэдээ алдуулалтын хэлбэр:</div>
-      <CheckboxField label="Ерөнхий мэдээ алдуулалт" checked={answers.anesthesiaGeneral as boolean} />
-      <CheckboxField label="Нурууны мэдээ алдуулалт" checked={answers.anesthesiaSpinal as boolean} />
+      <div style={{ marginBottom: 4, fontWeight: 600 }}>{anesthesiaHeader}</div>
+      <CheckboxField label="Ерөнхий" checked={answers.anesthesiaGeneral as boolean} />
+      <CheckboxField label="Нугасны мэдээ алдуулалт" checked={answers.anesthesiaSpinal as boolean} />
+      <CheckboxField label="Хэсгийн мэдээ алдуулалт" checked={answers.anesthesiaLocal as boolean} />
+      <CheckboxField label="Тайвшруулалт" checked={answers.anesthesiaSedation as boolean} />
 
-      <DottedField label="Үйлчлүүлэгчийн асуулт" value={answers.patientQuestions as string} />
-      <DottedField label="Асуултын хураангуй" value={answers.questionSummary as string} />
-      <DottedField label="Эмчийн утас" value={answers.doctorPhone as string} />
+      <DottedField
+        label="Үйлчлүүлэгчээс тавьсан асуулт:"
+        value={answers.patientQuestions as string}
+      />
+      <DottedField label="Дээрх асуултын товч:" value={answers.questionSummary as string} />
+      <DottedField label="Эмчтэй холбоо барих утас:" value={answers.doctorPhone as string} />
 
       <CheckboxField
-        label="Үйлчлүүлэгч дээрх мэдээллийг ойлгосон"
-        checked={answers.acknowledged as boolean}
+        label="Би үйлчлүүлэгчдээ дээрх мэдээллүүдийг дэлгэрэнгүй, энгийн ойлгомжтой хэллэгээр тайлбарлаж өгсөн болно."
+        checked={answers.doctorExplained as boolean}
       />
-      {answers.doctorExplained !== undefined && (
-        <CheckboxField
-          label="Эмч тайлбарласан"
-          checked={answers.doctorExplained as boolean}
-        />
-      )}
 
       {/* Section B */}
       <div
@@ -363,31 +386,58 @@ function SurgeryTemplate({
       </div>
 
       <CheckboxField
-        label="Үйлчлүүлэгч мэс засал/ажилбарыг хийлгэхэд зөвшөөрч байна"
+        label="Эмчийн санал болгож буй мэс засал / мэс ажилбарыг дээрхи мэдээ алдуулалтаар хийлгэхийг БИ ЗӨВШӨӨРЧ БАЙНА. Түүнчлэн гэмтсэн эд, эрхтний хэсэг болон эд эрхтнийг журмын дагуу устгахыг уг эмнэлэгт зөвшөөрч байна."
         checked={answers.patientConsentMain as boolean}
       />
       <CheckboxField
-        label="Үйлчлүүлэгч мэдээллийг хүлээн авсан"
+        label="Мэс засал / мэс ажилбарын үр дүн, гарч болох хүндрэл, эрсдэл, нэмэлт ажилбарууд, орлуулж болох эмчилгээний талаар БИ тодорхой мэдээлэл авсан болно."
         checked={answers.patientConsentInfo as boolean}
       />
 
-      <DottedField label="Үйлчлүүлэгчийн нэр" value={answers.patientSignatureName as string} />
-      <DottedField label="Асран хамгаалагчийн нэр" value={answers.guardianName as string} />
       <DottedField
-        label="Асран хамгаалагчийн харилцааны тайлбар"
+        label="Үйлчлүүлэгчийн нэр (гарын үсгийн талбарын оронд):"
+        value={answers.patientSignatureName as string}
+      />
+      <DottedField
+        label="Асран хамгаалагч / харгалзан дэмжигчийн нэр (хэрэв үйлчлүүлэгч эрх зүйн чадамжгүй бол):"
+        value={answers.guardianName as string}
+      />
+      <DottedField
+        label="Холбоо, хамаарал (нөхөр, аав, ээж гэх мэт):"
         value={answers.guardianRelationDescription as string}
       />
 
-      <div style={{ marginBottom: 4, fontWeight: 600 }}>Чадамжгүйн шалтгаан:</div>
-      <CheckboxField label="Насанд хүрээгүй" checked={incapacityReason.minor as boolean} />
+      <div style={{ marginBottom: 4, fontWeight: 600 }}>
+        Үйлчлүүлэгч эрх зүйн чадамжгүй байгаа шалтгаан:
+      </div>
+      <CheckboxField label="Насанд хүрээгүй" checked={!!incapacityReason.minor} />
+      <CheckboxField label="Ухаангүй" checked={!!incapacityReason.unconscious} />
+      <CheckboxField label="Сэтгэцийн эмгэгтэй" checked={!!incapacityReason.mentalDisorder} />
+      <CheckboxField label="Бусад (тайлбарлана уу)" checked={!!incapacityReason.other} />
+      {incapacityReason.otherText && (
+        <div
+          style={{
+            marginBottom: 6,
+            marginLeft: 20,
+            borderBottom: "1px solid #000",
+            minHeight: 18,
+            paddingBottom: 1,
+          }}
+        >
+          {incapacityReason.otherText as string}
+        </div>
+      )}
 
+      <div style={{ marginTop: 8, marginBottom: 4, fontWeight: 600 }}>
+        Хэрэв өвчтөн жирэмсэн тохиолдолд:
+      </div>
       <CheckboxField
-        label="Нөхөр/эхнэрийн зөвшөөрөл авсан"
+        label="Миний эхнэрийн хийлгэхээр зөвшөөрсөн мэс ажилбар / мэс заслыг би зөвшөөрч байна."
         checked={answers.husbandConsent as boolean}
       />
-      <DottedField label="Нөхөр/эхнэрийн нэр" value={answers.husbandName as string} />
+      <DottedField label="Нөхрийн нэр:" value={answers.husbandName as string} />
       <DottedField
-        label="Татгалзсан шалтгаан"
+        label="Хэрэв нөхөр / асран хамгаалагч / харгалзан дэмжигч нь зөвшөөрөөгүй бол тайлбарлана уу:"
         value={answers.husbandRefuseReason as string}
       />
 
@@ -404,7 +454,7 @@ function SurgeryTemplate({
         {/* Patient column */}
         <div style={{ flex: 1 }}>
           <div style={{ marginBottom: 6, fontSize: 11 }}>
-            Үйлчлүүлэгч: <strong>{patientName}</strong>
+            Үйлчлүүлэгч:{patientSignatureName ? <strong> {patientSignatureName}</strong> : null}
           </div>
           {patientSig ? (
             <img
