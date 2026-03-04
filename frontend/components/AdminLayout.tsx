@@ -700,8 +700,8 @@ export default function AdminLayout({ children }: Props) {
               }}
             />
             <div style={{ lineHeight: 1.3 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Admin</div>
-              <div style={{ fontSize: 12, color: "#6b7280" }}>Mon Family Dental</div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>MON FAMILY</div>
+              <div style={{ fontSize: 12, color: "#6b7280" }}>Dental Clinic</div>
             </div>
           </div>
 
