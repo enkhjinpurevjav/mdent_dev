@@ -1,5 +1,6 @@
 import express from "express";
 import prisma from "../db.js";
+import { Prisma } from "@prisma/client";
 import multer from "multer";          
 import path from "path";
 import { parseRegNo } from "../utils/regno.js";
@@ -7,48 +8,30 @@ import { parseRegNo } from "../utils/regno.js";
 const router = express.Router();
 const uploadDir = process.env.MEDIA_UPLOAD_DIR || "/data/media";
 
-// Helper: get next available numeric bookNumber as string
+// Helper: get next available numeric bookNumber as string (Postgres-optimized)
 async function generateNextBookNumber() {
-  // 1) Load all non-empty bookNumbers and find the max numeric value
-  const books = await prisma.patientBook.findMany({
-    where: {
-      bookNumber: { not: "" },
-    },
-    select: { bookNumber: true },
-  });
+  // Fetch max numeric bookNumber via raw query for efficiency
+  const rows = await prisma.$queryRaw`
+    SELECT COALESCE(MAX("bookNumber"::int), 0) AS max
+    FROM "PatientBook"
+    WHERE "bookNumber" ~ '^[0-9]+$'
+  `;
+  let next = Number(rows[0].max) + 1 || 1;
 
-  let max = 0;
-  for (const b of books) {
-    const match = b.bookNumber && b.bookNumber.match(/^\d+$/);
-    if (match) {
-      const n = parseInt(b.bookNumber, 10);
-      if (!Number.isNaN(n) && n > max) {
-        max = n;
-      }
-    }
-  }
-
-  // Start from max + 1 (or 1 if nothing numeric exists)
-  let next = max + 1 || 1;
-
-  // 2) Ensure uniqueness: if candidate exists, keep incrementing
-  //    (protects against historical data and rare race conditions)
-  //    Dataset is small, so this simple loop is fine.
-  //    NOTE: bookNumber is unique in schema, so this mirrors that constraint.
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
+  // Retry a few times in case of a race condition on unique constraint
+  for (let _attempt = 0; _attempt < 5; _attempt++) {
     const candidate = String(next);
-
     const existing = await prisma.patientBook.findUnique({
       where: { bookNumber: candidate },
     });
-
     if (!existing) {
       return candidate;
     }
-
     next += 1;
   }
+
+  // Fallback: return the current candidate (schema unique constraint will catch conflicts)
+  return String(next);
 }
 
 // GET /api/patients
@@ -59,6 +42,8 @@ router.get("/", async (req, res) => {
     const rawLimit = parseInt(req.query.limit, 10) || 50;
     const limit = [10, 50, 100].includes(rawLimit) ? rawLimit : 50;
     const skip = (page - 1) * limit;
+    const sort = req.query.sort === "name" ? "name" : "bookNumber";
+    const dir = req.query.dir === "asc" ? "ASC" : "DESC";
 
     const where = q
       ? {
@@ -75,14 +60,73 @@ router.get("/", async (req, res) => {
     const seventeenYearsAgo = new Date();
     seventeenYearsAgo.setFullYear(seventeenYearsAgo.getFullYear() - 17);
 
-    const [data, total, totalMale, totalFemale, totalKids] = await Promise.all([
-      prisma.patient.findMany({
+    // Fetch data with appropriate sorting
+    let data;
+    if (sort === "bookNumber") {
+      // Numeric bookNumber ordering via raw query (non-lexicographic)
+      const searchPattern = q ? `%${q}%` : null;
+      const whereClause = q
+        ? Prisma.sql`WHERE (
+            p."ovog" ILIKE ${searchPattern} OR
+            p."name" ILIKE ${searchPattern} OR
+            p."regNo" ILIKE ${searchPattern} OR
+            p."phone" ILIKE ${searchPattern} OR
+            pb."bookNumber" ILIKE ${searchPattern}
+          )`
+        : Prisma.empty;
+      const orderDir = dir === "ASC" ? Prisma.sql`ASC` : Prisma.sql`DESC`;
+
+      const rows = await prisma.$queryRaw`
+        SELECT
+          p.id, p."ovog", p."name", p."regNo", p."phone", p."branchId",
+          p."createdAt", p."updatedAt", p."gender", p."birthDate",
+          p."email", p."address", p."workPlace", p."bloodType",
+          p."citizenship", p."emergencyPhone", p."notes",
+          pb.id AS "pbId", pb."bookNumber" AS "pbBookNumber", pb."patientId" AS "pbPatientId"
+        FROM "Patient" p
+        LEFT JOIN "PatientBook" pb ON pb."patientId" = p.id
+        ${whereClause}
+        ORDER BY
+          CASE WHEN pb."bookNumber" ~ '^[0-9]+$' THEN pb."bookNumber"::int END ${orderDir} NULLS LAST,
+          p.id DESC
+        LIMIT ${limit} OFFSET ${skip}
+      `;
+
+      data = rows.map((row) => ({
+        id: row.id,
+        ovog: row.ovog,
+        name: row.name,
+        regNo: row.regNo,
+        phone: row.phone,
+        branchId: row.branchId,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        gender: row.gender,
+        birthDate: row.birthDate,
+        email: row.email,
+        address: row.address,
+        workPlace: row.workPlace,
+        bloodType: row.bloodType,
+        citizenship: row.citizenship,
+        emergencyPhone: row.emergencyPhone,
+        notes: row.notes,
+        patientBook: row.pbBookNumber
+          ? { id: row.pbId, bookNumber: row.pbBookNumber, patientId: row.pbPatientId }
+          : null,
+      }));
+    } else {
+      // Name sort via Prisma
+      const nameDir = dir === "ASC" ? "asc" : "desc";
+      data = await prisma.patient.findMany({
         where,
         include: { patientBook: true },
-        orderBy: { id: "desc" },
+        orderBy: [{ name: nameDir }, { id: "desc" }],
         skip,
         take: limit,
-      }),
+      });
+    }
+
+    const [total, totalMale, totalFemale, totalKids] = await Promise.all([
       prisma.patient.count({ where }),
       prisma.patient.count({ where: { gender: "эр" } }),
       prisma.patient.count({ where: { gender: "эм" } }),
