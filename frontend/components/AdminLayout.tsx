@@ -272,8 +272,8 @@ export default function AdminLayout({ children }: Props) {
             src="/clinic-logo.png"
             alt="Clinic logo"
             style={{
-              width: 40,
-              height: 40,
+              width: 56,
+              height: 56,
               objectFit: "contain",
               display: "block",
               borderRadius: 8,
@@ -692,8 +692,8 @@ export default function AdminLayout({ children }: Props) {
               src="/clinic-logo.png"
               alt="Clinic logo"
               style={{
-                width: 40,
-                height: 40,
+                width: 56,
+                height: 56,
                 objectFit: "contain",
                 display: "block",
                 borderRadius: 8,
