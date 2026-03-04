@@ -104,6 +104,7 @@ router.get("/", async (req, res) => {
       licenseExpiryDate: u.licenseExpiryDate
         ? u.licenseExpiryDate.toISOString()
         : null,
+      calendarOrder: u.calendarOrder ?? null,
       createdAt: u.createdAt.toISOString(),
     }));
 
