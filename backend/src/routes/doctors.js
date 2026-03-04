@@ -1,5 +1,6 @@
 import express from "express";
 import prisma from "../db.js";
+import { getShiftRank } from "../utils/shiftRank.js";
 
 const router = express.Router();
 
@@ -34,27 +35,6 @@ function diffDaysInclusive(fromYmd, toYmd) {
   const end = new Date(b.y, b.m - 1, b.d, 0, 0, 0, 0);
   const days = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
   return days;
-}
-
-/**
- * Determine shift rank for sorting:
- *   0 = AM (morning shift, starts before 14:00; also used as default for unknown times)
- *   1 = PM (afternoon shift, starts at 14:00 or later)
- *   2 = WEEKEND_FULL (full-day shift: starts in the morning and lasts >= 7 hours)
- */
-const PM_THRESHOLD_MINS = 14 * 60; // 14:00
-const FULL_DAY_MIN_DURATION = 7 * 60; // 7 hours
-
-function getShiftRank(startTime, endTime) {
-  if (!startTime) return 0; // default to AM rank when time is unknown
-  const [sh, sm = 0] = startTime.split(":").map(Number);
-  const startMins = sh * 60 + sm;
-  if (endTime) {
-    const [eh, em = 0] = endTime.split(":").map(Number);
-    const endMins = eh * 60 + em;
-    if (startMins < PM_THRESHOLD_MINS && endMins - startMins >= FULL_DAY_MIN_DURATION) return 2; // WEEKEND_FULL
-  }
-  return startMins < PM_THRESHOLD_MINS ? 0 : 1; // AM or PM
 }
 
 /**
@@ -197,10 +177,13 @@ router.get("/scheduled", async (req, res) => {
     }
 
     const doctors = Array.from(byDoctor.values()).sort((a, b) => {
-      const firstA = a.schedules[0];
-      const firstB = b.schedules[0];
-      const ra = firstA ? getShiftRank(firstA.startTime, firstA.endTime) : 0;
-      const rb = firstB ? getShiftRank(firstB.startTime, firstB.endTime) : 0;
+      // Sort schedules by startTime to ensure deterministic first-schedule selection
+      const schA = [...a.schedules].sort((x, y) => (x.startTime || "").localeCompare(y.startTime || ""));
+      const schB = [...b.schedules].sort((x, y) => (x.startTime || "").localeCompare(y.startTime || ""));
+      const firstA = schA[0];
+      const firstB = schB[0];
+      const ra = firstA ? getShiftRank(firstA.startTime, firstA.date) : 0;
+      const rb = firstB ? getShiftRank(firstB.startTime, firstB.date) : 0;
       if (ra !== rb) return ra - rb;
       const ao = a.calendarOrder ?? 0;
       const bo = b.calendarOrder ?? 0;
@@ -208,12 +191,6 @@ router.get("/scheduled", async (req, res) => {
       if (a.id !== b.id) return a.id - b.id;
       return (firstA?.startTime || "").localeCompare(firstB?.startTime || "");
     });
-    return res.json(doctors);
-  } catch (err) {
-    console.error("Error fetching scheduled doctors:", err);
-    return res.status(500).json({ error: "failed to fetch scheduled doctors" });
-  }
-});
 
 /**
  * NEW: GET /api/doctors/scheduled-with-appointments
@@ -394,10 +371,13 @@ router.get("/scheduled-with-appointments", async (req, res) => {
     }
 
     const doctors = Array.from(byDoctor.values()).sort((a, b) => {
-      const firstA = a.schedules[0];
-      const firstB = b.schedules[0];
-      const ra = firstA ? getShiftRank(firstA.startTime, firstA.endTime) : 0;
-      const rb = firstB ? getShiftRank(firstB.startTime, firstB.endTime) : 0;
+      // Sort schedules by startTime to ensure deterministic first-schedule selection
+      const schA = [...a.schedules].sort((x, y) => (x.startTime || "").localeCompare(y.startTime || ""));
+      const schB = [...b.schedules].sort((x, y) => (x.startTime || "").localeCompare(y.startTime || ""));
+      const firstA = schA[0];
+      const firstB = schB[0];
+      const ra = firstA ? getShiftRank(firstA.startTime, firstA.date) : 0;
+      const rb = firstB ? getShiftRank(firstB.startTime, firstB.date) : 0;
       if (ra !== rb) return ra - rb;
       const ao = a.calendarOrder ?? 0;
       const bo = b.calendarOrder ?? 0;
