@@ -1298,6 +1298,8 @@ export default function AppointmentsPage() {
   const [scheduledDoctors, setScheduledDoctors] = useState<ScheduledDoctor[]>(
     []
   );
+  const [gridDoctorsOverride, setGridDoctorsOverride] = useState<ScheduledDoctor[] | null>(null);
+  const [reorderSaving, setReorderSaving] = useState(false);
   const [error, setError] = useState("");
 const [nowPosition, setNowPosition] = useState<number | null>(null);
 const [hasMounted, setHasMounted] = useState(false);
@@ -1385,6 +1387,7 @@ const workingDoctorsForFilter = scheduledDoctors.length
   useEffect(() => {
     setAppointments([]);
     setScheduledDoctors([]);
+    setGridDoctorsOverride(null);
     setDailyRevenue(null);
   }, [effectiveBranchId, filterDate]);
 
@@ -1469,6 +1472,7 @@ const workingDoctorsForFilter = scheduledDoctors.length
 
       if (!res.ok || !Array.isArray(data)) return;
       setScheduledDoctors(data);
+      setGridDoctorsOverride(null);
     } catch (e) {
       console.error(e);
     }
@@ -1583,11 +1587,15 @@ useEffect(() => {
 
   // gridDoctors with fallback
   const gridDoctors: ScheduledDoctor[] = useMemo(() => {
+  if (gridDoctorsOverride !== null) {
+    return gridDoctorsOverride;
+  }
+
   const sortFn = (a: ScheduledDoctor, b: ScheduledDoctor) => {
-    const ao = a.calendarOrder ?? 0;
-    const bo = b.calendarOrder ?? 0;
+    const ao = a.calendarOrder != null ? a.calendarOrder : Number.MAX_SAFE_INTEGER;
+    const bo = b.calendarOrder != null ? b.calendarOrder : Number.MAX_SAFE_INTEGER;
     if (ao !== bo) return ao - bo;
-    return (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase());
+    return (a.name || "").localeCompare((b.name || ""), "mn");
   };
 
   if (scheduledDoctors.length > 0) {
@@ -1610,7 +1618,55 @@ useEffect(() => {
   }
 
   return Object.values(byDoctor).sort(sortFn);
-}, [scheduledDoctors, appointments, doctors, filterDate]);
+}, [gridDoctorsOverride, scheduledDoctors, appointments, doctors, filterDate]);
+
+  const moveDocInGrid = useCallback(async (doctorId: number, direction: "left" | "right") => {
+    if (reorderSaving) return;
+    const list = gridDoctors;
+    const idx = list.findIndex((d) => d.id === doctorId);
+    if (idx === -1) return;
+    if (direction === "left" && idx === 0) return;
+    if (direction === "right" && idx === list.length - 1) return;
+
+    const swapIdx = direction === "left" ? idx - 1 : idx + 1;
+
+    // Snapshot previous state for rollback on failure
+    const prevList = [...list];
+
+    // Swap by index and renumber to unique values
+    const reordered = [...list];
+    [reordered[idx], reordered[swapIdx]] = [reordered[swapIdx], reordered[idx]];
+    const renumbered = reordered.map((d, i) => ({ ...d, calendarOrder: i * 10 }));
+
+    // Only persist doctors whose calendarOrder actually changed
+    const changedDoctors = renumbered.filter((d) => {
+      const old = prevList.find((p) => p.id === d.id);
+      return old?.calendarOrder !== d.calendarOrder;
+    });
+
+    setGridDoctorsOverride(renumbered);
+    setReorderSaving(true);
+    try {
+      const results = await Promise.all(
+        changedDoctors.map((d) =>
+          fetch(`/api/users/${d.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ calendarOrder: d.calendarOrder }),
+          })
+        )
+      );
+      if (results.some((r) => !r.ok)) {
+        throw new Error("Failed to update calendarOrder");
+      }
+    } catch (err) {
+      console.error("Failed to update calendarOrder", err);
+      setGridDoctorsOverride(prevList);
+      setError("Дараалал хадгалахад алдаа гарлаа");
+    } finally {
+      setReorderSaving(false);
+    }
+  }, [reorderSaving, gridDoctors]);
 
   function snapMinutesToSlot(mins: number, slot = SLOT_MINUTES) {
   return Math.round(mins / slot) * slot;
@@ -2064,8 +2120,7 @@ const handleCancelDraft = (appointmentId: number) => {
  return (
   <main
     style={{
-      maxWidth: 1100,
-      margin: "16px auto",
+      margin: "16px 0",
       padding: 24,
       fontFamily: "sans-serif",
     }}
@@ -2465,10 +2520,12 @@ const handleCancelDraft = (appointmentId: number) => {
               }}
             >
               <div style={{ padding: 8, fontWeight: "bold" }}>Цаг</div>
-              {gridDoctors.map((doc) => {
+              {gridDoctors.map((doc, idx) => {
                 const count = appointments.filter(
                   (a) => a.doctorId === doc.id
                 ).length;
+                const isLeftDisabled = reorderSaving || idx === 0;
+                const isRightDisabled = reorderSaving || idx === gridDoctors.length - 1;
                 return (
                   <div
                     key={doc.id}
@@ -2479,7 +2536,33 @@ const handleCancelDraft = (appointmentId: number) => {
                       borderLeft: "1px solid #ddd",
                     }}
                   >
-                    <div>{formatDoctorName(doc)}</div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                      <button
+                        type="button"
+                        onClick={() => moveDocInGrid(doc.id, "left")}
+                        disabled={isLeftDisabled}
+                        title="Зүүн тийш зөөх"
+                        style={{
+                          fontSize: 11,
+                          padding: "1px 5px",
+                          cursor: isLeftDisabled ? "default" : "pointer",
+                          opacity: isLeftDisabled ? 0.3 : 1,
+                        }}
+                      >◀</button>
+                      <span>{formatDoctorName(doc)}</span>
+                      <button
+                        type="button"
+                        onClick={() => moveDocInGrid(doc.id, "right")}
+                        disabled={isRightDisabled}
+                        title="Баруун тийш зөөх"
+                        style={{
+                          fontSize: 11,
+                          padding: "1px 5px",
+                          cursor: isRightDisabled ? "default" : "pointer",
+                          opacity: isRightDisabled ? 0.3 : 1,
+                        }}
+                      >▶</button>
+                    </div>
                     <div
                       style={{
                         fontSize: 11,
