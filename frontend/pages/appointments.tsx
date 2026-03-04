@@ -1564,7 +1564,8 @@ useEffect(() => {
   };
 
   if (scheduledDoctors.length > 0) {
-    return [...scheduledDoctors].sort(sortFn);
+    // Preserve backend ordering (AM-first / PM-second on weekdays; calendarOrder on weekends)
+    return [...scheduledDoctors];
   }
 
   const dayKey = filterDate;
