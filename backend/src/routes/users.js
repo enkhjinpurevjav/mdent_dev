@@ -741,6 +741,7 @@ router.put("/:id", async (req, res) => {
       licenseNumber,
       licenseExpiryDate,
       phone,
+      calendarOrder,
     } = req.body || {};
 
     const data = {};
@@ -757,6 +758,17 @@ router.put("/:id", async (req, res) => {
       data.licenseExpiryDate = licenseExpiryDate
         ? new Date(licenseExpiryDate)
         : null;
+    }
+    if (calendarOrder !== undefined) {
+      if (calendarOrder === null || calendarOrder === "") {
+        data.calendarOrder = null;
+      } else {
+        const order = Number(calendarOrder);
+        if (Number.isNaN(order)) {
+          return res.status(400).json({ error: "Invalid calendarOrder" });
+        }
+        data.calendarOrder = order;
+      }
     }
 
     const updated = await prisma.user.update({
@@ -786,6 +798,7 @@ router.put("/:id", async (req, res) => {
       licenseExpiryDate: updated.licenseExpiryDate
         ? updated.licenseExpiryDate.toISOString()
         : null,
+      calendarOrder: updated.calendarOrder ?? null,
       signatureImagePath: updated.signatureImagePath,
       stampImagePath: updated.stampImagePath,
       idPhotoPath: updated.idPhotoPath,

@@ -255,6 +255,7 @@ export default function DoctorsPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reorderSaving, setReorderSaving] = useState(false);
 
   const [summary, setSummary] = useState<{
     total: number;
@@ -333,6 +334,7 @@ export default function DoctorsPage() {
   }, []);
 
   const moveDoctor = async (doctorId: number, direction: "up" | "down") => {
+    if (reorderSaving) return;
     const idx = doctors.findIndex((d) => d.id === doctorId);
     if (idx === -1) return;
     if (direction === "up" && idx === 0) return;
@@ -362,8 +364,9 @@ export default function DoctorsPage() {
       });
     });
 
+    setReorderSaving(true);
     try {
-      await Promise.all([
+      const [res1, res2] = await Promise.all([
         fetch(`/api/users/${curr.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -375,9 +378,15 @@ export default function DoctorsPage() {
           body: JSON.stringify({ calendarOrder: currOrder }),
         }),
       ]);
+      if (!res1.ok || !res2.ok) {
+        throw new Error("Failed to update calendarOrder");
+      }
     } catch (err) {
       console.error("Failed to update calendarOrder", err);
       setDoctors(prevDoctors);
+      setError("Дараалал хадгалахад алдаа гарлаа");
+    } finally {
+      setReorderSaving(false);
     }
   };
 
@@ -551,34 +560,40 @@ export default function DoctorsPage() {
                     : "-"}
                 </td>
                 <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <button
-                      type="button"
-                      onClick={() => moveDoctor(d.id, "up")}
-                      disabled={index === 0}
-                      style={{
-                        fontSize: 11,
-                        padding: "1px 6px",
-                        cursor: index === 0 ? "default" : "pointer",
-                        opacity: index === 0 ? 0.3 : 1,
-                      }}
-                    >
-                      ▲
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveDoctor(d.id, "down")}
-                      disabled={index === doctors.length - 1}
-                      style={{
-                        fontSize: 11,
-                        padding: "1px 6px",
-                        cursor: index === doctors.length - 1 ? "default" : "pointer",
-                        opacity: index === doctors.length - 1 ? 0.3 : 1,
-                      }}
-                    >
-                      ▼
-                    </button>
-                  </div>
+                  {(() => {
+                    const isUpDisabled = index === 0 || reorderSaving;
+                    const isDownDisabled = index === doctors.length - 1 || reorderSaving;
+                    return (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <button
+                          type="button"
+                          onClick={() => moveDoctor(d.id, "up")}
+                          disabled={isUpDisabled}
+                          style={{
+                            fontSize: 11,
+                            padding: "1px 6px",
+                            cursor: isUpDisabled ? "default" : "pointer",
+                            opacity: isUpDisabled ? 0.3 : 1,
+                          }}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveDoctor(d.id, "down")}
+                          disabled={isDownDisabled}
+                          style={{
+                            fontSize: 11,
+                            padding: "1px 6px",
+                            cursor: isDownDisabled ? "default" : "pointer",
+                            opacity: isDownDisabled ? 0.3 : 1,
+                          }}
+                        >
+                          ▼
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </td>
                 <td
                   style={{
