@@ -2507,6 +2507,7 @@ const handleCancelDraft = (appointmentId: number) => {
     overflowX: "auto",
     overflowY: "auto",
     maxHeight: "70vh",
+    position: "relative",
   }}
 >
 
@@ -2520,10 +2521,10 @@ const handleCancelDraft = (appointmentId: number) => {
                 minWidth: 80 + gridDoctors.length * 180, // ensure horizontal scroll
                 position: "sticky",
                 top: 0,
-                zIndex: 10,
+                zIndex: 200,
               }}
             >
-              <div style={{ padding: 8, fontWeight: "bold" }}>Цаг</div>
+              <div style={{ padding: 8, fontWeight: "bold", position: "sticky", left: 0, backgroundColor: "#f5f5f5", zIndex: 300 }}>Цаг</div>
               {gridDoctors.map((doc, idx) => {
                 const count = appointments.filter(
                   (a) => a.doctorId === doc.id
@@ -2615,8 +2616,11 @@ const handleCancelDraft = (appointmentId: number) => {
               <div
                 style={{
                   borderRight: "1px solid #ddd",
-                  position: "relative",
+                  position: "sticky",
+                  left: 0,
+                  zIndex: 150,
                   height: columnHeightPx,
+                  backgroundColor: "#fafafa",
                 }}
               >
                 {timeSlots.map((slot, index) => {
