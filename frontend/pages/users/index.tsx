@@ -83,8 +83,6 @@ setUsers(
   return (
     <main
       style={{
-        maxWidth: 900,
-        margin: "40px auto",
         padding: 24,
         fontFamily: "sans-serif",
       }}

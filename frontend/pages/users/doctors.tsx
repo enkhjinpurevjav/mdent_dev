@@ -332,11 +332,58 @@ export default function DoctorsPage() {
     loadSummary();
   }, []);
 
+  const moveDoctor = async (doctorId: number, direction: "up" | "down") => {
+    const idx = doctors.findIndex((d) => d.id === doctorId);
+    if (idx === -1) return;
+    if (direction === "up" && idx === 0) return;
+    if (direction === "down" && idx === doctors.length - 1) return;
+
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    const curr = doctors[idx];
+    const swap = doctors[swapIdx];
+    // Use existing calendarOrder values; fall back to position-based values only if null
+    const currOrder = curr.calendarOrder ?? idx * 10;
+    const swapOrder = swap.calendarOrder ?? swapIdx * 10;
+
+    // Snapshot previous state for rollback on failure
+    const prevDoctors = doctors;
+
+    setDoctors((prev) => {
+      const updated = prev.map((d) => {
+        if (d.id === curr.id) return { ...d, calendarOrder: swapOrder };
+        if (d.id === swap.id) return { ...d, calendarOrder: currOrder };
+        return d;
+      });
+      return [...updated].sort((a, b) => {
+        const ao = (a.calendarOrder ?? 0) as number;
+        const bo = (b.calendarOrder ?? 0) as number;
+        if (ao !== bo) return ao - bo;
+        return (a.name || "").toString().localeCompare((b.name || "").toString(), "mn");
+      });
+    });
+
+    try {
+      await Promise.all([
+        fetch(`/api/users/${curr.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ calendarOrder: swapOrder }),
+        }),
+        fetch(`/api/users/${swap.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ calendarOrder: currOrder }),
+        }),
+      ]);
+    } catch (err) {
+      console.error("Failed to update calendarOrder", err);
+      setDoctors(prevDoctors);
+    }
+  };
+
   return (
     <main
       style={{
-        maxWidth: 900,
-        margin: "40px auto",
         padding: 24,
         fontFamily: "sans-serif",
       }}
@@ -504,51 +551,34 @@ export default function DoctorsPage() {
                     : "-"}
                 </td>
                 <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
-                  <input
-                    type="number"
-                    value={
-                      typeof d.calendarOrder === "number" ? d.calendarOrder : 0
-                    }
-                    onChange={async (e) => {
-                      const value = parseInt(e.target.value, 10) || 0;
-
-                      setDoctors((prev) =>
-                        prev.map((doc) =>
-                          doc.id === d.id
-                            ? { ...doc, calendarOrder: value }
-                            : doc
-                        )
-                      );
-
-                      try {
-                        const res = await fetch(`/api/users/${d.id}`, {
-                          method: "PUT",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ calendarOrder: value }),
-                        });
-                        if (!res.ok) {
-                          console.error(
-                            "Failed to update calendarOrder for doctor",
-                            d.id
-                          );
-                        } else {
-                          setDoctors((prev) =>
-                            [...prev].sort((a, b) => {
-                              const ao = (a.calendarOrder ?? 0) as number;
-                              const bo = (b.calendarOrder ?? 0) as number;
-                              if (ao !== bo) return ao - bo;
-                              const aName = (a.name || "").toString();
-                              const bName = (b.name || "").toString();
-                              return aName.localeCompare(bName, "mn");
-                            })
-                          );
-                        }
-                      } catch (err) {
-                        console.error(err);
-                      }
-                    }}
-                    style={{ width: 60, padding: 4, fontSize: 12 }}
-                  />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <button
+                      type="button"
+                      onClick={() => moveDoctor(d.id, "up")}
+                      disabled={index === 0}
+                      style={{
+                        fontSize: 11,
+                        padding: "1px 6px",
+                        cursor: index === 0 ? "default" : "pointer",
+                        opacity: index === 0 ? 0.3 : 1,
+                      }}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveDoctor(d.id, "down")}
+                      disabled={index === doctors.length - 1}
+                      style={{
+                        fontSize: 11,
+                        padding: "1px 6px",
+                        cursor: index === doctors.length - 1 ? "default" : "pointer",
+                        opacity: index === doctors.length - 1 ? 0.3 : 1,
+                      }}
+                    >
+                      ▼
+                    </button>
+                  </div>
                 </td>
                 <td
                   style={{
