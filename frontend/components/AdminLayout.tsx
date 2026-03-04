@@ -595,29 +595,13 @@ export default function AdminLayout({ children }: Props) {
             >
               ☰
             </button>
-            <div
-  style={{
-    background: "rgba(255,255,255,0.92)",
-    padding: "4px 6px",
-    borderRadius: 10,
-    border: "1px solid rgba(0,0,0,0.08)",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    height: 44, // matches the previous 44x44 logo size
-    width: 44,
-  }}
->
-  <img
-    src="/mdent.svg"
-    alt="M Dent Software logo"
-    style={{
-      height: 34,
-      width: "auto",
-      display: "block",
-    }}
-  />
-</div>
+       
+<img
+  src="/mdent.svg"
+  alt="M Dent Software logo"
+  style={{ height: 34, width: "auto", display: "block" }}
+/>
+
             <span
               style={{
                 fontWeight: 600,
