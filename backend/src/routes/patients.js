@@ -52,13 +52,53 @@ async function generateNextBookNumber() {
 }
 
 // GET /api/patients
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const patients = await prisma.patient.findMany({
-      include: { patientBook: true },
-      orderBy: { id: "desc" },
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const rawLimit = parseInt(req.query.limit, 10) || 50;
+    const limit = [10, 50, 100].includes(rawLimit) ? rawLimit : 50;
+    const skip = (page - 1) * limit;
+
+    const where = q
+      ? {
+          OR: [
+            { ovog: { contains: q, mode: "insensitive" } },
+            { name: { contains: q, mode: "insensitive" } },
+            { regNo: { contains: q, mode: "insensitive" } },
+            { phone: { contains: q, mode: "insensitive" } },
+            { patientBook: { bookNumber: { contains: q, mode: "insensitive" } } },
+          ],
+        }
+      : {};
+
+    const seventeenYearsAgo = new Date();
+    seventeenYearsAgo.setFullYear(seventeenYearsAgo.getFullYear() - 17);
+
+    const [data, total, totalMale, totalFemale, totalKids] = await Promise.all([
+      prisma.patient.findMany({
+        where,
+        include: { patientBook: true },
+        orderBy: { id: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.patient.count({ where }),
+      prisma.patient.count({ where: { gender: "эр" } }),
+      prisma.patient.count({ where: { gender: "эм" } }),
+      prisma.patient.count({ where: { birthDate: { gte: seventeenYearsAgo } } }),
+    ]);
+
+    res.json({
+      data,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      totalMale,
+      totalFemale,
+      totalKids,
     });
-    res.json(patients);
   } catch (err) {
     console.error("Error fetching patients:", err);
     res.status(500).json({ error: "failed to fetch patients" });

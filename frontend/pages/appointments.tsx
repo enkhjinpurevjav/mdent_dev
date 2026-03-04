@@ -343,7 +343,7 @@ function AppointmentForm({
       try {
         setPatientSearchLoading(true);
 
-        const url = `/api/patients?query=${encodeURIComponent(query)}`;
+        const url = `/api/patients?q=${encodeURIComponent(query)}&limit=50`;
         const res = await fetch(url);
         const data = await res.json().catch(() => []);
 
@@ -354,6 +354,8 @@ function AppointmentForm({
 
         const rawList = Array.isArray(data)
           ? data
+          : Array.isArray((data as any).data)
+          ? (data as any).data
           : Array.isArray((data as any).patients)
           ? (data as any).patients
           : [];

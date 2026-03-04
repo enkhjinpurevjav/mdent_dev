@@ -333,6 +333,19 @@ function PatientRegisterForm({
   );
 }
 
+function getPageNumbers(page: number, totalPages: number): (number | "...")[] {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  if (page <= 4) {
+    return [1, 2, 3, 4, 5, "...", totalPages];
+  }
+  if (page >= totalPages - 3) {
+    return [1, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  }
+  return [1, "...", page - 1, page, page + 1, "...", totalPages];
+}
+
 export default function PatientsPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -342,60 +355,49 @@ export default function PatientsPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalMale, setTotalMale] = useState(0);
+  const [totalFemale, setTotalFemale] = useState(0);
+  const [totalKids, setTotalKids] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
+
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
-  const loadData = async () => {
+  const loadPatients = async (q: string, currentPage: number, currentLimit: number) => {
     setLoading(true);
     setError("");
     try {
-      const [bRes, pRes] = await Promise.all([
-        fetch("/api/branches"),
-        fetch("/api/patients"),
-      ]);
+      const params = new URLSearchParams();
+      if (q) params.set("q", q);
+      params.set("page", String(currentPage));
+      params.set("limit", String(currentLimit));
 
-      let bData: any = null;
+      const pRes = await fetch(`/api/patients?${params}`);
       let pData: any = null;
-      try {
-        bData = await bRes.json();
-      } catch {
-        bData = null;
-      }
       try {
         pData = await pRes.json();
       } catch {
         pData = null;
       }
 
-      if (!bRes.ok || !Array.isArray(bData)) {
-        throw new Error("branches load failed");
-      }
-      if (!pRes.ok || !Array.isArray(pData)) {
+      if (!pRes.ok || !pData || !Array.isArray(pData.data)) {
         throw new Error("patients load failed");
       }
 
-      setBranches(bData);
-
-      const sortedPatients = [...pData].sort((a: Patient, b: Patient) => {
-        const aNum = a.patientBook?.bookNumber
-          ? parseInt(a.patientBook.bookNumber, 10)
-          : 0;
-        const bNum = b.patientBook?.bookNumber
-          ? parseInt(b.patientBook.bookNumber, 10)
-          : 0;
-
-        if (!Number.isNaN(aNum) && !Number.isNaN(bNum) && aNum !== bNum) {
-          return bNum - aNum;
-        }
-
-        const aName = `${a.ovog || ""} ${a.name || ""}`.toString();
-        const bName = `${b.ovog || ""} ${b.name || ""}`.toString();
-        return aName.localeCompare(bName, "mn");
-      });
-
-      setPatients(sortedPatients);
+      setPatients(pData.data);
+      setTotal(pData.total);
+      setTotalPages(pData.totalPages);
+      setTotalMale(pData.totalMale ?? 0);
+      setTotalFemale(pData.totalFemale ?? 0);
+      setTotalKids(pData.totalKids ?? 0);
     } catch (e) {
       console.error(e);
       setError("Өгөгдөл ачааллах үед алдаа гарлаа");
@@ -406,25 +408,15 @@ export default function PatientsPage() {
   };
 
   useEffect(() => {
-    loadData();
+    fetch("/api/branches")
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d)) setBranches(d); })
+      .catch(console.error);
   }, []);
 
-  const filteredPatients = patients.filter((p) => {
-  const q = debouncedSearch.trim().toLowerCase();
-  if (!q) return true;
-
-  const name = `${p.ovog || ""} ${p.name || ""}`.toLowerCase();
-  const regNo = (p.regNo || "").toLowerCase();
-  const phone = (p.phone || "").toLowerCase();
-  const bookNumber = (p.patientBook?.bookNumber || "").toLowerCase();
-
-  return (
-    name.includes(q) ||
-    regNo.includes(q) ||
-    phone.includes(q) ||
-    bookNumber.includes(q)
-  );
-});
+  useEffect(() => {
+    loadPatients(debouncedSearch, page, limit);
+  }, [debouncedSearch, page, limit, refreshKey]);
 
   const getBranchName = (branchId: number) => {
     const b = branches.find((br) => br.id === branchId);
@@ -442,38 +434,11 @@ export default function PatientsPage() {
     });
   };
 
-  // ---- Summary metrics ----
-
-  const totalPatients = patients.length;
-  const totalMale = patients.filter((p) => p.gender === "эр").length;
-  const totalFemale = patients.filter((p) => p.gender === "эм").length;
-
-  // helper to compute age from birthDate iso string
-  const calcAge = (birthDate?: string | null): number | null => {
-    if (!birthDate) return null;
-    const d = new Date(birthDate);
-    if (Number.isNaN(d.getTime())) return null;
-    const now = new Date();
-    let age = now.getFullYear() - d.getFullYear();
-    const m = now.getMonth() - d.getMonth();
-    if (m < 0 || (m === 0 && now.getDate() < d.getDate())) {
-      age--;
-    }
-    return age;
-  };
-
-  // kids: age <= 17
-  const totalKids = patients.filter((p) => {
-    const age = calcAge((p as any).birthDate);
-    return age !== null && age <= 17;
-  }).length;
-
   return (
     <main className="max-w-7xl px-4 lg:px-8 my-4 font-sans">
       <h1 className="text-2xl font-bold mt-1 mb-2">
         Үйлчлүүлэгчийн бүртгэл
       </h1>
-      
 
       {/* Summary cards row */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
@@ -482,7 +447,7 @@ export default function PatientsPage() {
           <div className="text-xs font-semibold tracking-wide text-blue-700 uppercase mb-1.5">
             НИЙТ ҮЙЛЧЛҮҮЛЭГЧИД
           </div>
-          <div className="text-3xl font-bold mb-1">{totalPatients}</div>
+          <div className="text-3xl font-bold mb-1">{total}</div>
           <div className="text-xs text-gray-600">
             Системд бүртгэлтэй нийт үйлчлүүлэгчийн тоо
           </div>
@@ -493,7 +458,9 @@ export default function PatientsPage() {
           <div className="text-xs font-semibold tracking-wide text-yellow-700 uppercase mb-1.5">
             ЭРЭГТЭЙ ҮЙЛЧЛҮҮЛЭГЧИД
           </div>
-          <div className="text-3xl font-bold mb-1">{totalMale}</div>
+          <div className="text-3xl font-bold mb-1">
+            {totalMale}
+          </div>
           <div className="text-xs text-gray-600">
             Нийт эрэгтэй үйлчлүүлэгчдийн тоо
           </div>
@@ -504,7 +471,9 @@ export default function PatientsPage() {
           <div className="text-xs font-semibold tracking-wide text-red-700 uppercase mb-1.5">
             ЭМЭГТЭЙ ҮЙЛЧЛҮҮЛЭГЧИД
           </div>
-          <div className="text-3xl font-bold mb-1">{totalFemale}</div>
+          <div className="text-3xl font-bold mb-1">
+            {totalFemale}
+          </div>
           <div className="text-xs text-gray-600">
             Нийт эмэгтэй үйлчлүүлэгчдийн тоо
           </div>
@@ -515,7 +484,9 @@ export default function PatientsPage() {
           <div className="text-xs font-semibold tracking-wide text-green-700 uppercase mb-1.5">
             ХҮҮХЭД
           </div>
-          <div className="text-3xl font-bold mb-1">{totalKids}</div>
+          <div className="text-3xl font-bold mb-1">
+            {totalKids}
+          </div>
           <div className="text-xs text-gray-600">
             17 ба түүнээс доош насны хүүхдийн тоо
           </div>
@@ -524,25 +495,11 @@ export default function PatientsPage() {
 
       <PatientRegisterForm
         branches={branches}
-        onSuccess={(p) => {
-          setPatients((prev) =>
-            [...prev, p].sort((a: Patient, b: Patient) => {
-              const aNum = a.patientBook?.bookNumber
-                ? parseInt(a.patientBook.bookNumber, 10)
-                : 0;
-              const bNum = b.patientBook?.bookNumber
-                ? parseInt(b.patientBook.bookNumber, 10)
-                : 0;
-
-              if (!Number.isNaN(aNum) && !Number.isNaN(bNum) && aNum !== bNum) {
-                return bNum - aNum;
-              }
-
-              const aName = `${a.ovog || ""} ${a.name || ""}`.toString();
-              const bName = `${b.ovog || ""} ${b.name || ""}`.toString();
-              return aName.localeCompare(bName, "mn");
-            })
-          );
+        onSuccess={() => {
+          setSearch("");
+          setDebouncedSearch("");
+          setPage(1);
+          setRefreshKey((k) => k + 1);
         }}
       />
 
@@ -552,10 +509,33 @@ export default function PatientsPage() {
         <input
           placeholder="Овог, Нэр, РД, утас болон картын дугаараар хайх"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           className="w-full p-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </section>
+
+      {/* Items per page */}
+      <div className="flex items-center gap-2 mb-3 text-sm text-gray-700">
+        <label htmlFor="limit-select" className="whitespace-nowrap">
+          1 хуудсанд харагдах үйлчлүүлэгчдийн тоо
+        </label>
+        <select
+          id="limit-select"
+          value={limit}
+          onChange={(e) => {
+            setLimit(Number(e.target.value));
+            setPage(1);
+          }}
+          className="rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value={10}>10</option>
+          <option value={50}>50</option>
+          <option value={100}>100</option>
+        </select>
+      </div>
 
       {loading && (
         <p className="text-gray-500 text-sm">Ачааллаж байна...</p>
@@ -565,84 +545,130 @@ export default function PatientsPage() {
       )}
 
       {!loading && !error && (
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
-          <table className="w-full border-collapse text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                {[
-                  "#",
-                  "Овог",
-                  "Нэр",
-                  "РД",
-                  "Утас",
-                  "Үүсгэсэн",
-                  "Бүртгэсэн салбар",
-                  "Үйлдэл",
-                ].map((label) => (
-                  <th
-                    key={label}
-                    className="sticky top-0 z-10 text-left border-b border-gray-200 py-2 px-3 font-semibold text-gray-700 whitespace-nowrap bg-gray-50"
-                  >
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPatients.map((p) => (
-                <tr key={p.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100">
-                  <td className="border-b border-gray-100 py-2 px-3">
-                    {p.patientBook?.bookNumber || "-"}
-                  </td>
-                  <td className="border-b border-gray-100 py-2 px-3">
-                    {p.ovog || "-"}
-                  </td>
-                  <td className="border-b border-gray-100 py-2 px-3">
-                    {p.name || "-"}
-                  </td>
-                  <td className="border-b border-gray-100 py-2 px-3">
-                    {p.regNo || "-"}
-                  </td>
-                  <td className="border-b border-gray-100 py-2 px-3">
-                    {p.phone || "-"}
-                  </td>
-                  <td className="border-b border-gray-100 py-2 px-3 whitespace-nowrap">
-                    {formatDate(p.createdAt)}
-                  </td>
-                  <td className="border-b border-gray-100 py-2 px-3">
-                    {getBranchName(p.branchId)}
-                  </td>
-                  <td className="border-b border-gray-100 py-2 px-3">
-                    {p.patientBook?.bookNumber ? (
-                      <a
-                        href={`/patients/${encodeURIComponent(
-                          p.patientBook.bookNumber
-                        )}`}
-                        className="text-xs px-2 py-1 rounded border border-gray-300 no-underline text-gray-900 bg-gray-50 hover:bg-gray-100 transition-colors"
-                      >
-                        Дэлгэрэнгүй
-                      </a>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {filteredPatients.length === 0 && (
+        <>
+          <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <table className="w-full border-collapse text-sm">
+              <thead className="bg-gray-50">
                 <tr>
-                  <td
-                    colSpan={8}
-                    className="text-center text-gray-400 py-6 text-sm"
-                  >
-                    {debouncedSearch
-                      ? `"${debouncedSearch}" — тохирох үйлчлүүлэгч олдсонгүй`
-                      : "Өгөгдөл алга"}
-                  </td>
+                  {[
+                    "#",
+                    "Овог",
+                    "Нэр",
+                    "РД",
+                    "Утас",
+                    "Үүсгэсэн",
+                    "Бүртгэсэн салбар",
+                    "Үйлдэл",
+                  ].map((label) => (
+                    <th
+                      key={label}
+                      className="sticky top-0 z-10 text-left border-b border-gray-200 py-2 px-3 font-semibold text-gray-700 whitespace-nowrap bg-gray-50"
+                    >
+                      {label}
+                    </th>
+                  ))}
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {patients.map((p) => (
+                  <tr key={p.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100">
+                    <td className="border-b border-gray-100 py-2 px-3">
+                      {p.patientBook?.bookNumber || "-"}
+                    </td>
+                    <td className="border-b border-gray-100 py-2 px-3">
+                      {p.ovog || "-"}
+                    </td>
+                    <td className="border-b border-gray-100 py-2 px-3">
+                      {p.name || "-"}
+                    </td>
+                    <td className="border-b border-gray-100 py-2 px-3">
+                      {p.regNo || "-"}
+                    </td>
+                    <td className="border-b border-gray-100 py-2 px-3">
+                      {p.phone || "-"}
+                    </td>
+                    <td className="border-b border-gray-100 py-2 px-3 whitespace-nowrap">
+                      {formatDate(p.createdAt)}
+                    </td>
+                    <td className="border-b border-gray-100 py-2 px-3">
+                      {getBranchName(p.branchId)}
+                    </td>
+                    <td className="border-b border-gray-100 py-2 px-3">
+                      {p.patientBook?.bookNumber ? (
+                        <a
+                          href={`/patients/${encodeURIComponent(
+                            p.patientBook.bookNumber
+                          )}`}
+                          className="text-xs px-2 py-1 rounded border border-gray-300 no-underline text-gray-900 bg-gray-50 hover:bg-gray-100 transition-colors"
+                        >
+                          Дэлгэрэнгүй
+                        </a>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {patients.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="text-center text-gray-400 py-6 text-sm"
+                    >
+                      {debouncedSearch
+                        ? `"${debouncedSearch}" — тохирох үйлчлүүлэгч олдсонгүй`
+                        : "Өгөгдөл алга"}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
+              <div className="text-sm text-gray-600">
+                {page} / {totalPages}
+              </div>
+              <div className="flex items-center gap-1 flex-wrap">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 rounded-md border border-gray-300 text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+                >
+                  Өмнөх
+                </button>
+                {getPageNumbers(page, totalPages).map((item, idx) =>
+                  item === "..." ? (
+                    <span key={`ellipsis-${idx}`} className="px-2 py-1.5 text-sm text-gray-400">
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      onClick={() => setPage(item as number)}
+                      className={`px-3 py-1.5 rounded-md border text-sm transition-colors ${
+                        item === page
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "border-gray-300 hover:bg-gray-100"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1.5 rounded-md border border-gray-300 text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+                >
+                  Дараах
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </main>
   );
