@@ -357,6 +357,8 @@ export default function PatientsPage() {
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
+  const [sort, setSort] = useState("bookNumber");
+  const [dir, setDir] = useState("desc");
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalMale, setTotalMale] = useState(0);
@@ -371,7 +373,7 @@ export default function PatientsPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const loadPatients = async (q: string, currentPage: number, currentLimit: number) => {
+  const loadPatients = async (q: string, currentPage: number, currentLimit: number, currentSort: string, currentDir: string) => {
     setLoading(true);
     setError("");
     try {
@@ -379,6 +381,8 @@ export default function PatientsPage() {
       if (q) params.set("q", q);
       params.set("page", String(currentPage));
       params.set("limit", String(currentLimit));
+      params.set("sort", currentSort);
+      params.set("dir", currentDir);
 
       const pRes = await fetch(`/api/patients?${params}`);
       let pData: any = null;
@@ -415,8 +419,8 @@ export default function PatientsPage() {
   }, []);
 
   useEffect(() => {
-    loadPatients(debouncedSearch, page, limit);
-  }, [debouncedSearch, page, limit, refreshKey]);
+    loadPatients(debouncedSearch, page, limit, sort, dir);
+  }, [debouncedSearch, page, limit, sort, dir, refreshKey]);
 
   const getBranchName = (branchId: number) => {
     const b = branches.find((br) => br.id === branchId);
@@ -506,36 +510,33 @@ export default function PatientsPage() {
       {/* Search section */}
       <section className="mb-4 p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
         <h2 className="text-base font-semibold mb-2">Хайлт</h2>
-        <input
-          placeholder="Овог, Нэр, РД, утас болон картын дугаараар хайх"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="w-full p-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            placeholder="Овог, Нэр, РД, утас болон картын дугаараар хайх"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="flex-1 p-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <select
+            value={`${sort}_${dir}`}
+            onChange={(e) => {
+              const [s, d] = e.target.value.split("_");
+              setSort(s);
+              setDir(d);
+              setPage(1);
+            }}
+            className="rounded-md border border-gray-300 px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 whitespace-nowrap"
+          >
+            <option value="bookNumber_desc">Картын дугаар буурахаар</option>
+            <option value="bookNumber_asc">Картын дугаар өсөхөөр</option>
+            <option value="name_asc">Нэр өсөхөөр</option>
+            <option value="name_desc">Нэр буурахаар</option>
+          </select>
+        </div>
       </section>
-
-      {/* Items per page */}
-      <div className="flex items-center gap-2 mb-3 text-sm text-gray-700">
-        <label htmlFor="limit-select" className="whitespace-nowrap">
-          1 хуудсанд харагдах үйлчлүүлэгчдийн тоо
-        </label>
-        <select
-          id="limit-select"
-          value={limit}
-          onChange={(e) => {
-            setLimit(Number(e.target.value));
-            setPage(1);
-          }}
-          className="rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value={10}>10</option>
-          <option value={50}>50</option>
-          <option value={100}>100</option>
-        </select>
-      </div>
 
       {loading && (
         <p className="text-gray-500 text-sm">Ачааллаж байна...</p>
@@ -551,7 +552,7 @@ export default function PatientsPage() {
               <thead className="bg-gray-50">
                 <tr>
                   {[
-                    "#",
+                    "Картын дугаар",
                     "Овог",
                     "Нэр",
                     "РД",
@@ -625,12 +626,29 @@ export default function PatientsPage() {
             </table>
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
-              <div className="text-sm text-gray-600">
-                {page} / {totalPages}
-              </div>
+          {/* Pagination + Items per page (bottom, right-aligned) */}
+          <div className="flex items-center justify-end mt-4 flex-wrap gap-3">
+            {/* Items per page */}
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <label htmlFor="limit-select" className="whitespace-nowrap">
+                1 хуудсанд харагдах үйлчлүүлэгчдийн тоо
+              </label>
+              <select
+                id="limit-select"
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={10}>10</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            {/* Page navigation */}
+            {totalPages > 1 && (
               <div className="flex items-center gap-1 flex-wrap">
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -666,8 +684,8 @@ export default function PatientsPage() {
                   Дараах
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </>
       )}
     </main>
