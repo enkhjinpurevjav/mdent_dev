@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import SignaturePad from "../../components/SignaturePad";
 import ChildVisitCardForm from "../../components/ChildVisitCardForm";
@@ -53,6 +53,10 @@ export default function PatientProfilePage() {
   const [saveError, setSaveError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState("");
 
+  // regNo autofill state: true means regNo parsed as valid -> lock birthDate/gender
+  const [regNoAutofillLocked, setRegNoAutofillLocked] = useState(false);
+  const regNoParseAbortRef = useRef<AbortController | null>(null);
+
   // Encounter report modal state
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportAppointmentId, setReportAppointmentId] = useState<number | null>(null);
@@ -84,12 +88,63 @@ export default function PatientProfilePage() {
     return d > now && a.status === "booked";
   });
 
+  // Compute age in full years from a YYYY-MM-DD string; returns "-" if invalid
+  const computeAge = (birthDateStr: string | null | undefined): string => {
+    if (!birthDateStr) return "-";
+    const d = new Date(birthDateStr);
+    if (Number.isNaN(d.getTime())) return "-";
+    const today = new Date();
+    let age = today.getFullYear() - d.getFullYear();
+    const monthDiff = today.getMonth() - d.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d.getDate())) {
+      age -= 1;
+    }
+    if (age < 0) return "-";
+    return String(age);
+  };
+
+  // Trigger regNo parse whenever regNo changes in edit mode
+  const parseRegNo = useCallback(async (regNoValue: string) => {
+    // Cancel previous in-flight request
+    if (regNoParseAbortRef.current) {
+      regNoParseAbortRef.current.abort();
+    }
+    const trimmed = regNoValue.trim();
+    if (!trimmed) {
+      setRegNoAutofillLocked(false);
+      return;
+    }
+    const controller = new AbortController();
+    regNoParseAbortRef.current = controller;
+    try {
+      const res = await fetch(
+        `/api/regno/parse?regNo=${encodeURIComponent(trimmed)}`,
+        { signal: controller.signal }
+      );
+      const json = await res.json();
+      if (json.isValid) {
+        setEditForm((prev) => ({
+          ...prev,
+          birthDate: json.birthDate,
+          gender: json.gender,
+        }));
+        setRegNoAutofillLocked(true);
+      } else {
+        setRegNoAutofillLocked(false);
+      }
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
+      setRegNoAutofillLocked(false);
+    }
+  }, []);
+
   const startEdit = () => {
     if (!patient) return;
+    const initialRegNo = patient.regNo || "";
     setEditForm({
       ovog: patient.ovog || "",
       name: patient.name || "",
-      regNo: patient.regNo || "",
+      regNo: initialRegNo,
       phone: patient.phone || "",
       email: patient.email || "",
       gender: patient.gender || "",
@@ -103,12 +158,18 @@ export default function PatientProfilePage() {
     });
     setSaveError("");
     setSaveSuccess("");
+    setRegNoAutofillLocked(false);
     setEditMode(true);
+    // Parse the existing regNo on edit start so lock state is correct
+    if (initialRegNo) {
+      parseRegNo(initialRegNo);
+    }
   };
 
   const cancelEdit = () => {
     setEditMode(false);
     setEditForm({});
+    setRegNoAutofillLocked(false);
     setSaveError("");
     setSaveSuccess("");
   };
@@ -121,6 +182,9 @@ export default function PatientProfilePage() {
   ) => {
     const { name, value } = e.target;
     setEditForm((prev) => ({ ...prev, [name]: value }));
+    if (name === "regNo") {
+      parseRegNo(value);
+    }
   };
 
   const handleGenderChange = (value: "" | "эр" | "эм") => {
@@ -170,9 +234,16 @@ export default function PatientProfilePage() {
 
       const json = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(
-          (json && json.error) || "Өгөгдөл хадгалах үед алдаа гарлаа"
-        );
+        const errMsg = (json && json.error) || "";
+        if (
+          errMsg.toLowerCase().includes("regno") ||
+          errMsg.toLowerCase().includes("already registered")
+        ) {
+          throw new Error(
+            "Энэ регистрийн дугаар өөр өвчтөнд бүртгэлтэй байна. Өөр РД оруулна уу."
+          );
+        }
+        throw new Error(errMsg || "Өгөгдөл хадгалах үед алдаа гарлаа");
       }
 
       const updatedPatient = (json && json.patient) || json || patient;
@@ -181,6 +252,7 @@ export default function PatientProfilePage() {
 
       setSaveSuccess("Мэдээлэл амжилттай хадгалагдлаа.");
       setEditMode(false);
+      setRegNoAutofillLocked(false);
     } catch (err: any) {
       console.error(err);
       setSaveError(err?.message || "Өгөгдөл хадгалах үед алдаа гарлаа.");
@@ -535,37 +607,45 @@ export default function PatientProfilePage() {
                       <div>
                         <div className="text-gray-500 mb-0.5">Хүйс</div>
                         {editMode ? (
-                          <div className="flex gap-2 items-center pt-0.5">
-                            <label className="flex items-center gap-1">
-                              <input
-                                type="radio"
-                                name="gender"
-                                value="эр"
-                                checked={editForm.gender === "эр"}
-                                onChange={() => handleGenderChange("эр")}
-                              />
-                              <span>Эр</span>
-                            </label>
-                            <label className="flex items-center gap-1">
-                              <input
-                                type="radio"
-                                name="gender"
-                                value="эм"
-                                checked={editForm.gender === "эм"}
-                                onChange={() => handleGenderChange("эм")}
-                              />
-                              <span>Эм</span>
-                            </label>
-                            <label className="flex items-center gap-1">
-                              <input
-                                type="radio"
-                                name="gender"
-                                value=""
-                                checked={!editForm.gender}
-                                onChange={() => handleGenderChange("")}
-                              />
-                              <span>Хоосон</span>
-                            </label>
+                          <div>
+                            <div className="flex gap-2 items-center pt-0.5">
+                              <label className="flex items-center gap-1">
+                                <input
+                                  type="radio"
+                                  name="gender"
+                                  value="эр"
+                                  checked={editForm.gender === "эр"}
+                                  onChange={() => handleGenderChange("эр")}
+                                  disabled={regNoAutofillLocked}
+                                />
+                                <span>Эр</span>
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input
+                                  type="radio"
+                                  name="gender"
+                                  value="эм"
+                                  checked={editForm.gender === "эм"}
+                                  onChange={() => handleGenderChange("эм")}
+                                  disabled={regNoAutofillLocked}
+                                />
+                                <span>Эм</span>
+                              </label>
+                              <label className="flex items-center gap-1">
+                                <input
+                                  type="radio"
+                                  name="gender"
+                                  value=""
+                                  checked={!editForm.gender}
+                                  onChange={() => handleGenderChange("")}
+                                  disabled={regNoAutofillLocked}
+                                />
+                                <span>Хоосон</span>
+                              </label>
+                            </div>
+                            {regNoAutofillLocked && (
+                              <div className="text-xs text-blue-500 mt-0.5">РД-ээс автоматаар бөглөгдөнө</div>
+                            )}
                           </div>
                         ) : (
                           <div>{displayOrDash(patient.gender)}</div>
@@ -574,13 +654,19 @@ export default function PatientProfilePage() {
                       <div>
                         <div className="text-gray-500 mb-0.5">Төрсөн огноо</div>
                         {editMode ? (
-                          <input
-                            type="date"
-                            name="birthDate"
-                            value={editForm.birthDate ?? ""}
-                            onChange={handleEditChange}
-                            className={inputClass}
-                          />
+                          <div>
+                            <input
+                              type="date"
+                              name="birthDate"
+                              value={editForm.birthDate ?? ""}
+                              onChange={handleEditChange}
+                              disabled={regNoAutofillLocked}
+                              className={inputClass}
+                            />
+                            {regNoAutofillLocked && (
+                              <div className="text-xs text-blue-500 mt-0.5">РД-ээс автоматаар бөглөгдөнө</div>
+                            )}
+                          </div>
                         ) : (
                           <div>
                             {patient.birthDate
@@ -588,6 +674,14 @@ export default function PatientProfilePage() {
                               : "-"}
                           </div>
                         )}
+                      </div>
+                      <div>
+                        <div className="text-gray-500 mb-0.5">Нас</div>
+                        <div>
+                          {editMode
+                            ? computeAge(editForm.birthDate ?? null)
+                            : computeAge(patient.birthDate ?? null)}
+                        </div>
                       </div>
                       <div>
                         <div className="text-gray-500 mb-0.5">Цусны бүлэг</div>
