@@ -19,6 +19,13 @@ type Patient = {
   birthDate?: string | null;
 };
 
+const inputCls =
+  "w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+
+function RequiredMark() {
+  return <span className="text-red-500 ml-0.5" aria-hidden="true">*</span>;
+}
+
 function PatientRegisterForm({
   branches,
   onSuccess,
@@ -130,101 +137,70 @@ function PatientRegisterForm({
   };
 
   return (
-    <section
-      style={{
-        marginTop: 8,
-        marginBottom: 16,
-        padding: 16,
-        borderRadius: 8,
-        border: "1px solid #e5e7eb",
-        background: "#ffffff",
-      }}
-    >
-      <h2 style={{ margin: 0, fontSize: 16, marginBottom: 8 }}>
+    <section className="mt-2 mb-4 p-4 rounded-lg border border-gray-200 bg-white">
+      <h2 className="text-base font-semibold mb-2">
         Шинэ үйлчлүүлэгч бүртгэх
       </h2>
-      <p
-        style={{
-          margin: 0,
-          marginBottom: 12,
-          color: "#6b7280",
-          fontSize: 12,
-        }}
-      >
+      <p className="text-xs text-gray-500 mb-3">
         Зөвхөн нэр, утас, бүртгэсэн салбар заавал. Бусад мэдээллийг дараа нь
         профайлаас засварлаж болно.
       </p>
 
       <form onSubmit={handleSubmit}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: 10,
-            marginTop: 4,
-            marginBottom: 10,
-            fontSize: 13,
-          }}
-        >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mt-1 mb-2.5">
+          {/* Овог */}
           <input
             name="ovog"
             placeholder="Овог (сонголттой)"
             value={form.ovog}
             onChange={handleChange}
-            style={{
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              padding: "6px 8px",
-            }}
+            className={inputCls}
           />
-          <input
-            name="name"
-            placeholder="Нэр (заавал)"
-            value={form.name}
-            onChange={handleChange}
-            required
-            style={{
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              padding: "6px 8px",
-            }}
-          />
+
+          {/* Нэр */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">
+              Нэр<RequiredMark />
+            </label>
+            <input
+              name="name"
+              placeholder="Нэр"
+              value={form.name}
+              onChange={handleChange}
+              required
+              className={inputCls}
+            />
+          </div>
+
+          {/* РД */}
           <input
             name="regNo"
             placeholder="Регистрийн дугаар (сонголттой)"
             value={form.regNo}
             onChange={handleChange}
-            style={{
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              padding: "6px 8px",
-            }}
-          />
-          <input
-            name="phone"
-            placeholder="Утасны дугаар (заавал)"
-            value={form.phone}
-            onChange={handleChange}
-            required
-            style={{
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              padding: "6px 8px",
-            }}
+            className={inputCls}
           />
 
+          {/* Утас */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">
+              Утасны дугаар<RequiredMark />
+            </label>
+            <input
+              name="phone"
+              placeholder="Утас"
+              value={form.phone}
+              onChange={handleChange}
+              required
+              className={inputCls}
+            />
+          </div>
+
           {/* Gender */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ fontSize: 13, fontWeight: 500 }}>Хүйс</label>
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                alignItems: "center",
-                fontSize: 13,
-              }}
-            >
-              <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">Хүйс</label>
+            <div className="flex gap-3 items-center text-sm">
+              <label className="flex items-center gap-1">
                 <input
                   type="radio"
                   name="gender"
@@ -234,7 +210,7 @@ function PatientRegisterForm({
                 />
                 <span>Эр</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <label className="flex items-center gap-1">
                 <input
                   type="radio"
                   name="gender"
@@ -244,7 +220,7 @@ function PatientRegisterForm({
                 />
                 <span>Эм</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <label className="flex items-center gap-1">
                 <input
                   type="radio"
                   name="gender"
@@ -255,35 +231,33 @@ function PatientRegisterForm({
                 <span>Хоосон</span>
               </label>
             </div>
-            <span style={{ fontSize: 11, color: "#6b7280" }}>
+            <span className="text-xs text-gray-400">
               Хүйсийг дараа нь профайлаас өөрчилж болно. Хоосон орхиж бас
               болно.
             </span>
           </div>
 
           {/* Citizenship */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ fontSize: 13, fontWeight: 500 }}>Иргэншил</label>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">
+              Иргэншил
+            </label>
             <input
               name="citizenship"
               placeholder="Монгол"
               value={form.citizenship}
               onChange={handleChange}
-              style={{
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                padding: "6px 8px",
-              }}
+              className={inputCls}
             />
-            <span style={{ fontSize: 11, color: "#6b7280" }}>
+            <span className="text-xs text-gray-400">
               Анхдагч утга нь &quot;Монгол&quot;. Шаардлагатай бол өөр улсын
               нэрийг оруулж болно.
             </span>
           </div>
 
           {/* Emergency phone */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ fontSize: 13, fontWeight: 500 }}>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">
               Яаралтай үед холбоо барих утас
             </label>
             <input
@@ -291,29 +265,21 @@ function PatientRegisterForm({
               placeholder="Ж: 99112233"
               value={form.emergencyPhone}
               onChange={handleChange}
-              style={{
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                padding: "6px 8px",
-              }}
+              className={inputCls}
             />
           </div>
 
           {/* Branch selection */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ fontSize: 13, fontWeight: 500 }}>
-              Бүртгэсэн салбар (заавал)
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">
+              Бүртгэсэн салбар<RequiredMark />
             </label>
             <select
               name="branchId"
               value={form.branchId}
               onChange={handleChange}
               required
-              style={{
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                padding: "6px 8px",
-              }}
+              className={inputCls}
             >
               <option value="">Салбар сонгох</option>
               {branches.map((b) => (
@@ -325,8 +291,8 @@ function PatientRegisterForm({
           </div>
 
           {/* Optional manual book number */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ fontSize: 13, fontWeight: 500 }}>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">
               Картын дугаар (сонголттой)
             </label>
             <input
@@ -334,50 +300,23 @@ function PatientRegisterForm({
               placeholder="Ж: 123456"
               value={form.bookNumber}
               onChange={handleChange}
-              style={{
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                padding: "6px 8px",
-              }}
+              className={inputCls}
             />
-            <span style={{ fontSize: 11, color: "#6b7280" }}>
+            <span className="text-xs text-gray-400">
               Хоосон орхивол систем хамгийн сүүлийн дугаараас +1 автоматаар
               үүсгэнэ. 1-6 оронтой зөвхөн тоо байх ёстой.
             </span>
           </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
+        <div className="flex justify-end items-center gap-2">
           {error && (
-            <div
-              style={{
-                color: "#b91c1c",
-                fontSize: 12,
-                marginRight: "auto",
-              }}
-            >
-              {error}
-            </div>
+            <p className="text-red-700 text-xs mr-auto">{error}</p>
           )}
           <button
             type="submit"
             disabled={submitting}
-            style={{
-              padding: "6px 12px",
-              borderRadius: 6,
-              border: "none",
-              background: "#2563eb",
-              color: "#ffffff",
-              cursor: submitting ? "default" : "pointer",
-              fontSize: 13,
-            }}
+            className="px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
           >
             {submitting ? "Бүртгэж байна..." : "Бүртгэх"}
           </button>
@@ -394,6 +333,12 @@ export default function PatientsPage() {
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const loadData = async () => {
     setLoading(true);
@@ -458,7 +403,7 @@ export default function PatientsPage() {
   }, []);
 
   const filteredPatients = patients.filter((p) => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     if (!q) return true;
     const name = `${p.ovog || ""} ${p.name || ""}`.toLowerCase();
     const regNo = (p.regNo || "").toLowerCase();
@@ -509,148 +454,62 @@ export default function PatientsPage() {
   }).length;
 
   return (
-    <main
-      style={{
-        maxWidth: 1000,
-        margin: "16px auto",
-        padding: 24,
-        fontFamily: "sans-serif",
-      }}
-    >
-      <h1 style={{ fontSize: 20, margin: "4px 0 8px" }}>
+    <main className="max-w-5xl mx-auto my-4 px-6 font-sans">
+      <h1 className="text-xl font-semibold mt-1 mb-2">
         Үйлчлүүлэгчийн бүртгэл
       </h1>
-      <p style={{ color: "#555", marginBottom: 4 }}>
+      <p className="text-gray-600 mb-1">
         Хурдан бүртгэх — зөвхөн нэр, утас, салбар заавал. Бусад мэдээллийг дараа
         нь нөхөж бөглөж болно.
       </p>
-      <p style={{ color: "#6b7280", fontSize: 13, marginBottom: 16 }}>
+      <p className="text-gray-500 text-sm mb-4">
         <strong>Бүртгэсэн салбар</strong> нь тухайн үйлчлүүлэгчийн үндсэн /
         анх бүртгэгдсэн салбар юм. Үйлчлүүлэгч бусад салбарт очсон ч үзлэгийн
         салбар нь цаг авах үед тусад нь сонгогдоно.
       </p>
 
       {/* Summary cards row */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         {/* 1. Total patients */}
-        <div
-          style={{
-            borderRadius: 16,
-            padding: 14,
-            background: "#e0ebff",
-            boxShadow: "0 4px 12px rgba(37, 99, 235, 0.12)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: 0.5,
-              color: "#1d4ed8",
-              textTransform: "uppercase",
-              marginBottom: 6,
-            }}
-          >
+        <div className="rounded-2xl p-4 bg-blue-100 shadow-sm">
+          <div className="text-xs font-semibold tracking-wide text-blue-700 uppercase mb-1.5">
             НИЙТ ҮЙЛЧЛҮҮЛЭГЧИД
           </div>
-          <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
-            {totalPatients}
-          </div>
-          <div style={{ fontSize: 12, color: "#4b5563" }}>
+          <div className="text-3xl font-bold mb-1">{totalPatients}</div>
+          <div className="text-xs text-gray-600">
             Системд бүртгэлтэй нийт үйлчлүүлэгчийн тоо
           </div>
         </div>
 
         {/* 2. Male */}
-        <div
-          style={{
-            borderRadius: 16,
-            padding: 14,
-            background: "#fef9c3",
-            boxShadow: "0 4px 12px rgba(234, 179, 8, 0.12)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: 0.5,
-              color: "#b45309",
-              textTransform: "uppercase",
-              marginBottom: 6,
-            }}
-          >
+        <div className="rounded-2xl p-4 bg-yellow-100 shadow-sm">
+          <div className="text-xs font-semibold tracking-wide text-yellow-700 uppercase mb-1.5">
             ЭРЭГТЭЙ ҮЙЛЧЛҮҮЛЭГЧИД
           </div>
-          <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
-            {totalMale}
-          </div>
-          <div style={{ fontSize: 12, color: "#4b5563" }}>
+          <div className="text-3xl font-bold mb-1">{totalMale}</div>
+          <div className="text-xs text-gray-600">
             Нийт эрэгтэй үйлчлүүлэгчдийн тоо
           </div>
         </div>
 
         {/* 3. Female */}
-        <div
-          style={{
-            borderRadius: 16,
-            padding: 14,
-            background: "#fee2e2",
-            boxShadow: "0 4px 12px rgba(239, 68, 68, 0.12)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: 0.5,
-              color: "#b91c1c",
-              textTransform: "uppercase",
-              marginBottom: 6,
-            }}
-          >
+        <div className="rounded-2xl p-4 bg-red-100 shadow-sm">
+          <div className="text-xs font-semibold tracking-wide text-red-700 uppercase mb-1.5">
             ЭМЭГТЭЙ ҮЙЛЧЛҮҮЛЭГЧИД
           </div>
-          <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
-            {totalFemale}
-          </div>
-          <div style={{ fontSize: 12, color: "#4b5563" }}>
+          <div className="text-3xl font-bold mb-1">{totalFemale}</div>
+          <div className="text-xs text-gray-600">
             Нийт эмэгтэй үйлчлүүлэгчдийн тоо
           </div>
         </div>
 
         {/* 4. Kids (≤17) */}
-        <div
-          style={{
-            borderRadius: 16,
-            padding: 14,
-            background: "#dcfce7",
-            boxShadow: "0 4px 12px rgba(34, 197, 94, 0.12)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: 0.5,
-              color: "#15803d",
-              textTransform: "uppercase",
-              marginBottom: 6,
-            }}
-          >
+        <div className="rounded-2xl p-4 bg-green-100 shadow-sm">
+          <div className="text-xs font-semibold tracking-wide text-green-700 uppercase mb-1.5">
             ХҮҮХЭД
           </div>
-          <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
-            {totalKids}
-          </div>
-          <div style={{ fontSize: 12, color: "#4b5563" }}>
+          <div className="text-3xl font-bold mb-1">{totalKids}</div>
+          <div className="text-xs text-gray-600">
             17 ба түүнээс доош насны хүүхдийн тоо
           </div>
         </div>
@@ -681,164 +540,102 @@ export default function PatientsPage() {
       />
 
       {/* Search section */}
-      <section
-        style={{
-          marginBottom: 16,
-          padding: 12,
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-          background: "#f9fafb",
-        }}
-      >
-        <h2 style={{ marginTop: 0, fontSize: 16 }}>Хайлт</h2>
+      <section className="mb-4 p-3 rounded-lg border border-gray-200 bg-gray-50">
+        <h2 className="text-base font-semibold mb-2">Хайлт</h2>
         <input
           placeholder="Нэр, РД, утасгаар хайх"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            width: "100%",
-            padding: 8,
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            fontSize: 13,
-          }}
+          className="w-full p-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </section>
 
-      {loading && <div>Ачааллаж байна...</div>}
-      {!loading && error && <div style={{ color: "red" }}>{error}</div>}
+      {loading && (
+        <p className="text-gray-500 text-sm">Ачааллаж байна...</p>
+      )}
+      {!loading && error && (
+        <p className="text-red-600 text-sm">{error}</p>
+      )}
 
       {!loading && !error && (
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            marginTop: 8,
-            fontSize: 14,
-          }}
-        >
-          <thead>
-            <tr>
-              {["#", "Овог", "Нэр", "РД", "Утас", "Үүсгэсэн", "Бүртгэсэн салбар", "Үйлдэл"].map(
-                (label) => (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse mt-2 text-sm">
+            <thead>
+              <tr>
+                {[
+                  "#",
+                  "Овог",
+                  "Нэр",
+                  "РД",
+                  "Утас",
+                  "Үүсгэсэн",
+                  "Бүртгэсэн салбар",
+                  "Үйлдэл",
+                ].map((label) => (
                   <th
                     key={label}
-                    style={{
-                      textAlign: "left",
-                      borderBottom: "1px solid #ddd",
-                      padding: 8,
-                    }}
+                    className="text-left border-b border-gray-300 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap"
                   >
                     {label}
                   </th>
-                )
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredPatients.map((p) => (
+                <tr key={p.id} className="hover:bg-gray-50">
+                  <td className="border-b border-gray-100 py-2 px-2">
+                    {p.patientBook?.bookNumber || "-"}
+                  </td>
+                  <td className="border-b border-gray-100 py-2 px-2">
+                    {p.ovog || "-"}
+                  </td>
+                  <td className="border-b border-gray-100 py-2 px-2">
+                    {p.name || "-"}
+                  </td>
+                  <td className="border-b border-gray-100 py-2 px-2">
+                    {p.regNo || "-"}
+                  </td>
+                  <td className="border-b border-gray-100 py-2 px-2">
+                    {p.phone || "-"}
+                  </td>
+                  <td className="border-b border-gray-100 py-2 px-2 whitespace-nowrap">
+                    {formatDate(p.createdAt)}
+                  </td>
+                  <td className="border-b border-gray-100 py-2 px-2">
+                    {getBranchName(p.branchId)}
+                  </td>
+                  <td className="border-b border-gray-100 py-2 px-2">
+                    {p.patientBook?.bookNumber ? (
+                      <a
+                        href={`/patients/${encodeURIComponent(
+                          p.patientBook.bookNumber
+                        )}`}
+                        className="text-xs px-2 py-1 rounded border border-gray-300 no-underline text-gray-900 bg-gray-50 hover:bg-gray-100 transition-colors"
+                      >
+                        Дэлгэрэнгүй
+                      </a>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {filteredPatients.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="text-center text-gray-400 py-6 text-sm"
+                  >
+                    {debouncedSearch
+                      ? `"${debouncedSearch}" — тохирох үйлчлүүлэгч олдсонгүй`
+                      : "Өгөгдөл алга"}
+                  </td>
+                </tr>
               )}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredPatients.map((p) => (
-              <tr key={p.id}>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
-                  {p.patientBook?.bookNumber || "-"}
-                </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
-                  {p.ovog || "-"}
-                </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
-                  {p.name || "-"}
-                </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
-                  {p.regNo || "-"}
-                </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
-                  {p.phone || "-"}
-                </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
-                  {formatDate(p.createdAt)}
-                </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
-                  {getBranchName(p.branchId)}
-                </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
-                  {p.patientBook?.bookNumber ? (
-                    <a
-                      href={`/patients/${encodeURIComponent(
-                        p.patientBook.bookNumber
-                      )}`}
-                      style={{
-                        fontSize: 12,
-                        padding: "4px 8px",
-                        borderRadius: 4,
-                        border: "1px solid #d1d5db",
-                        textDecoration: "none",
-                        color: "#111827",
-                        background: "#f9fafb",
-                      }}
-                    >
-                      Дэлгэрэнгүй
-                    </a>
-                  ) : (
-                    "-"
-                  )}
-                </td>
-              </tr>
-            ))}
-            {filteredPatients.length === 0 && (
-              <tr>
-                <td
-                  colSpan={8}
-                  style={{
-                    textAlign: "center",
-                    color: "#888",
-                    padding: 12,
-                  }}
-                >
-                  Өгөгдөл алга
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       )}
     </main>
   );
