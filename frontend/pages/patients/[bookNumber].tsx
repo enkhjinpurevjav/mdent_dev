@@ -193,98 +193,61 @@ export default function PatientProfilePage() {
     b.scheduledAt.localeCompare(a.scheduledAt)
   );
 
+  const tabBtnClass = (tab: ActiveTab) =>
+    activeTab === tab
+      ? "w-full text-left px-2.5 py-1.5 rounded-md border-0 bg-blue-50 text-blue-700 font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+      : "w-full text-left px-2.5 py-1.5 rounded-md border-0 bg-transparent text-gray-500 cursor-pointer hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
+
+  const inputClass = "w-full rounded-md border border-gray-300 px-1.5 py-1 text-sm";
+
   return (
-    <main
-      style={{
-        maxWidth: 1100,
-        margin: "40px auto",
-        padding: 24,
-        fontFamily: "sans-serif",
-      }}
-    >
+    <main className="max-w-7xl px-4 lg:px-8 py-8 font-sans">
       <button
         type="button"
         onClick={() => router.push("/patients")}
-        style={{
-          marginBottom: 16,
-          padding: "4px 8px",
-          borderRadius: 4,
-          border: "1px solid #d1d5db",
-          background: "#f9fafb",
-          cursor: "pointer",
-          fontSize: 13,
-        }}
+        className="mb-4 px-2 py-1 text-sm rounded border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer"
       >
         ← Буцах
       </button>
 
       {loading && <div>Ачааллаж байна...</div>}
-      {!loading && error && <div style={{ color: "red" }}>{error}</div>}
+      {!loading && error && <div className="text-red-600">{error}</div>}
 
       {!loading && !error && patient && pb && (
         <>
           {/* Top layout: left profile panel + right content */}
-          <section
-            style={{
-              display: "grid",
-              gridTemplateColumns: "260px 1fr",
-              gap: 16,
-              alignItems: "stretch",
-              marginBottom: 24,
-            }}
-          >
+          <section className="grid grid-cols-[260px_1fr] gap-4 mb-6 items-stretch">
             {/* Left: profile card + side menu */}
-            <div
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                padding: 16,
-                background: "white",
-              }}
-            >
-              <div style={{ marginBottom: 4, fontSize: 18, fontWeight: 600 }}>
+            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-4">
+              <div className="mb-1 text-lg font-semibold">
                 {formatDisplayName(patient)}
               </div>
-              <div style={{ fontSize: 13, color: "#6b7280" }}>
+              <div className="text-sm text-gray-500">
                 Картын дугаар: {pb.bookNumber}
               </div>
               {patient.regNo && (
-                <div style={{ fontSize: 13, color: "#6b7280" }}>
+                <div className="text-sm text-gray-500">
                   РД: {patient.regNo}
                 </div>
               )}
-              <div style={{ fontSize: 13, color: "#6b7280" }}>
+              <div className="text-sm text-gray-500">
                 Утас: {displayOrDash(patient.phone)}
               </div>
-              <div style={{ fontSize: 13, color: "#6b7280" }}>
+              <div className="text-sm text-gray-500">
                 Бүртгэсэн салбар: {patient.branch?.name || patient.branchId}
               </div>
               {patient.createdAt && (
-                <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
+                <div className="text-xs text-gray-400 mt-1">
                   Бүртгэсэн: {formatDate(patient.createdAt)}
                 </div>
               )}
 
               {/* Side menu */}
-              <div style={{ marginTop: 16 }}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    textTransform: "uppercase",
-                    color: "#9ca3af",
-                    marginBottom: 4,
-                  }}
-                >
+              <div className="mt-4">
+                <div className="text-xs uppercase text-gray-400 mb-1">
                   Цэс
                 </div>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                    fontSize: 13,
-                  }}
-                >
+                <div className="flex flex-col gap-1 text-sm">
                   {/* Профайл */}
                   <button
                     type="button"
@@ -294,18 +257,7 @@ export default function PatientProfilePage() {
                       setSaveError("");
                       setSaveSuccess("");
                     }}
-                    style={{
-                      textAlign: "left",
-                      padding: "6px 10px",
-                      borderRadius: 6,
-                      border: "none",
-                      background:
-                        activeTab === "profile" ? "#eff6ff" : "transparent",
-                      color:
-                        activeTab === "profile" ? "#1d4ed8" : "#6b7280",
-                      fontWeight: activeTab === "profile" ? 500 : 400,
-                      cursor: "pointer",
-                    }}
+                    className={tabBtnClass("profile")}
                   >
                     Профайл
                   </button>
@@ -319,23 +271,7 @@ export default function PatientProfilePage() {
                       setSaveError("");
                       setSaveSuccess("");
                     }}
-                    style={{
-                      textAlign: "left",
-                      padding: "6px 10px",
-                      borderRadius: 6,
-                      border: "none",
-                      background:
-                        activeTab === "patient_history"
-                          ? "#eff6ff"
-                          : "transparent",
-                      color:
-                        activeTab === "patient_history"
-                          ? "#1d4ed8"
-                          : "#6b7280",
-                      fontWeight:
-                        activeTab === "patient_history" ? 500 : 400,
-                      cursor: "pointer",
-                    }}
+                    className={tabBtnClass("patient_history")}
                   >
                     Үйлчлүүлэгчийн карт
                   </button>
@@ -349,23 +285,7 @@ export default function PatientProfilePage() {
                       setSaveError("");
                       setSaveSuccess("");
                     }}
-                    style={{
-                      textAlign: "left",
-                      padding: "6px 10px",
-                      borderRadius: 6,
-                      border: "none",
-                      background:
-                        activeTab === "appointments"
-                          ? "#eff6ff"
-                          : "transparent",
-                      color:
-                        activeTab === "appointments"
-                          ? "#1d4ed8"
-                          : "#6b7280",
-                      fontWeight:
-                        activeTab === "appointments" ? 500 : 400,
-                      cursor: "pointer",
-                    }}
+                    className={tabBtnClass("appointments")}
                   >
                     Цагууд
                   </button>
@@ -379,23 +299,7 @@ export default function PatientProfilePage() {
                       setSaveError("");
                       setSaveSuccess("");
                     }}
-                    style={{
-                      textAlign: "left",
-                      padding: "6px 10px",
-                      borderRadius: 6,
-                      border: "none",
-                      background:
-                        activeTab === "visit_card"
-                          ? "#eff6ff"
-                          : "transparent",
-                      color:
-                        activeTab === "visit_card"
-                          ? "#1d4ed8"
-                          : "#6b7280",
-                      fontWeight:
-                        activeTab === "visit_card" ? 500 : 400,
-                      cursor: "pointer",
-                    }}
+                    className={tabBtnClass("visit_card")}
                   >
                     Карт бөглөх
                   </button>
@@ -409,44 +313,16 @@ export default function PatientProfilePage() {
                       setSaveError("");
                       setSaveSuccess("");
                     }}
-                    style={{
-                      textAlign: "left",
-                      padding: "6px 10px",
-                      borderRadius: 6,
-                      border: "none",
-                      background:
-                        activeTab === "ortho_card"
-                          ? "#eff6ff"
-                          : "transparent",
-                      color:
-                        activeTab === "ortho_card"
-                          ? "#1d4ed8"
-                          : "#6b7280",
-                      fontWeight:
-                        activeTab === "ortho_card" ? 500 : 400,
-                      cursor: "pointer",
-                    }}
+                    className={tabBtnClass("ortho_card")}
                   >
                     Гажиг заслын карт
                   </button>
 
                   {/* Future placeholders */}
-                  <div
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: 6,
-                      color: "#6b7280",
-                    }}
-                  >
+                  <div className="px-2.5 py-1.5 rounded-md text-gray-500">
                     Үзлэгийн түүх
                   </div>
-                  <div
-                    style={{
-                      padding: "6px 10px",
-                      borderRadius: 6,
-                      color: "#6b7280",
-                    }}
-                  >
+                  <div className="px-2.5 py-1.5 rounded-md text-gray-500">
                     Нэхэмжлэх
                   </div>
                 </div>
@@ -454,167 +330,67 @@ export default function PatientProfilePage() {
             </div>
 
             {/* Right content area: depends on activeTab */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="flex flex-col gap-4">
               {activeTab === "profile" && (
                 <>
                   {/* Summary cards row */}
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "repeat(auto-fit, minmax(180px, 1fr))",
-                      gap: 12,
-                    }}
-                  >
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
                     {/* Encounters summary */}
-                    <div
-                      style={{
-                        borderRadius: 12,
-                        border: "1px solid #e5e7eb",
-                        padding: 12,
-                        background: "#f9fafb",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 12,
-                          textTransform: "uppercase",
-                          color: "#6b7280",
-                          marginBottom: 4,
-                        }}
-                      >
+                    <div className="rounded-xl border border-gray-200 p-3 bg-gray-50">
+                      <div className="text-xs uppercase text-gray-500 mb-1">
                         Үзлэгүүд
                       </div>
-                      <div
-                        style={{
-                          fontSize: 24,
-                          fontWeight: 600,
-                          marginBottom: 4,
-                        }}
-                      >
+                      <div className="text-2xl font-semibold mb-1">
                         {totalEncounters}
                       </div>
-                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                      <div className="text-xs text-gray-500">
                         Нийт бүртгэлтэй үзлэг
                       </div>
                     </div>
 
                     {/* Last encounter */}
-                    <div
-                      style={{
-                        borderRadius: 12,
-                        border: "1px solid #e5e7eb",
-                        padding: 12,
-                        background: "#f9fafb",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 12,
-                          textTransform: "uppercase",
-                          color: "#6b7280",
-                          marginBottom: 4,
-                        }}
-                      >
+                    <div className="rounded-xl border border-gray-200 p-3 bg-gray-50">
+                      <div className="text-xs uppercase text-gray-500 mb-1">
                         Сүүлийн үзлэг
                       </div>
-                      <div
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 500,
-                          marginBottom: 4,
-                        }}
-                      >
+                      <div className="text-sm font-medium mb-1">
                         {lastEncounter
                           ? formatDateTime(lastEncounter.visitDate)
                           : "-"}
                       </div>
-                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                      <div className="text-xs text-gray-500">
                         Хамгийн сүүлд ирсэн огноо
                       </div>
                     </div>
 
                     {/* Appointments summary */}
-                    <div
-                      style={{
-                        borderRadius: 12,
-                        border: "1px solid #e5e7eb",
-                        padding: 12,
-                        background: "#f9fafb",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 12,
-                          textTransform: "uppercase",
-                          color: "#6b7280",
-                          marginBottom: 4,
-                        }}
-                      >
+                    <div className="rounded-xl border border-gray-200 p-3 bg-gray-50">
+                      <div className="text-xs uppercase text-gray-500 mb-1">
                         Цаг захиалгууд
                       </div>
-                      <div
-                        style={{
-                          fontSize: 24,
-                          fontWeight: 600,
-                          marginBottom: 4,
-                        }}
-                      >
+                      <div className="text-2xl font-semibold mb-1">
                         {totalAppointments}
                       </div>
-                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                      <div className="text-xs text-gray-500">
                         Нийт бүртгэлтэй цаг
                       </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "#16a34a",
-                          marginTop: 4,
-                        }}
-                      >
+                      <div className="text-xs text-green-600 mt-1">
                         Ирэх цаг: {upcomingAppointments.length}
                       </div>
                     </div>
                   </div>
 
                   {/* Basic information section (editable) */}
-                  <div
-                    style={{
-                      borderRadius: 12,
-                      border: "1px solid #e5e7eb",
-                      padding: 16,
-                      background: "white",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: 12,
-                      }}
-                    >
-                      <h2
-                        style={{
-                          fontSize: 16,
-                          marginTop: 0,
-                          marginBottom: 0,
-                        }}
-                      >
+                  <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-base font-semibold m-0">
                         Үндсэн мэдээлэл
                       </h2>
                       {!editMode ? (
                         <button
                           type="button"
                           onClick={startEdit}
-                          style={{
-                            fontSize: 12,
-                            padding: "4px 8px",
-                            borderRadius: 6,
-                            border: "1px solid #d1d5db",
-                            background: "#f9fafb",
-                            cursor: "pointer",
-                          }}
+                          className="text-xs px-2 py-1 rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer"
                         >
                           Засах
                         </button>
@@ -622,46 +398,26 @@ export default function PatientProfilePage() {
                     </div>
 
                     {saveError && (
-                      <div
-                        style={{
-                          color: "#b91c1c",
-                          fontSize: 12,
-                          marginBottom: 8,
-                        }}
-                      >
+                      <div className="text-red-700 text-xs mb-2">
                         {saveError}
                       </div>
                     )}
                     {saveSuccess && (
-                      <div
-                        style={{
-                          color: "#16a34a",
-                          fontSize: 12,
-                          marginBottom: 8,
-                        }}
-                      >
+                      <div className="text-green-700 text-xs mb-2">
                         {saveSuccess}
                       </div>
                     )}
 
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "repeat(auto-fit, minmax(220px, 1fr))",
-                        gap: 12,
-                        fontSize: 13,
-                      }}
-                    >
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3 text-sm">
                       {/* Book number and branch (read-only) */}
                       <div>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
+                        <div className="text-gray-500 mb-0.5">
                           Картын дугаар
                         </div>
                         <div>{pb.bookNumber}</div>
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
+                        <div className="text-gray-500 mb-0.5">
                           Бүртгэсэн салбар
                         </div>
                         <div>{patient.branch?.name || patient.branchId}</div>
@@ -669,60 +425,39 @@ export default function PatientProfilePage() {
 
                       {/* Ovog, Name, regNo */}
                       <div>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
-                          Овог
-                        </div>
+                        <div className="text-gray-500 mb-0.5">Овог</div>
                         {editMode ? (
                           <input
                             name="ovog"
                             value={editForm.ovog ?? ""}
                             onChange={handleEditChange}
-                            style={{
-                              width: "100%",
-                              borderRadius: 6,
-                              border: "1px solid #d1d5db",
-                              padding: "4px 6px",
-                            }}
+                            className={inputClass}
                           />
                         ) : (
                           <div>{displayOrDash(patient.ovog)}</div>
                         )}
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
-                          Нэр
-                        </div>
+                        <div className="text-gray-500 mb-0.5">Нэр</div>
                         {editMode ? (
                           <input
                             name="name"
                             value={editForm.name ?? ""}
                             onChange={handleEditChange}
-                            style={{
-                              width: "100%",
-                              borderRadius: 6,
-                              border: "1px solid #d1d5db",
-                              padding: "4px 6px",
-                            }}
+                            className={inputClass}
                           />
                         ) : (
                           <div>{patient.name}</div>
                         )}
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
-                          РД
-                        </div>
+                        <div className="text-gray-500 mb-0.5">РД</div>
                         {editMode ? (
                           <input
                             name="regNo"
                             value={editForm.regNo ?? ""}
                             onChange={handleEditChange}
-                            style={{
-                              width: "100%",
-                              borderRadius: 6,
-                              border: "1px solid #d1d5db",
-                              padding: "4px 6px",
-                            }}
+                            className={inputClass}
                           />
                         ) : (
                           <div>{displayOrDash(patient.regNo)}</div>
@@ -731,27 +466,20 @@ export default function PatientProfilePage() {
 
                       {/* Contact info */}
                       <div>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
-                          Утас
-                        </div>
+                        <div className="text-gray-500 mb-0.5">Утас</div>
                         {editMode ? (
                           <input
                             name="phone"
                             value={editForm.phone ?? ""}
                             onChange={handleEditChange}
-                            style={{
-                              width: "100%",
-                              borderRadius: 6,
-                              border: "1px solid #d1d5db",
-                              padding: "4px 6px",
-                            }}
+                            className={inputClass}
                           />
                         ) : (
                           <div>{displayOrDash(patient.phone)}</div>
                         )}
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
+                        <div className="text-gray-500 mb-0.5">
                           Яаралтай үед холбоо барих утас
                         </div>
                         {editMode ? (
@@ -759,53 +487,34 @@ export default function PatientProfilePage() {
                             name="emergencyPhone"
                             value={editForm.emergencyPhone ?? ""}
                             onChange={handleEditChange}
-                            style={{
-                              width: "100%",
-                              borderRadius: 6,
-                              border: "1px solid #d1d5db",
-                              padding: "4px 6px",
-                            }}
+                            className={inputClass}
                           />
                         ) : (
                           <div>{displayOrDash(patient.emergencyPhone)}</div>
                         )}
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
-                          E-mail
-                        </div>
+                        <div className="text-gray-500 mb-0.5">E-mail</div>
                         {editMode ? (
                           <input
                             name="email"
                             type="email"
                             value={editForm.email ?? ""}
                             onChange={handleEditChange}
-                            style={{
-                              width: "100%",
-                              borderRadius: 6,
-                              border: "1px solid #d1d5db",
-                              padding: "4px 6px",
-                            }}
+                            className={inputClass}
                           />
                         ) : (
                           <div>{displayOrDash(patient.email)}</div>
                         )}
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
-                          Ажлын газар
-                        </div>
+                        <div className="text-gray-500 mb-0.5">Ажлын газар</div>
                         {editMode ? (
                           <input
                             name="workPlace"
                             value={editForm.workPlace ?? ""}
                             onChange={handleEditChange}
-                            style={{
-                              width: "100%",
-                              borderRadius: 6,
-                              border: "1px solid #d1d5db",
-                              padding: "4px 6px",
-                            }}
+                            className={inputClass}
                           />
                         ) : (
                           <div>{displayOrDash(patient.workPlace)}</div>
@@ -814,7 +523,7 @@ export default function PatientProfilePage() {
 
                       {/* Dates & demographics */}
                       <div>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
+                        <div className="text-gray-500 mb-0.5">
                           Бүртгэсэн огноо
                         </div>
                         <div>
@@ -824,25 +533,10 @@ export default function PatientProfilePage() {
                         </div>
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
-                          Хүйс
-                        </div>
+                        <div className="text-gray-500 mb-0.5">Хүйс</div>
                         {editMode ? (
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 8,
-                              alignItems: "center",
-                              paddingTop: 2,
-                            }}
-                          >
-                            <label
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 4,
-                              }}
-                            >
+                          <div className="flex gap-2 items-center pt-0.5">
+                            <label className="flex items-center gap-1">
                               <input
                                 type="radio"
                                 name="gender"
@@ -852,13 +546,7 @@ export default function PatientProfilePage() {
                               />
                               <span>Эр</span>
                             </label>
-                            <label
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 4,
-                              }}
-                            >
+                            <label className="flex items-center gap-1">
                               <input
                                 type="radio"
                                 name="gender"
@@ -868,13 +556,7 @@ export default function PatientProfilePage() {
                               />
                               <span>Эм</span>
                             </label>
-                            <label
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 4,
-                              }}
-                            >
+                            <label className="flex items-center gap-1">
                               <input
                                 type="radio"
                                 name="gender"
@@ -890,21 +572,14 @@ export default function PatientProfilePage() {
                         )}
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
-                          Төрсөн огноо
-                        </div>
+                        <div className="text-gray-500 mb-0.5">Төрсөн огноо</div>
                         {editMode ? (
                           <input
                             type="date"
                             name="birthDate"
                             value={editForm.birthDate ?? ""}
                             onChange={handleEditChange}
-                            style={{
-                              width: "100%",
-                              borderRadius: 6,
-                              border: "1px solid #d1d5db",
-                              padding: "4px 6px",
-                            }}
+                            className={inputClass}
                           />
                         ) : (
                           <div>
@@ -915,40 +590,26 @@ export default function PatientProfilePage() {
                         )}
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
-                          Цусны бүлэг
-                        </div>
+                        <div className="text-gray-500 mb-0.5">Цусны бүлэг</div>
                         {editMode ? (
                           <input
                             name="bloodType"
                             value={editForm.bloodType ?? ""}
                             onChange={handleEditChange}
-                            style={{
-                              width: "100%",
-                              borderRadius: 6,
-                              border: "1px solid #d1d5db",
-                              padding: "4px 6px",
-                            }}
+                            className={inputClass}
                           />
                         ) : (
                           <div>{displayOrDash(patient.bloodType)}</div>
                         )}
                       </div>
                       <div>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
-                          Иргэншил
-                        </div>
+                        <div className="text-gray-500 mb-0.5">Иргэншил</div>
                         {editMode ? (
                           <input
                             name="citizenship"
                             value={editForm.citizenship ?? "Монгол"}
                             onChange={handleEditChange}
-                            style={{
-                              width: "100%",
-                              borderRadius: 6,
-                              border: "1px solid #d1d5db",
-                              padding: "4px 6px",
-                            }}
+                            className={inputClass}
                           />
                         ) : (
                           <div>{displayOrDash(patient.citizenship)}</div>
@@ -956,21 +617,14 @@ export default function PatientProfilePage() {
                       </div>
 
                       {/* Address */}
-                      <div style={{ gridColumn: "1 / -1" }}>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
-                          Хаяг
-                        </div>
+                      <div className="col-span-full">
+                        <div className="text-gray-500 mb-0.5">Хаяг</div>
                         {editMode ? (
                           <input
                             name="address"
                             value={editForm.address ?? ""}
                             onChange={handleEditChange}
-                            style={{
-                              width: "100%",
-                              borderRadius: 6,
-                              border: "1px solid #d1d5db",
-                              padding: "4px 6px",
-                            }}
+                            className={inputClass}
                           />
                         ) : (
                           <div>{displayOrDash(patient.address)}</div>
@@ -978,23 +632,15 @@ export default function PatientProfilePage() {
                       </div>
 
                       {/* Notes */}
-                      <div style={{ gridColumn: "1 / -1" }}>
-                        <div style={{ color: "#6b7280", marginBottom: 2 }}>
-                          Тэмдэглэл
-                        </div>
+                      <div className="col-span-full">
+                        <div className="text-gray-500 mb-0.5">Тэмдэглэл</div>
                         {editMode ? (
                           <textarea
                             name="notes"
                             value={editForm.notes ?? ""}
                             onChange={handleEditChange}
                             rows={3}
-                            style={{
-                              width: "100%",
-                              borderRadius: 6,
-                              border: "1px solid #d1d5db",
-                              padding: "4px 6px",
-                              resize: "vertical",
-                            }}
+                            className="w-full rounded-md border border-gray-300 px-1.5 py-1 text-sm resize-y"
                           />
                         ) : (
                           <div>{displayOrDash(patient.notes)}</div>
@@ -1004,26 +650,12 @@ export default function PatientProfilePage() {
 
                     {/* Save / Cancel buttons at bottom when in editMode */}
                     {editMode && (
-                      <div
-                        style={{
-                          marginTop: 16,
-                          display: "flex",
-                          gap: 8,
-                          justifyContent: "flex-end",
-                        }}
-                      >
+                      <div className="mt-4 flex gap-2 justify-end">
                         <button
                           type="button"
                           onClick={cancelEdit}
                           disabled={saving}
-                          style={{
-                            padding: "6px 12px",
-                            borderRadius: 6,
-                            border: "1px solid #d1d5db",
-                            background: "#f9fafb",
-                            fontSize: 13,
-                            cursor: saving ? "default" : "pointer",
-                          }}
+                          className="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-gray-50 cursor-pointer hover:bg-gray-100 disabled:cursor-default"
                         >
                           Болих
                         </button>
@@ -1031,15 +663,7 @@ export default function PatientProfilePage() {
                           type="button"
                           onClick={handleSave}
                           disabled={saving}
-                          style={{
-                            padding: "6px 12px",
-                            borderRadius: 6,
-                            border: "none",
-                            background: saving ? "#9ca3af" : "#2563eb",
-                            color: "white",
-                            fontSize: 13,
-                            cursor: saving ? "default" : "pointer",
-                          }}
+                          className={`px-3 py-1.5 text-sm rounded-md border-0 text-white ${saving ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 cursor-pointer"}`}
                         >
                           {saving ? "Хадгалж байна..." : "Хадгалах"}
                         </button>
@@ -1050,157 +674,64 @@ export default function PatientProfilePage() {
               )}
 
               {activeTab === "appointments" && (
-                <div
-                  style={{
-                    borderRadius: 12,
-                    border: "1px solid #e5e7eb",
-                    padding: 16,
-                    background: "white",
-                  }}
-                >
-                  <h2
-                    style={{
-                      fontSize: 16,
-                      marginTop: 0,
-                      marginBottom: 12,
-                    }}
-                  >
+                <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-4">
+                  <h2 className="text-base font-semibold mt-0 mb-3">
                     Цагууд (бүх бүртгэлтэй цагууд)
                   </h2>
                   {sortedAppointments.length === 0 ? (
-                    <div style={{ color: "#6b7280", fontSize: 13 }}>
+                    <div className="text-sm text-gray-500">
                       Цаг захиалгын бүртгэл алга.
                     </div>
                   ) : (
-                    <table
-                      style={{
-                        width: "100%",
-                        borderCollapse: "collapse",
-                        fontSize: 13,
-                      }}
-                    >
-                      <thead>
+                    <table className="w-full border-collapse text-sm">
+                      <thead className="bg-gray-50">
                         <tr>
-                          <th
-                            style={{
-                              textAlign: "left",
-                              borderBottom: "1px solid #e5e7eb",
-                              padding: 6,
-                            }}
-                          >
+                          <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                             Огноо / цаг
                           </th>
-                          <th
-                            style={{
-                              textAlign: "left",
-                              borderBottom: "1px solid #e5e7eb",
-                              padding: 6,
-                            }}
-                          >
+                          <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                             Салбар
                           </th>
-                          <th
-                            style={{
-                              textAlign: "left",
-                              borderBottom: "1px solid #e5e7eb",
-                              padding: 6,
-                            }}
-                          >
+                          <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                             Эмч
                           </th>
-                          <th
-                            style={{
-                              textAlign: "left",
-                              borderBottom: "1px solid #e5e7eb",
-                              padding: 6,
-                            }}
-                          >
+                          <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                             Төлөв
                           </th>
-                          <th
-                            style={{
-                              textAlign: "left",
-                              borderBottom: "1px solid #e5e7eb",
-                              padding: 6,
-                            }}
-                          >
+                          <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                             Тэмдэглэл
                           </th>
-                          <th
-                            style={{
-                              textAlign: "left",
-                              borderBottom: "1px solid #e5e7eb",
-                              padding: 6,
-                            }}
-                          >
+                          <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                             Үйлдэл
                           </th>
                         </tr>
                       </thead>
                       <tbody>
                         {sortedAppointments.map((a) => (
-                          <tr key={a.id}>
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f3f4f6",
-                                padding: 6,
-                              }}
-                            >
+                          <tr key={a.id} className="odd:bg-white even:bg-gray-50">
+                            <td className="border-b border-gray-100 py-1.5 px-2">
                               {formatDateTime(a.scheduledAt)}
                             </td>
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f3f4f6",
-                                padding: 6,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 py-1.5 px-2">
                               {a.branch?.name || "-"}
                             </td>
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f3f4f6",
-                                padding: 6,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 py-1.5 px-2">
                               {formatDoctorName(a.doctor)}
                             </td>
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f3f4f6",
-                                padding: 6,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 py-1.5 px-2">
                               {a.status}
                             </td>
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f3f4f6",
-                                padding: 6,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 py-1.5 px-2">
                               {displayOrDash(a.notes ?? null)}
                             </td>
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f3f4f6",
-                                padding: 6,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 py-1.5 px-2">
                               {a.status === "completed" && (
                                 <button
                                   onClick={() => {
                                     setReportAppointmentId(a.id);
                                     setReportModalOpen(true);
                                   }}
-                                  style={{
-                                    padding: "4px 8px",
-                                    fontSize: 12,
-                                    background: "#3b82f6",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: 4,
-                                    cursor: "pointer",
-                                  }}
+                                  className="px-2 py-1 text-xs bg-blue-500 text-white rounded cursor-pointer hover:bg-blue-600 border-0"
                                 >
                                   Үзэх
                                 </button>
@@ -1226,38 +757,12 @@ export default function PatientProfilePage() {
               {activeTab === "visit_card" && (
                 <>
                   {/* Type selector for adult vs child */}
-                  <div
-                    style={{
-                      borderRadius: 12,
-                      border: "1px solid #e5e7eb",
-                      padding: 12,
-                      background: "white",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        marginBottom: 8,
-                      }}
-                    >
+                  <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-3">
+                    <div className="text-sm font-semibold mb-2">
                       Үзлэгийн картын төрөл
                     </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 20,
-                        alignItems: "center",
-                        fontSize: 13,
-                      }}
-                    >
-                      <label
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
+                    <div className="flex gap-5 items-center text-sm">
+                      <label className="flex items-center gap-1">
                         <input
                           type="radio"
                           name="visitCardType"
@@ -1267,13 +772,7 @@ export default function PatientProfilePage() {
                         />
                         <span>Үзлэгийн карт (Том хүн)</span>
                       </label>
-                      <label
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
+                      <label className="flex items-center gap-1">
                         <input
                           type="radio"
                           name="visitCardType"
@@ -1286,19 +785,13 @@ export default function PatientProfilePage() {
                     </div>
 
                     {visitCardLoading && (
-                      <div style={{ fontSize: 13, marginTop: 8 }}>
+                      <div className="text-sm mt-2">
                         Үзлэгийн карт ачааллаж байна...
                       </div>
                     )}
 
                     {!visitCardLoading && visitCardError && (
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "#b91c1c",
-                          marginTop: 8,
-                        }}
-                      >
+                      <div className="text-xs text-red-700 mt-2">
                         {visitCardError}
                       </div>
                     )}
@@ -1306,23 +799,8 @@ export default function PatientProfilePage() {
 
                   {/* Render only one form depending on visitCardTypeDraft */}
                   {(visitCardTypeDraft ?? "ADULT") === "ADULT" ? (
-                    <div
-                      style={{
-                        borderRadius: 12,
-                        border: "1px solid #e5e7eb",
-                        padding: 16,
-                        background: "white",
-                        marginTop: 16,
-                        marginBottom: 16,
-                      }}
-                    >
-                      <h2
-                        style={{
-                          fontSize: 16,
-                          marginTop: 0,
-                          marginBottom: 12,
-                        }}
-                      >
+                    <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-4 mt-4 mb-4">
+                      <h2 className="text-base font-semibold mt-0 mb-3">
                         Үзлэгийн карт (Том хүн)
                       </h2>
 
@@ -1337,56 +815,21 @@ export default function PatientProfilePage() {
                           />
 
                           {/* 3) Ерөнхий биеийн талаархи асуумж + Харшил + Зуршил */}
-                          <section style={{ marginTop: 16 }}>
-                            <h3
-                              style={{
-                                fontSize: 14,
-                                margin: 0,
-                                marginBottom: 8,
-                              }}
-                            >
+                          <section className="mt-4">
+                            <h3 className="text-sm font-semibold m-0 mb-2">
                               Ерөнхий биеийн талаархи асуумж
                             </h3>
 
-                            <table
-                              style={{
-                                width: "100%",
-                                borderCollapse: "collapse",
-                                fontSize: 13,
-                              }}
-                            >
-                              <thead>
+                            <table className="w-full border-collapse text-sm">
+                              <thead className="bg-gray-50">
                                 <tr>
-                                  <th
-                                    style={{
-                                      textAlign: "left",
-                                      borderBottom:
-                                        "1px solid #e5e7eb",
-                                      padding: 6,
-                                    }}
-                                  >
+                                  <th className="text-left border-b border-gray-200 py-2 px-1.5 font-semibold text-gray-700">
                                     Асуумж
                                   </th>
-                                  <th
-                                    style={{
-                                      textAlign: "center",
-                                      borderBottom:
-                                        "1px solid #e5e7eb",
-                                      padding: 6,
-                                      width: 60,
-                                    }}
-                                  >
+                                  <th className="text-center border-b border-gray-200 py-2 px-1.5 font-semibold text-gray-700 w-16">
                                     Үгүй
                                   </th>
-                                  <th
-                                    style={{
-                                      textAlign: "center",
-                                      borderBottom:
-                                        "1px solid #e5e7eb",
-                                      padding: 6,
-                                      width: 100,
-                                    }}
-                                  >
+                                  <th className="text-center border-b border-gray-200 py-2 px-1.5 font-semibold text-gray-700 w-24">
                                     Тийм
                                   </th>
                                 </tr>
@@ -1441,24 +884,11 @@ export default function PatientProfilePage() {
                                     ] || "";
                                   return (
                                     <React.Fragment key={key}>
-                                      <tr>
-                                        <td
-                                          style={{
-                                            borderBottom:
-                                              "1px solid #f3f4f6",
-                                            padding: 6,
-                                          }}
-                                        >
+                                      <tr className="odd:bg-white even:bg-gray-50">
+                                        <td className="border-b border-gray-100 py-1.5 px-1.5">
                                           {label}
                                         </td>
-                                        <td
-                                          style={{
-                                            textAlign: "center",
-                                            borderBottom:
-                                              "1px solid #f3f4f6",
-                                            padding: 6,
-                                          }}
-                                        >
+                                        <td className="text-center border-b border-gray-100 py-1.5 px-1.5">
                                           <input
                                             type="radio"
                                             name={`gm_${key}`}
@@ -1472,14 +902,7 @@ export default function PatientProfilePage() {
                                             }
                                           />
                                         </td>
-                                        <td
-                                          style={{
-                                            textAlign: "center",
-                                            borderBottom:
-                                              "1px solid #f3f4f6",
-                                            padding: 6,
-                                          }}
-                                        >
+                                        <td className="text-center border-b border-gray-100 py-1.5 px-1.5">
                                           <input
                                             type="radio"
                                             name={`gm_${key}`}
@@ -1498,12 +921,7 @@ export default function PatientProfilePage() {
                                         <tr>
                                           <td
                                             colSpan={3}
-                                            style={{
-                                              borderBottom:
-                                                "1px solid #f3f4f6",
-                                              padding:
-                                                "0 6px 6px 6px",
-                                            }}
+                                            className="border-b border-gray-100 px-1.5 pb-1.5"
                                           >
                                             <input
                                               placeholder="Тайлбар / дэлгэрэнгүй"
@@ -1515,13 +933,7 @@ export default function PatientProfilePage() {
                                                   e.target.value
                                                 )
                                               }
-                                              style={{
-                                                width: "100%",
-                                                borderRadius: 6,
-                                                border:
-                                                  "1px solid #d1d5db",
-                                                padding: "4px 6px",
-                                              }}
+                                              className={inputClass}
                                             />
                                           </td>
                                         </tr>
@@ -1534,15 +946,7 @@ export default function PatientProfilePage() {
                                 <tr>
                                   <td
                                     colSpan={3}
-                                    style={{
-                                      padding: 6,
-                                      background: "#f9fafb",
-                                      fontWeight: 500,
-                                      borderTop:
-                                        "1px solid #e5e7eb",
-                                      borderBottom:
-                                        "1px solid #e5e7eb",
-                                    }}
+                                    className="p-1.5 bg-gray-50 font-medium border-y border-gray-200"
                                   >
                                     Харшил
                                   </td>
@@ -1574,24 +978,11 @@ export default function PatientProfilePage() {
                                   const isNo = value !== "yes";
                                   return (
                                     <React.Fragment key={key}>
-                                      <tr>
-                                        <td
-                                          style={{
-                                            borderBottom:
-                                              "1px solid #f3f4f6",
-                                            padding: 6,
-                                          }}
-                                        >
+                                      <tr className="odd:bg-white even:bg-gray-50">
+                                        <td className="border-b border-gray-100 py-1.5 px-1.5">
                                           {label}
                                         </td>
-                                        <td
-                                          style={{
-                                            textAlign: "center",
-                                            borderBottom:
-                                              "1px solid #f3f4f6",
-                                            padding: 6,
-                                          }}
-                                        >
+                                        <td className="text-center border-b border-gray-100 py-1.5 px-1.5">
                                           <input
                                             type="radio"
                                             name={`allergy_${key}`}
@@ -1605,14 +996,7 @@ export default function PatientProfilePage() {
                                             }
                                           />
                                         </td>
-                                        <td
-                                          style={{
-                                            textAlign: "center",
-                                            borderBottom:
-                                              "1px solid #f3f4f6",
-                                            padding: 6,
-                                          }}
-                                        >
+                                        <td className="text-center border-b border-gray-100 py-1.5 px-1.5">
                                           <input
                                             type="radio"
                                             name={`allergy_${key}`}
@@ -1631,12 +1015,7 @@ export default function PatientProfilePage() {
                                         <tr>
                                           <td
                                             colSpan={3}
-                                            style={{
-                                              borderBottom:
-                                                "1px solid #f3f4f6",
-                                              padding:
-                                                "0 6px 6px 6px",
-                                            }}
+                                            className="border-b border-gray-100 px-1.5 pb-1.5"
                                           >
                                             <input
                                               placeholder="Тайлбар / дэлгэрэнгүй"
@@ -1648,13 +1027,7 @@ export default function PatientProfilePage() {
                                                   e.target.value
                                                 )
                                               }
-                                              style={{
-                                                width: "100%",
-                                                borderRadius: 6,
-                                                border:
-                                                  "1px solid #d1d5db",
-                                                padding: "4px 6px",
-                                              }}
+                                              className={inputClass}
                                             />
                                           </td>
                                         </tr>
@@ -1667,15 +1040,7 @@ export default function PatientProfilePage() {
                                 <tr>
                                   <td
                                     colSpan={3}
-                                    style={{
-                                      padding: 6,
-                                      background: "#f9fafb",
-                                      fontWeight: 500,
-                                      borderTop:
-                                        "1px solid #e5e7eb",
-                                      borderBottom:
-                                        "1px solid #e5e7eb",
-                                    }}
+                                    className="p-1.5 bg-gray-50 font-medium border-y border-gray-200"
                                   >
                                     Зуршил
                                   </td>
@@ -1705,24 +1070,11 @@ export default function PatientProfilePage() {
 
                                   return (
                                     <React.Fragment key={key}>
-                                      <tr>
-                                        <td
-                                          style={{
-                                            borderBottom:
-                                              "1px solid #f3f4f6",
-                                            padding: 6,
-                                          }}
-                                        >
+                                      <tr className="odd:bg-white even:bg-gray-50">
+                                        <td className="border-b border-gray-100 py-1.5 px-1.5">
                                           {label}
                                         </td>
-                                        <td
-                                          style={{
-                                            textAlign: "center",
-                                            borderBottom:
-                                              "1px solid #f3f4f6",
-                                            padding: 6,
-                                          }}
-                                        >
+                                        <td className="text-center border-b border-gray-100 py-1.5 px-1.5">
                                           <input
                                             type="radio"
                                             name={`habit_${key}`}
@@ -1741,14 +1093,7 @@ export default function PatientProfilePage() {
                                             }}
                                           />
                                         </td>
-                                        <td
-                                          style={{
-                                            textAlign: "center",
-                                            borderBottom:
-                                              "1px solid #f3f4f6",
-                                            padding: 6,
-                                          }}
-                                        >
+                                        <td className="text-center border-b border-gray-100 py-1.5 px-1.5">
                                           <input
                                             type="radio"
                                             name={`habit_${key}`}
@@ -1768,12 +1113,7 @@ export default function PatientProfilePage() {
                                         <tr>
                                           <td
                                             colSpan={3}
-                                            style={{
-                                              borderBottom:
-                                                "1px solid #f3f4f6",
-                                              padding:
-                                                "0 6px 6px 6px",
-                                            }}
+                                            className="border-b border-gray-100 px-1.5 pb-1.5"
                                           >
                                             <input
                                               placeholder={
@@ -1789,13 +1129,7 @@ export default function PatientProfilePage() {
                                                   e.target.value
                                                 )
                                               }
-                                              style={{
-                                                width: "100%",
-                                                borderRadius: 6,
-                                                border:
-                                                  "1px solid #d1d5db",
-                                                padding: "4px 6px",
-                                              }}
+                                              className={inputClass}
                                             />
                                           </td>
                                         </tr>
@@ -1808,15 +1142,7 @@ export default function PatientProfilePage() {
                                 <tr>
                                   <td
                                     colSpan={3}
-                                    style={{
-                                      padding: 6,
-                                      background: "#f9fafb",
-                                      fontWeight: 500,
-                                      borderTop:
-                                        "1px solid #e5e7eb",
-                                      borderBottom:
-                                        "1px solid #e5e7eb",
-                                    }}
+                                    className="p-1.5 bg-gray-50 font-medium border-y border-gray-200"
                                   >
                                     Нэмэлт
                                   </td>
@@ -1850,24 +1176,11 @@ export default function PatientProfilePage() {
 
                                   return (
                                     <React.Fragment key={key}>
-                                      <tr>
-                                        <td
-                                          style={{
-                                            borderBottom:
-                                              "1px solid #f3f4f6",
-                                            padding: 6,
-                                          }}
-                                        >
+                                      <tr className="odd:bg-white even:bg-gray-50">
+                                        <td className="border-b border-gray-100 py-1.5 px-1.5">
                                           {label}
                                         </td>
-                                        <td
-                                          style={{
-                                            textAlign: "center",
-                                            borderBottom:
-                                              "1px solid #f3f4f6",
-                                            padding: 6,
-                                          }}
-                                        >
+                                        <td className="text-center border-b border-gray-100 py-1.5 px-1.5">
                                           <input
                                             type="radio"
                                             name={`dental_${key}`}
@@ -1886,14 +1199,7 @@ export default function PatientProfilePage() {
                                             }}
                                           />
                                         </td>
-                                        <td
-                                          style={{
-                                            textAlign: "center",
-                                            borderBottom:
-                                              "1px solid #f3f4f6",
-                                            padding: 6,
-                                          }}
-                                        >
+                                        <td className="text-center border-b border-gray-100 py-1.5 px-1.5">
                                           <input
                                             type="radio"
                                             name={`dental_${key}`}
@@ -1913,12 +1219,7 @@ export default function PatientProfilePage() {
                                         <tr>
                                           <td
                                             colSpan={3}
-                                            style={{
-                                              borderBottom:
-                                                "1px solid #f3f4f6",
-                                              padding:
-                                                "0 6px 6px 6px",
-                                            }}
+                                            className="border-b border-gray-100 px-1.5 pb-1.5"
                                           >
                                             <input
                                               placeholder="Тайлбар / дэлгэрэнгүй"
@@ -1930,13 +1231,7 @@ export default function PatientProfilePage() {
                                                   e.target.value
                                                 )
                                               }
-                                              style={{
-                                                width: "100%",
-                                                borderRadius: 6,
-                                                border:
-                                                  "1px solid #d1d5db",
-                                                padding: "4px 6px",
-                                              }}
+                                              className={inputClass}
                                             />
                                           </td>
                                         </tr>
@@ -1949,41 +1244,35 @@ export default function PatientProfilePage() {
                           </section>
 
                           {/* Adult consent/information text block */}
-                          <section style={{ marginTop: 16, fontSize: 13 }}>
-                            <div style={{ marginBottom: 8 }}>
+                          <section className="mt-4 text-sm">
+                            <div className="mb-2">
                               Та доорхи таниулсан зөвшөөрлийг бүрэн уншиж
                               танилцана уу
                             </div>
-                            <ol
-                              style={{
-                                paddingLeft: 18,
-                                margin: 0,
-                                marginBottom: 8,
-                              }}
-                            >
-                              <li style={{ marginBottom: 4 }}>
+                            <ol className="pl-[18px] m-0 mb-2 space-y-1">
+                              <li>
                                 Манай эмнэлгийн <strong>7715-1551</strong> утсаар
                                 болон биечлэн уулзаж эмчилгээ хийлгэх цагаа
                                 урьдчилан захиална.
                               </li>
-                              <li style={{ marginBottom: 4 }}>
+                              <li>
                                 Таньд анхны үзлэгээр эмчилгээний төлөвлөгөө,
                                 төлбөрийн баримжаа, цаашид хийгдэх эмчилгээний
                                 үр дүнгийн талаар эмч урьдчилан мэдээллэх үүрэгтэй.
                               </li>
-                              <li style={{ marginBottom: 4 }}>
+                              <li>
                                 Давтан ирэх шаардлагатай эмчилгээнд эмчийн
                                 тогтоосон өдөр та ирэх үүрэгтэй ба хугацаандаа
                                 ирээгүйн улмаас эмчилгээ дахих, цаг хугацаа
                                 алдах, дахин төлбөр төлөх зэрэг асуудал гардаг
                                 ба тухайн асуудлыг үйлчлүүлэгч өөрөө хариуцна.
                               </li>
-                              <li style={{ marginBottom: 4 }}>
+                              <li>
                                 Сувгийн эмчилгээ нь тухайн шүдний үрэвслийн
                                 байдал, тойрон эдийн эдгэрэлт зэргээс хамаарч 2
                                 болон түүнээс дээш удаагийн ирэлтээр хийгддэг.
                               </li>
-                              <li style={{ marginBottom: 4 }}>
+                              <li>
                                 Та хүндэтгэх шалтгааны улмаас товлосон үзлэгийн
                                 цагтаа ирэх боломжгүй болсон тохиолдолд урьдчилан
                                 манай эмнэлгийн <strong>7715-1551</strong>{" "}
@@ -1991,19 +1280,19 @@ export default function PatientProfilePage() {
                                 дүнгүй болох зэрэг таагүй байдлаас та урьдчилан
                                 сэргийлэх боломжтой болно.
                               </li>
-                              <li style={{ marginBottom: 4 }}>
+                              <li>
                                 Та хийлгэсэн эмчилгээний дараахь эмчийн хэлсэн
                                 заавар зөвлөмжийг дагаж биелүүлэх үүрэгтэй ба
                                 ингэснээр эмчилгээ үр дүнгүй болох, дараачийн
                                 хүндрэлүүд үүсэх зэрэг асуудлаас өөрийгөө
                                 сэргийлж байгаа юм.
                               </li>
-                              <li style={{ marginBottom: 4 }}>
+                              <li>
                                 Манай эмнэлэгт хэрэглэгдэж буй нэг удаагийн
                                 зүүний лацны бүрэн бүтэн, аюулгүй байдалд та
                                 давхар хяналт тавих эрхтэй.
                               </li>
-                              <li style={{ marginBottom: 4 }}>
+                              <li>
                                 Гоо заслын эмчилгээнээс бусад ломбонд таныг
                                 эмчлэгч эмч <strong>1 жилийн баталгаа</strong>{" "}
                                 олгоно.
@@ -2015,7 +1304,7 @@ export default function PatientProfilePage() {
                       )}
                     </div>
                   ) : (
-                    <div style={{ marginTop: 16 }}>
+                    <div className="mt-4">
                       <ChildVisitCardForm
                         answers={visitCardAnswers}
                         updateVisitCardAnswer={(
@@ -2051,26 +1340,12 @@ export default function PatientProfilePage() {
                   />
 
                   {/* Shared Save Button */}
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "flex-end",
-                      marginTop: 16,
-                    }}
-                  >
+                  <div className="flex justify-end mt-4">
                     <button
                       type="button"
                       onClick={handleSaveVisitCard}
                       disabled={visitCardSaving}
-                      style={{
-                        padding: "6px 12px",
-                        borderRadius: 6,
-                        border: "none",
-                        background: visitCardSaving ? "#9ca3af" : "#2563eb",
-                        color: "#ffffff",
-                        fontSize: 13,
-                        cursor: visitCardSaving ? "default" : "pointer",
-                      }}
+                      className={`px-3 py-1.5 text-sm rounded-md border-0 text-white ${visitCardSaving ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 cursor-pointer"}`}
                     >
                       {visitCardSaving ? "Хадгалж байна..." : "Хадгалах"}
                     </button>
@@ -2079,21 +1354,8 @@ export default function PatientProfilePage() {
               )}
 
               {activeTab === "ortho_card" && (
-                <div
-                  style={{
-                    borderRadius: 12,
-                    border: "1px solid #e5e7eb",
-                    padding: 16,
-                    background: "white",
-                  }}
-                >
-                  <h2
-                    style={{
-                      fontSize: 16,
-                      marginTop: 0,
-                      marginBottom: 12,
-                    }}
-                  >
+                <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-4">
+                  <h2 className="text-base font-semibold mt-0 mb-3">
                     Гажиг заслын карт
                   </h2>
                   <OrthoCardView />
@@ -2108,61 +1370,33 @@ export default function PatientProfilePage() {
           {activeTab === "profile" && (
             <>
               {/* Encounter history table */}
-              <section style={{ marginBottom: 24 }}>
-                <h2 style={{ fontSize: 16, marginBottom: 8 }}>
+              <section className="mb-6">
+                <h2 className="text-base font-semibold mb-2">
                   Үзлэгийн түүх (Encounters)
                 </h2>
                 {encounters.length === 0 ? (
-                  <div style={{ color: "#6b7280", fontSize: 13 }}>
+                  <div className="text-sm text-gray-500">
                     Одоогоор бүртгэлтэй үзлэг алга.
                   </div>
                 ) : (
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      fontSize: 13,
-                    }}
-                  >
-                    <thead>
+                  <table className="w-full border-collapse text-sm">
+                    <thead className="bg-gray-50">
                       <tr>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #e5e7eb",
-                            padding: 6,
-                          }}
-                        >
+                        <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                           Огноо
                         </th>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #e5e7eb",
-                            padding: 6,
-                          }}
-                        >
+                        <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                           Тэмдэглэл
                         </th>
                       </tr>
                     </thead>
                     <tbody>
                       {encounters.map((e) => (
-                        <tr key={e.id}>
-                          <td
-                            style={{
-                              borderBottom: "1px solid #f3f4f6",
-                              padding: 6,
-                            }}
-                          >
+                        <tr key={e.id} className="odd:bg-white even:bg-gray-50">
+                          <td className="border-b border-gray-100 py-1.5 px-2">
                             {formatDateTime(e.visitDate)}
                           </td>
-                          <td
-                            style={{
-                              borderBottom: "1px solid #f3f4f6",
-                              padding: 6,
-                            }}
-                          >
+                          <td className="border-b border-gray-100 py-1.5 px-2">
                             {displayOrDash(e.notes ?? null)}
                           </td>
                         </tr>
@@ -2174,75 +1408,33 @@ export default function PatientProfilePage() {
 
               {/* Original appointments list (can be removed later if redundant) */}
               <section>
-                <h2 style={{ fontSize: 16, marginBottom: 8 }}>
+                <h2 className="text-base font-semibold mb-2">
                   Цаг захиалгууд (Appointments)
                 </h2>
                 {appointments.length === 0 ? (
-                  <div style={{ color: "#6b7280", fontSize: 13 }}>
+                  <div className="text-sm text-gray-500">
                     Цаг захиалгын бүртгэл алга.
                   </div>
                 ) : (
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      fontSize: 13,
-                    }}
-                  >
-                    <thead>
+                  <table className="w-full border-collapse text-sm">
+                    <thead className="bg-gray-50">
                       <tr>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #e5e7eb",
-                            padding: 6,
-                          }}
-                        >
+                        <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                           Огноо / цаг
                         </th>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #e5e7eb",
-                            padding: 6,
-                          }}
-                        >
+                        <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                           Салбар
                         </th>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #e5e7eb",
-                            padding: 6,
-                          }}
-                        >
+                        <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                           Эмч
                         </th>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #e5e7eb",
-                            padding: 6,
-                          }}
-                        >
+                        <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                           Төлөв
                         </th>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #e5e7eb",
-                            padding: 6,
-                          }}
-                        >
+                        <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                           Тэмдэглэл
                         </th>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #e5e7eb",
-                            padding: 6,
-                          }}
-                        >
+                        <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                           Үйлдэл
                         </th>
                       </tr>
@@ -2254,68 +1446,30 @@ export default function PatientProfilePage() {
                           a.scheduledAt.localeCompare(b.scheduledAt)
                         )
                         .map((a) => (
-                          <tr key={a.id}>
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f3f4f6",
-                                padding: 6,
-                              }}
-                            >
+                          <tr key={a.id} className="odd:bg-white even:bg-gray-50">
+                            <td className="border-b border-gray-100 py-1.5 px-2">
                               {formatDateTime(a.scheduledAt)}
                             </td>
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f3f4f6",
-                                padding: 6,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 py-1.5 px-2">
                               {a.branch?.name || "-"}
                             </td>
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f3f4f6",
-                                padding: 6,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 py-1.5 px-2">
                               {formatDoctorName(a.doctor)}
                             </td>
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f3f4f6",
-                                padding: 6,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 py-1.5 px-2">
                               {a.status}
                             </td>
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f3f4f6",
-                                padding: 6,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 py-1.5 px-2">
                               {displayOrDash(a.notes ?? null)}
                             </td>
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f3f4f6",
-                                padding: 6,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 py-1.5 px-2">
                               {a.status === "completed" && (
                                 <button
                                   onClick={() => {
                                     setReportAppointmentId(a.id);
                                     setReportModalOpen(true);
                                   }}
-                                  style={{
-                                    padding: "4px 8px",
-                                    fontSize: 12,
-                                    background: "#3b82f6",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: 4,
-                                    cursor: "pointer",
-                                  }}
+                                  className="px-2 py-1 text-xs bg-blue-500 text-white rounded cursor-pointer hover:bg-blue-600 border-0"
                                 >
                                   Үзэх
                                 </button>
