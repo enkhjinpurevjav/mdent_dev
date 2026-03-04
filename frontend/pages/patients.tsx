@@ -470,15 +470,7 @@ export default function PatientsPage() {
       <h1 className="text-2xl font-bold mt-1 mb-2">
         Үйлчлүүлэгчийн бүртгэл
       </h1>
-      <p className="text-gray-600 mb-1">
-        Хурдан бүртгэх — зөвхөн нэр, утас, салбар заавал. Бусад мэдээллийг дараа
-        нь нөхөж бөглөж болно.
-      </p>
-      <p className="text-gray-500 text-sm mb-4">
-        <strong>Бүртгэсэн салбар</strong> нь тухайн үйлчлүүлэгчийн үндсэн /
-        анх бүртгэгдсэн салбар юм. Үйлчлүүлэгч бусад салбарт очсон ч үзлэгийн
-        салбар нь цаг авах үед тусад нь сонгогдоно.
-      </p>
+      
 
       {/* Summary cards row */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
