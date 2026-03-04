@@ -2505,7 +2505,8 @@ const handleCancelDraft = (appointmentId: number) => {
     borderRadius: 8,
     fontSize: 12,
     overflowX: "auto",
-    overflowY: "visible",
+    overflowY: "auto",
+    maxHeight: "70vh",
   }}
 >
 
@@ -2517,6 +2518,9 @@ const handleCancelDraft = (appointmentId: number) => {
                 backgroundColor: "#f5f5f5",
                 borderBottom: "1px solid #ddd",
                 minWidth: 80 + gridDoctors.length * 180, // ensure horizontal scroll
+                position: "sticky",
+                top: 0,
+                zIndex: 10,
               }}
             >
               <div style={{ padding: 8, fontWeight: "bold" }}>Цаг</div>
