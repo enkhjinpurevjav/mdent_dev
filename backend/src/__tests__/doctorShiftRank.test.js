@@ -6,10 +6,10 @@
  *   Weekends (Sat/Sun):  rank 0 for all (no shift split; order by calendarOrder only)
  */
 
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 
-import { isWeekendDate, getShiftRank } from "../utils/shiftRank.js";
+import { isWeekendDate, getShiftRank, maybeSwapRankForToday } from "../utils/shiftRank.js";
 
 describe("isWeekendDate", () => {
   it("identifies Saturday as weekend", () => {
@@ -80,5 +80,69 @@ describe("getShiftRank — weekends (no shift split)", () => {
 
   it("Sunday null startTime → rank 0", () => {
     assert.equal(getShiftRank(null, SUNDAY), 0);
+  });
+});
+
+describe("maybeSwapRankForToday", () => {
+  const MONDAY = "2026-03-02"; // A Monday
+  const SATURDAY = "2026-03-07"; // A Saturday
+
+  // 2026-03-02 14:00 Mongolia = 2026-03-02T06:00:00Z
+  const MONDAY_BEFORE_15 = new Date("2026-03-02T06:00:00.000Z").getTime();
+  // 2026-03-02 15:00 Mongolia = 2026-03-02T07:00:00Z
+  const MONDAY_AT_15 = new Date("2026-03-02T07:00:00.000Z").getTime();
+  // 2026-03-07 15:00 Mongolia = 2026-03-07T07:00:00Z (Saturday after 15:00)
+  const SATURDAY_AT_15 = new Date("2026-03-07T07:00:00.000Z").getTime();
+
+  it("before 15:00 today: ranks unchanged (AM=0, PM=1)", () => {
+    mock.timers.enable({ apis: ["Date"], now: MONDAY_BEFORE_15 });
+    try {
+      assert.equal(maybeSwapRankForToday("09:00", MONDAY, MONDAY), 0);
+      assert.equal(maybeSwapRankForToday("15:00", MONDAY, MONDAY), 1);
+    } finally {
+      mock.timers.reset();
+    }
+  });
+
+  it("at/after 15:00 today: AM↔PM swapped (AM=1, PM=0)", () => {
+    mock.timers.enable({ apis: ["Date"], now: MONDAY_AT_15 });
+    try {
+      assert.equal(maybeSwapRankForToday("09:00", MONDAY, MONDAY), 1); // AM → rank 1 (shown second)
+      assert.equal(maybeSwapRankForToday("15:00", MONDAY, MONDAY), 0); // PM → rank 0 (shown first)
+    } finally {
+      mock.timers.reset();
+    }
+  });
+
+  it("non-today date: no swap even after 15:00", () => {
+    // Current time is MONDAY at 15:00, but queryDate is TUESDAY
+    mock.timers.enable({ apis: ["Date"], now: MONDAY_AT_15 });
+    try {
+      const TUESDAY = "2026-03-03";
+      assert.equal(maybeSwapRankForToday("09:00", TUESDAY, TUESDAY), 0);
+      assert.equal(maybeSwapRankForToday("15:00", TUESDAY, TUESDAY), 1);
+    } finally {
+      mock.timers.reset();
+    }
+  });
+
+  it("weekend today after 15:00: no swap (always rank 0)", () => {
+    mock.timers.enable({ apis: ["Date"], now: SATURDAY_AT_15 });
+    try {
+      assert.equal(maybeSwapRankForToday("09:00", SATURDAY, SATURDAY), 0);
+      assert.equal(maybeSwapRankForToday("15:00", SATURDAY, SATURDAY), 0);
+    } finally {
+      mock.timers.reset();
+    }
+  });
+
+  it("null queryDate: no swap", () => {
+    mock.timers.enable({ apis: ["Date"], now: MONDAY_AT_15 });
+    try {
+      assert.equal(maybeSwapRankForToday("09:00", MONDAY, null), 0);
+      assert.equal(maybeSwapRankForToday("15:00", MONDAY, null), 1);
+    } finally {
+      mock.timers.reset();
+    }
   });
 });

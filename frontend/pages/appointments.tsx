@@ -1554,6 +1554,33 @@ useEffect(() => {
     return () => clearInterval(id);
   }, [filterDate, firstSlot, lastSlot, totalMinutes, columnHeightPx]);
 
+  // Auto-flip doctor order at 15:00 when viewing today
+  useEffect(() => {
+    const todayCurrent = new Date().toISOString().slice(0, 10);
+    if (filterDate !== todayCurrent) return;
+
+    // Use Mongolia time (UTC+8) to match backend threshold check
+    const mongoliaMinutes = (d: Date) => {
+      const mg = new Date(d.getTime() + 8 * 3600000);
+      return mg.getUTCHours() * 60 + mg.getUTCMinutes();
+    };
+
+    let wasAfter15 = mongoliaMinutes(new Date()) >= 15 * 60;
+
+    const id = setInterval(() => {
+      const now = new Date();
+      const isAfter15 = mongoliaMinutes(now) >= 15 * 60;
+      if (isAfter15 !== wasAfter15) {
+        wasAfter15 = isAfter15;
+        loadScheduledDoctors();
+        // Stop polling after the transition — swap happens once per day
+        clearInterval(id);
+      }
+    }, 30_000);
+
+    return () => clearInterval(id);
+  }, [filterDate, loadScheduledDoctors]);
+
   // gridDoctors with fallback
   const gridDoctors: ScheduledDoctor[] = useMemo(() => {
   const sortFn = (a: ScheduledDoctor, b: ScheduledDoctor) => {

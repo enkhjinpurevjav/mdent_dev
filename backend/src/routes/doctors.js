@@ -1,6 +1,6 @@
 import express from "express";
 import prisma from "../db.js";
-import { getShiftRank } from "../utils/shiftRank.js";
+import { getShiftRank, maybeSwapRankForToday } from "../utils/shiftRank.js";
 
 const router = express.Router();
 
@@ -182,8 +182,8 @@ router.get("/scheduled", async (req, res) => {
       const schB = [...b.schedules].sort((x, y) => (x.startTime || "").localeCompare(y.startTime || ""));
       const firstA = schA[0];
       const firstB = schB[0];
-      const ra = firstA ? getShiftRank(firstA.startTime, firstA.date) : 0;
-      const rb = firstB ? getShiftRank(firstB.startTime, firstB.date) : 0;
+      const ra = firstA ? maybeSwapRankForToday(firstA.startTime, firstA.date, hasRange ? null : date) : 0;
+      const rb = firstB ? maybeSwapRankForToday(firstB.startTime, firstB.date, hasRange ? null : date) : 0;
       if (ra !== rb) return ra - rb;
       const ao = a.calendarOrder ?? 0;
       const bo = b.calendarOrder ?? 0;
@@ -191,6 +191,13 @@ router.get("/scheduled", async (req, res) => {
       if (a.id !== b.id) return a.id - b.id;
       return (firstA?.startTime || "").localeCompare(firstB?.startTime || "");
     });
+
+    return res.json(doctors);
+  } catch (err) {
+    console.error("Error fetching scheduled doctors:", err);
+    return res.status(500).json({ error: "failed to fetch scheduled doctors" });
+  }
+});
 
 /**
  * NEW: GET /api/doctors/scheduled-with-appointments
@@ -376,8 +383,8 @@ router.get("/scheduled-with-appointments", async (req, res) => {
       const schB = [...b.schedules].sort((x, y) => (x.startTime || "").localeCompare(y.startTime || ""));
       const firstA = schA[0];
       const firstB = schB[0];
-      const ra = firstA ? getShiftRank(firstA.startTime, firstA.date) : 0;
-      const rb = firstB ? getShiftRank(firstB.startTime, firstB.date) : 0;
+      const ra = firstA ? maybeSwapRankForToday(firstA.startTime, firstA.date, hasRange ? null : date) : 0;
+      const rb = firstB ? maybeSwapRankForToday(firstB.startTime, firstB.date, hasRange ? null : date) : 0;
       if (ra !== rb) return ra - rb;
       const ao = a.calendarOrder ?? 0;
       const bo = b.calendarOrder ?? 0;
