@@ -915,7 +915,17 @@ export default function QuickAppointmentModal({
                         setForm((prev) => ({ ...prev, doctorId: String(h.doctor!.id) }));
                       }
                     }}
-                    title={h.doctor ? `${formatDoctorName(h.doctor)} эмчийг сонгох` : undefined}
+                    title={
+  h.doctor
+    ? `${formatDoctorName({
+        id: h.doctor.id,
+        name: h.doctor.name ?? null,
+        ovog: h.doctor.ovog ?? null,
+        regNo: null,
+        phone: null,
+      })} эмчийг сонгох`
+    : undefined
+}
                     style={{
                       display: "block",
                       width: "100%",
