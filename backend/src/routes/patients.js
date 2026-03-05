@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import multer from "multer";          
 import path from "path";
 import { parseRegNo } from "../utils/regno.js";
+import { getPatientBalance } from "./reports-patient-balances.js";
 
 const router = express.Router();
 const uploadDir = process.env.MEDIA_UPLOAD_DIR || "/data/media";
@@ -528,6 +529,8 @@ router.get("/profile/by-book/:bookNumber", async (req, res) => {
       }, null);
     }
 
+    const { balance: patientBalance } = await getPatientBalance(patient.id);
+
     res.json({
       patient,
       patientBook: { id: pb.id, bookNumber: pb.bookNumber },
@@ -537,6 +540,7 @@ router.get("/profile/by-book/:bookNumber", async (req, res) => {
       appointments,
       visitCard: activeVisitCard, // Return active card for backwards compatibility
       visitCards: pb.visitCards, // Return all cards
+      patientBalance,
     });
   } catch (err) {
     console.error("GET /api/patients/profile/by-book/:bookNumber error:", err);

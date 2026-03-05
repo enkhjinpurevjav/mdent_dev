@@ -77,6 +77,7 @@ export default function PatientProfilePage() {
   const pb = data?.patientBook;
   const encounters = data?.encounters || [];
   const appointments = data?.appointments || [];
+  const patientBalance = data?.patientBalance;
 
   const totalEncounters = encounters.length;
   const lastEncounter = encounters[0];
@@ -314,6 +315,22 @@ export default function PatientProfilePage() {
                   Бүртгэсэн: {formatDate(patient.createdAt)}
                 </div>
               )}
+              <div className="text-xs mt-1">
+                <span className="text-gray-400">Хэтэвч: </span>
+                {patientBalance == null ? (
+                  <span className="text-gray-400">-</span>
+                ) : patientBalance === 0 ? (
+                  <span className="text-gray-500">0 ₮</span>
+                ) : patientBalance > 0 ? (
+                  <span className="text-red-600">
+                    -{new Intl.NumberFormat("mn-MN").format(Math.abs(patientBalance))} ₮
+                  </span>
+                ) : (
+                  <span className="text-green-600">
+                    +{new Intl.NumberFormat("mn-MN").format(Math.abs(patientBalance))} ₮
+                  </span>
+                )}
+              </div>
 
               {/* Side menu */}
               <div className="mt-4">

@@ -74,4 +74,5 @@ export type PatientProfileResponse = {
   encounters: Encounter[];
   appointments: Appointment[];
   visitCard?: VisitCard | null;
+  patientBalance?: number | null;
 };
