@@ -1403,11 +1403,13 @@ const [pendingSaving, setPendingSaving] = useState(false);
       p.ovog && p.name ? `${p.ovog} ${p.name}` : (p.name || p.ovog || ""),
       p.regNo ? `(${p.regNo})` : "",
       p.phone ? `📞 ${p.phone}` : "",
+      p.patientBook?.bookNumber ? `#${p.patientBook.bookNumber}` : "",
     ].filter(Boolean).join(" ");
     setFilterPatientQuery(label);
     setFilterPatientResults([]);
     setFilterPatientHistory([]);
     loadFilterPatientHistory(p.id);
+    setBookingIntent({ patientId: p.id, patientLabel: label, doctorId: undefined });
   };
 
   // filters
@@ -2681,6 +2683,7 @@ const handleCancelDraft = (appointmentId: number) => {
                     setFilterPatientHistory([]);
                     setFilterPatientQuery("");
                     setFilterPatientResults([]);
+                    setBookingIntent(null);
                   }}
                   style={{
                     padding: "5px 10px",
