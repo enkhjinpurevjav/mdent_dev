@@ -1056,4 +1056,42 @@ router.get("/:patientId/unpaid-encounters", async (req, res) => {
   }
 });
 
+// GET /api/patients/:id/completed-appointments?limit=3
+router.get("/:id/completed-appointments", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || Number.isNaN(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid patient id" });
+    }
+
+    const rawLimit = parseInt(req.query.limit, 10);
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 10) : 3;
+
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        patientId: id,
+        status: "completed",
+      },
+      orderBy: { scheduledAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        scheduledAt: true,
+        doctor: {
+          select: {
+            id: true,
+            ovog: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return res.json(appointments);
+  } catch (err) {
+    console.error("GET /api/patients/:id/completed-appointments error:", err);
+    return res.status(500).json({ error: "Failed to load completed appointments" });
+  }
+});
+
 export default router;

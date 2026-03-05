@@ -5,6 +5,21 @@ import { SLOT_MINUTES, addMinutesToTimeString, generateTimeSlotsForDay, getSlotT
 
 const PATIENT_RESULTS_LIMIT = 10;
 
+type CompletedHistoryItem = {
+  id: number;
+  scheduledAt: string;
+  doctor: { id: number; ovog: string | null; name: string | null } | null;
+};
+
+function formatHistoryDate(scheduledAt: string): string {
+  const d = new Date(scheduledAt);
+  if (Number.isNaN(d.getTime())) return "-";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}/${m}/${day}`;
+}
+
 type QuickAppointmentModalProps = {
   open: boolean;
   onClose: () => void;
@@ -23,6 +38,11 @@ type QuickAppointmentModalProps = {
 
   /** When false, disables the effect that auto-fills branch to branches[0] when no branch is selected. */
   allowAutoDefaultBranch?: boolean;
+
+  /** Pre-selected patient id (for booking intent from calendar page). */
+  defaultPatientId?: number | null;
+  /** Display label for the pre-selected patient. */
+  defaultPatientQuery?: string;
 };
 
 export default function QuickAppointmentModal({
@@ -40,6 +60,8 @@ export default function QuickAppointmentModal({
   editingAppointment,
   onUpdated,
   allowAutoDefaultBranch = true,
+  defaultPatientId,
+  defaultPatientQuery,
 }: QuickAppointmentModalProps) {
   const isEditMode = Boolean(editingAppointment);
 
@@ -73,6 +95,10 @@ export default function QuickAppointmentModal({
     useState<NodeJS.Timeout | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const patientSearchRef = useRef<HTMLInputElement>(null);
+
+  // completed visit history for selected patient
+  const [completedHistory, setCompletedHistory] = useState<CompletedHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // time slot options
   const [popupStartSlots, setPopupStartSlots] = useState<
@@ -118,6 +144,23 @@ export default function QuickAppointmentModal({
     return { ymd: `${y}-${m}-${d}`, hm: `${hh}:${mm}` };
   };
 
+  const loadPatientHistory = async (patientId: number) => {
+    try {
+      setHistoryLoading(true);
+      const res = await fetch(`/api/patients/${patientId}/completed-appointments?limit=3`);
+      if (!res.ok) {
+        setCompletedHistory([]);
+        return;
+      }
+      const data = await res.json().catch(() => []);
+      setCompletedHistory(Array.isArray(data) ? data : []);
+    } catch {
+      setCompletedHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   // initialize modal state on open
   useEffect(() => {
     if (!open) return;
@@ -159,10 +202,13 @@ export default function QuickAppointmentModal({
 
       setError("");
       setPatientResults([]);
+      setCompletedHistory([]);
       return;
     }
 
     // CREATE MODE: reset to defaults
+    const prePatientId = defaultPatientId ?? null;
+    const prePatientQuery = defaultPatientQuery || "";
     setForm((prev) => ({
       ...prev,
       doctorId: defaultDoctorId ? String(defaultDoctorId) : "",
@@ -170,8 +216,8 @@ export default function QuickAppointmentModal({
       date: defaultDate,
       startTime: defaultTime,
       endTime: addMinutesToTimeString(defaultTime, SLOT_MINUTES),
-      patientId: null,
-      patientQuery: "",
+      patientId: prePatientId,
+      patientQuery: prePatientQuery,
       status: "booked",
       notes: "",
     }));
@@ -179,7 +225,11 @@ export default function QuickAppointmentModal({
     setEndTimeManuallySet(false);
     setError("");
     setPatientResults([]);
-  }, [open, defaultDoctorId, defaultDate, defaultTime, selectedBranchId, editingAppointment]);
+    setCompletedHistory([]);
+    if (prePatientId) {
+      loadPatientHistory(prePatientId);
+    }
+  }, [open, defaultDoctorId, defaultDate, defaultTime, selectedBranchId, editingAppointment, defaultPatientId, defaultPatientQuery]);
 
   // Autofocus patient search input when modal opens in create mode
   useEffect(() => {
@@ -344,6 +394,8 @@ export default function QuickAppointmentModal({
     }));
     setPatientResults([]);
     setError("");
+    setCompletedHistory([]);
+    loadPatientHistory(p.id);
   };
 
   const handlePatientKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -379,6 +431,7 @@ export default function QuickAppointmentModal({
       if (!trimmed) {
         setForm((prev) => ({ ...prev, patientId: null }));
         setPatientResults([]);
+        setCompletedHistory([]);
         return;
       }
       triggerPatientSearch(value);
@@ -844,6 +897,56 @@ export default function QuickAppointmentModal({
                 >
                   Илүү олон үр дүн байна…
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Completed visit history (shown after patient is selected in create mode) */}
+          {!isEditMode && form.patientId && !patientResults.length && (
+            <div
+              style={{
+                gridColumn: "1 / -1",
+                borderRadius: 6,
+                border: "1px solid #e5e7eb",
+                background: "#f9fafb",
+                padding: "6px 8px",
+                fontSize: 11,
+              }}
+            >
+              <div style={{ color: "#6b7280", marginBottom: 4, fontWeight: 500 }}>
+                Сүүлийн дууссан үзлэгүүд:
+              </div>
+              {historyLoading ? (
+                <div style={{ color: "#9ca3af" }}>Уншиж байна...</div>
+              ) : completedHistory.length === 0 ? (
+                <div style={{ color: "#9ca3af" }}>Өмнөх дууссан үзлэг байхгүй</div>
+              ) : (
+                completedHistory.map((h) => (
+                  <button
+                    key={h.id}
+                    type="button"
+                    onClick={() => {
+                      if (h.doctor) {
+                        setForm((prev) => ({ ...prev, doctorId: String(h.doctor!.id) }));
+                      }
+                    }}
+                    title={h.doctor ? `${formatDoctorName(h.doctor)} эмчийг сонгох` : undefined}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "3px 0",
+                      border: "none",
+                      background: "transparent",
+                      cursor: h.doctor ? "pointer" : "default",
+                      color: h.doctor ? "#2563eb" : "#374151",
+                      textDecoration: h.doctor ? "underline" : "none",
+                      fontSize: 11,
+                    }}
+                  >
+                    {formatHistoryDate(h.scheduledAt)} — Эмч: {h.doctor ? formatDoctorName(h.doctor) : "-"}
+                  </button>
+                ))
               )}
             </div>
           )}

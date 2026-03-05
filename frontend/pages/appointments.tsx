@@ -1349,6 +1349,116 @@ const [pendingSaveId, setPendingSaveId] = useState<number | null>(null);
 const [pendingSaveError, setPendingSaveError] = useState<string | null>(null);
 const [pendingSaving, setPendingSaving] = useState(false);
 
+  // ---- Booking intent (speed booking) ----
+  type CompletedHistoryItem = {
+    id: number;
+    scheduledAt: string;
+    doctor: { id: number; ovog: string | null; name: string | null } | null;
+  };
+
+  type BookingIntent = {
+    patientId: number;
+    patientLabel: string;
+    doctorId?: number;
+  } | null;
+
+  const [bookingIntent, setBookingIntent] = useState<BookingIntent>(null);
+
+  // ---- Filter patient search ----
+  type FilterPatient = {
+    id: number;
+    name: string;
+    ovog: string | null;
+    regNo: string;
+    phone: string | null;
+    patientBook: { bookNumber: string | null } | null;
+  };
+
+  const [filterPatientQuery, setFilterPatientQuery] = useState("");
+  const [filterPatientResults, setFilterPatientResults] = useState<FilterPatient[]>([]);
+  const [filterPatientSearchLoading, setFilterPatientSearchLoading] = useState(false);
+  const filterPatientSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [selectedFilterPatient, setSelectedFilterPatient] = useState<FilterPatient | null>(null);
+  const [filterPatientHistory, setFilterPatientHistory] = useState<CompletedHistoryItem[]>([]);
+  const [filterPatientHistoryLoading, setFilterPatientHistoryLoading] = useState(false);
+
+  // ---- Preference popup (before slot picking) ----
+  const [prefPopupOpen, setPrefPopupOpen] = useState(false);
+  const [prefDate, setPrefDate] = useState<string>("");
+  const [prefDoctorId, setPrefDoctorId] = useState<string>("");
+  const [prefError, setPrefError] = useState("");
+  const [prefHistory, setPrefHistory] = useState<CompletedHistoryItem[]>([]);
+  const [prefHistoryLoading, setPrefHistoryLoading] = useState(false);
+
+  // Helper: format scheduledAt as YYYY/MM/DD
+  const formatHistoryDate = (scheduledAt: string): string => {
+    const d = new Date(scheduledAt);
+    if (Number.isNaN(d.getTime())) return "-";
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, "0");
+    const dy = String(d.getDate()).padStart(2, "0");
+    return `${y}/${mo}/${dy}`;
+  };
+
+  const loadFilterPatientHistory = async (patientId: number) => {
+    try {
+      setFilterPatientHistoryLoading(true);
+      const res = await fetch(`/api/patients/${patientId}/completed-appointments?limit=3`);
+      if (!res.ok) { setFilterPatientHistory([]); return; }
+      const data = await res.json().catch(() => []);
+      setFilterPatientHistory(Array.isArray(data) ? data : []);
+    } catch {
+      setFilterPatientHistory([]);
+    } finally {
+      setFilterPatientHistoryLoading(false);
+    }
+  };
+
+  const triggerFilterPatientSearch = (query: string) => {
+    if (filterPatientSearchTimerRef.current) clearTimeout(filterPatientSearchTimerRef.current);
+    if (!query.trim()) {
+      setFilterPatientResults([]);
+      return;
+    }
+    filterPatientSearchTimerRef.current = setTimeout(async () => {
+      try {
+        setFilterPatientSearchLoading(true);
+        const res = await fetch(`/api/patients?q=${encodeURIComponent(query.trim())}&limit=10`);
+        if (!res.ok) { setFilterPatientResults([]); return; }
+        const data = await res.json().catch(() => []);
+        const list = Array.isArray(data) ? data
+          : Array.isArray((data as any).data) ? (data as any).data
+          : Array.isArray((data as any).patients) ? (data as any).patients
+          : [];
+        setFilterPatientResults(list.slice(0, 10).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          ovog: p.ovog ?? null,
+          regNo: p.regNo ?? "",
+          phone: p.phone ?? null,
+          patientBook: p.patientBook || null,
+        })));
+      } catch {
+        setFilterPatientResults([]);
+      } finally {
+        setFilterPatientSearchLoading(false);
+      }
+    }, 300);
+  };
+
+  const handleSelectFilterPatient = (p: FilterPatient) => {
+    setSelectedFilterPatient(p);
+    const label = [
+      p.ovog && p.name ? `${p.ovog} ${p.name}` : (p.name || p.ovog || ""),
+      p.regNo ? `(${p.regNo})` : "",
+      p.phone ? `📞 ${p.phone}` : "",
+    ].filter(Boolean).join(" ");
+    setFilterPatientQuery(label);
+    setFilterPatientResults([]);
+    setFilterPatientHistory([]);
+    loadFilterPatientHistory(p.id);
+  };
+
   // filters
 const workingDoctorsForFilter = scheduledDoctors.length
   ? scheduledDoctors
@@ -2474,11 +2584,357 @@ const handleCancelDraft = (appointmentId: number) => {
             </div>
           </div>
         </div>
+
+        {/* Patient quick search (Хайх) */}
+        <div style={{ marginTop: 12, borderTop: "1px solid #e5e7eb", paddingTop: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Хайх</div>
+          <div style={{ position: "relative" }}>
+            <input
+              type="text"
+              placeholder="Үйлчлүүлэгч хайх (нэр, РД, утас)"
+              value={filterPatientQuery}
+              onChange={(e) => {
+                const v = e.target.value;
+                setFilterPatientQuery(v);
+                if (!v.trim()) {
+                  setSelectedFilterPatient(null);
+                  setFilterPatientHistory([]);
+                  setFilterPatientResults([]);
+                } else {
+                  triggerFilterPatientSearch(v);
+                }
+              }}
+              autoComplete="off"
+              style={{
+                width: "100%",
+                borderRadius: 6,
+                border: "1px solid #d1d5db",
+                padding: "6px 8px",
+                fontSize: 13,
+                boxSizing: "border-box",
+              }}
+            />
+            {filterPatientSearchLoading && (
+              <span style={{ fontSize: 11, color: "#6b7280", display: "block", marginTop: 2 }}>
+                Хайж байна...
+              </span>
+            )}
+          </div>
+
+          {/* Search dropdown */}
+          {filterPatientResults.length > 0 && !selectedFilterPatient && (
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: 6, background: "#fff", maxHeight: 180, overflowY: "auto", marginTop: 2 }}>
+              {filterPatientResults.map((p) => {
+                const label = [
+                  p.ovog && p.name ? `${p.ovog} ${p.name}` : (p.name || p.ovog || ""),
+                  p.regNo ? `(${p.regNo})` : "",
+                  p.phone ? `📞 ${p.phone}` : "",
+                  p.patientBook?.bookNumber ? `#${p.patientBook.bookNumber}` : "",
+                ].filter(Boolean).join(" ");
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleSelectFilterPatient(p)}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "6px 8px",
+                      border: "none",
+                      borderBottom: "1px solid #f3f4f6",
+                      background: "white",
+                      cursor: "pointer",
+                      fontSize: 12,
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Patient mini-card */}
+          {selectedFilterPatient && (
+            <div
+              style={{
+                marginTop: 8,
+                padding: 10,
+                borderRadius: 8,
+                border: "1px solid #dbeafe",
+                background: "#eff6ff",
+                fontSize: 12,
+              }}
+            >
+              <div style={{ fontWeight: 600, marginBottom: 4, color: "#1d4ed8" }}>
+                {[
+                  selectedFilterPatient.ovog && selectedFilterPatient.name
+                    ? `${selectedFilterPatient.ovog} ${selectedFilterPatient.name}`
+                    : (selectedFilterPatient.name || selectedFilterPatient.ovog || ""),
+                  selectedFilterPatient.regNo ? `(${selectedFilterPatient.regNo})` : "",
+                  selectedFilterPatient.phone ? `📞 ${selectedFilterPatient.phone}` : "",
+                  selectedFilterPatient.patientBook?.bookNumber ? `#${selectedFilterPatient.patientBook.bookNumber}` : "",
+                ].filter(Boolean).join(" ")}
+              </div>
+
+              {/* Last 3 completed visits */}
+              <div style={{ marginBottom: 6 }}>
+                <div style={{ color: "#6b7280", marginBottom: 3, fontSize: 11 }}>Сүүлийн дууссан үзлэгүүд:</div>
+                {filterPatientHistoryLoading ? (
+                  <div style={{ color: "#9ca3af", fontSize: 11 }}>Уншиж байна...</div>
+                ) : filterPatientHistory.length === 0 ? (
+                  <div style={{ color: "#9ca3af", fontSize: 11 }}>Өмнөх дууссан үзлэг байхгүй</div>
+                ) : (
+                  filterPatientHistory.map((h) => (
+                    <div key={h.id} style={{ color: "#374151", fontSize: 11, padding: "1px 0" }}>
+                      {formatHistoryDate(h.scheduledAt)} — Эмч: {h.doctor ? formatDoctorName(h.doctor) : "-"}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrefDate(filterDate);
+                    setPrefDoctorId("");
+                    setPrefError("");
+                    setPrefHistory([]);
+                    setPrefHistoryLoading(true);
+                    fetch(`/api/patients/${selectedFilterPatient.id}/completed-appointments?limit=3`)
+                      .then((r) => r.ok ? r.json() : [])
+                      .then((data) => setPrefHistory(Array.isArray(data) ? data : []))
+                      .catch(() => setPrefHistory([]))
+                      .finally(() => setPrefHistoryLoading(false));
+                    setPrefPopupOpen(true);
+                  }}
+                  style={{
+                    padding: "5px 12px",
+                    borderRadius: 6,
+                    border: "none",
+                    background: "#2563eb",
+                    color: "white",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Цаг захиалах
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedFilterPatient(null);
+                    setFilterPatientHistory([]);
+                    setFilterPatientQuery("");
+                    setFilterPatientResults([]);
+                  }}
+                  style={{
+                    padding: "5px 10px",
+                    borderRadius: 6,
+                    border: "1px solid #d1d5db",
+                    background: "#f9fafb",
+                    fontSize: 12,
+                    cursor: "pointer",
+                  }}
+                >
+                  Цэвэрлэх
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </section>
 
-     
+      {/* Preference popup */}
+      {prefPopupOpen && selectedFilterPatient && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 80,
+          }}
+          onClick={() => setPrefPopupOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: 10,
+              padding: 20,
+              width: 360,
+              maxWidth: "95vw",
+              boxShadow: "0 14px 40px rgba(0,0,0,0.2)",
+              fontSize: 13,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 15 }}>Цаг захиалах тохиргоо</h3>
+              <button type="button" onClick={() => setPrefPopupOpen(false)} style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
+            </div>
 
-            {/* Time grid by doctor */}
+            <div style={{ fontSize: 12, color: "#374151", marginBottom: 10, padding: "6px 8px", background: "#f3f4f6", borderRadius: 6 }}>
+              {[
+                selectedFilterPatient.ovog && selectedFilterPatient.name
+                  ? `${selectedFilterPatient.ovog} ${selectedFilterPatient.name}`
+                  : (selectedFilterPatient.name || selectedFilterPatient.ovog || ""),
+                selectedFilterPatient.regNo ? `(${selectedFilterPatient.regNo})` : "",
+              ].filter(Boolean).join(" ")}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {/* Date field */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 500 }}>Огноо</label>
+                <input
+                  type="date"
+                  value={prefDate}
+                  onChange={(e) => { setPrefDate(e.target.value); setPrefError(""); }}
+                  style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px", fontSize: 13 }}
+                />
+              </div>
+
+              {/* Doctor field */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 500 }}>Эмч</label>
+                <select
+                  value={prefDoctorId}
+                  onChange={(e) => { setPrefDoctorId(e.target.value); setPrefError(""); }}
+                  style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px", fontSize: 13 }}
+                >
+                  <option value="">Эмч сонгох (заавал биш)</option>
+                  {doctors.map((d) => (
+                    <option key={d.id} value={d.id}>{formatDoctorName(d)}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* History inside popup */}
+              <div style={{ borderRadius: 6, border: "1px solid #e5e7eb", padding: "6px 8px", background: "#f9fafb", fontSize: 11 }}>
+                <div style={{ color: "#6b7280", marginBottom: 4, fontWeight: 500 }}>Сүүлийн дууссан үзлэгүүд:</div>
+                {prefHistoryLoading ? (
+                  <div style={{ color: "#9ca3af" }}>Уншиж байна...</div>
+                ) : prefHistory.length === 0 ? (
+                  <div style={{ color: "#9ca3af" }}>Өмнөх дууссан үзлэг байхгүй</div>
+                ) : (
+                  prefHistory.map((h) => (
+                    <button
+                      key={h.id}
+                      type="button"
+                      onClick={() => {
+                        if (h.doctor) {
+                          setPrefDoctorId(String(h.doctor.id));
+                          setPrefError("");
+                        }
+                      }}
+                      title={h.doctor ? `${formatDoctorName(h.doctor)} эмчийг сонгох` : undefined}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "2px 0",
+                        border: "none",
+                        background: "transparent",
+                        cursor: h.doctor ? "pointer" : "default",
+                        color: h.doctor ? "#2563eb" : "#374151",
+                        textDecoration: h.doctor ? "underline" : "none",
+                        fontSize: 11,
+                      }}
+                    >
+                      {formatHistoryDate(h.scheduledAt)} — Эмч: {h.doctor ? formatDoctorName(h.doctor) : "-"}
+                    </button>
+                  ))
+                )}
+              </div>
+
+              {prefError && (
+                <div style={{ color: "#b91c1c", fontSize: 12 }}>{prefError}</div>
+              )}
+
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => setPrefPopupOpen(false)}
+                  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #d1d5db", background: "#f9fafb", cursor: "pointer", fontSize: 13 }}
+                >
+                  Хаах
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!prefDate && !prefDoctorId) {
+                      setPrefError("Огноо эсвэл эмч сонгоно уу.");
+                      return;
+                    }
+                    // Apply date filter if chosen
+                    if (prefDate) setFilterDate(prefDate);
+                    // Apply doctor filter if chosen
+                    if (prefDoctorId) setFilterDoctorId(prefDoctorId);
+                    // Set booking intent
+                    const patientLabel = [
+                      selectedFilterPatient.ovog && selectedFilterPatient.name
+                        ? `${selectedFilterPatient.ovog} ${selectedFilterPatient.name}`
+                        : (selectedFilterPatient.name || selectedFilterPatient.ovog || ""),
+                      selectedFilterPatient.regNo ? `(${selectedFilterPatient.regNo})` : "",
+                      selectedFilterPatient.phone ? `📞 ${selectedFilterPatient.phone}` : "",
+                      selectedFilterPatient.patientBook?.bookNumber ? `#${selectedFilterPatient.patientBook.bookNumber}` : "",
+                    ].filter(Boolean).join(" ");
+                    setBookingIntent({
+                      patientId: selectedFilterPatient.id,
+                      patientLabel,
+                      doctorId: prefDoctorId ? Number(prefDoctorId) : undefined,
+                    });
+                    setPrefPopupOpen(false);
+                  }}
+                  style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "#2563eb", color: "white", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                >
+                  Үргэлжлүүлэх
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Booking intent banner */}
+      {bookingIntent && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "#eff6ff",
+            border: "1px solid #bfdbfe",
+            fontSize: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <span>📌 <strong>Цаг захиалах горим:</strong> {bookingIntent.patientLabel}</span>
+          {bookingIntent.doctorId && (
+            <span style={{ color: "#2563eb" }}>
+              — Эмч: {formatDoctorName(doctors.find((d) => d.id === bookingIntent.doctorId))}
+            </span>
+          )}
+          <span style={{ color: "#6b7280" }}>→ Цаг сонгохын тулд хүснэгт дэх нүдийг дарна уу</span>
+          <button
+            type="button"
+            onClick={() => setBookingIntent(null)}
+            style={{ marginLeft: "auto", border: "none", background: "transparent", cursor: "pointer", color: "#6b7280", fontSize: 12 }}
+          >
+            ✕ Цуцлах
+          </button>
+        </div>
+      )}
+
+
      <section style={{ marginBottom: 24 }}>
   <h2 style={{ fontSize: 16, marginBottom: 4 }}>
     Өдрийн цагийн хүснэгт
@@ -3117,8 +3573,9 @@ const handleCancelDraft = (appointmentId: number) => {
     setQuickModalState((prev) => ({ ...prev, open: false }));
     setQuickOpen(false);
     setEditingAppointment(null);
+    setBookingIntent(null);
   }}
-  defaultDoctorId={quickModalState.doctorId}
+  defaultDoctorId={bookingIntent?.doctorId ?? quickModalState.doctorId}
   defaultDate={quickModalState.date}
   defaultTime={quickModalState.time}
   branches={branches}
@@ -3127,10 +3584,13 @@ const handleCancelDraft = (appointmentId: number) => {
   appointments={appointments}
   selectedBranchId={quickModalState.branchId ?? (effectiveBranchId || filterBranchId)}
   allowAutoDefaultBranch={false}
+  defaultPatientId={bookingIntent?.patientId ?? null}
+  defaultPatientQuery={bookingIntent?.patientLabel ?? ""}
   onCreated={(a) => {
     setAppointments((prev) => [a, ...prev]);
     // close create mode
     setQuickModalState((prev) => ({ ...prev, open: false }));
+    setBookingIntent(null);
   }}
   editingAppointment={editingAppointment}
   onUpdated={(updated) => {
@@ -3141,6 +3601,7 @@ const handleCancelDraft = (appointmentId: number) => {
     // close edit mode
     setQuickOpen(false);
     setEditingAppointment(null);
+    setBookingIntent(null);
 
     // optional: also close details modal (up to you)
     // setDetailsModalState((prev) => ({ ...prev, open: false }));
