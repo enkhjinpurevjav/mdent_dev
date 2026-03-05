@@ -986,12 +986,13 @@ export default function QuickAppointmentModal({
                   type="button"
                   aria-pressed={durationMinutes === mins}
                   onClick={() => {
-                    setDurationMinutes(mins);
+                    const newDuration = durationMinutes === mins ? 30 : mins;
+                    setDurationMinutes(newDuration);
                     setEndTimeManuallySet(false);
                     setForm((prev) => ({
                       ...prev,
                       endTime: prev.startTime
-                        ? addMinutesToTimeString(prev.startTime, mins)
+                        ? addMinutesToTimeString(prev.startTime, newDuration)
                         : prev.endTime,
                     }));
                   }}
