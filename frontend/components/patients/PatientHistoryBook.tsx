@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { displayOrEmpty } from "../../utils/format";
 
 type Patient = {
   id: number;
@@ -765,6 +766,7 @@ const PatientHistoryBook: React.FC<Props> = ({
 
       {/* Printable content */}
       <div
+        id="patient-history-book-printable"
         className="printable-content"
         style={{
           background: "white",
@@ -868,13 +870,13 @@ const PatientHistoryBook: React.FC<Props> = ({
                 <strong>Утасны дугаар:</strong> {patient.phone || "-"}
               </div>
               <div>
-                <strong>E-mail:</strong> {displayOrDash(patient.email)}
+                <strong>E-mail:</strong> {displayOrEmpty(patient.email)}
               </div>
               <div>
-                <strong>Гэрийн хаяг:</strong> {displayOrDash(patient.address)}
+                <strong>Гэрийн хаяг:</strong> {displayOrEmpty(patient.address)}
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
-                <strong>Ажлын газар:</strong> {displayOrDash(patient.workPlace)}
+                <strong>Ажлын газар:</strong> {displayOrEmpty(patient.workPlace)}
               </div>
             </div>
           </>
@@ -1099,7 +1101,7 @@ const PatientHistoryBook: React.FC<Props> = ({
       </div>
 
       {/* Print styles */}
-     <style jsx>{`
+     <style jsx global>{`
   @media print {
     /* Hide everything by default */
     body * {
@@ -1107,13 +1109,13 @@ const PatientHistoryBook: React.FC<Props> = ({
     }
 
     /* Show only the printable content */
-    .printable-content,
-    .printable-content * {
+    #patient-history-book-printable,
+    #patient-history-book-printable * {
       visibility: visible !important;
     }
 
     /* Position printable content at top-left of page */
-    .printable-content {
+    #patient-history-book-printable {
       position: absolute !important;
       left: 0 !important;
       top: 0 !important;

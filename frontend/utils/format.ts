@@ -31,6 +31,14 @@ export function displayOrDash(value?: string | null) {
   return trimmed;
 }
 
+export function displayOrEmpty(value?: string | null) {
+  if (value === undefined || value === null) return "";
+  const trimmed = String(value).trim();
+  const lower = trimmed.toLowerCase();
+  if (!trimmed || lower === "null" || lower === "undefined") return "";
+  return trimmed;
+}
+
 export function formatDisplayName(patient: Patient) {
   const name = patient.name || "";
   const ovog = (patient.ovog || "").trim();
