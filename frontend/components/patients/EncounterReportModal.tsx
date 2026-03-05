@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { formatDoctorName } from "../../utils/format";
 
 type EncounterReportModalProps = {
   open: boolean;
@@ -146,6 +147,23 @@ function formatDateTime(iso: string): string {
 
 function formatNumber(n: number): string {
   return n.toLocaleString("en-US", { minimumFractionDigits: 0 });
+}
+
+function formatPaymentMethod(method: string): string {
+  const map: Record<string, string> = {
+    CASH: "Бэлэн",
+    CARD: "Карт",
+    TRANSFER: "Данс",
+    QPAY: "QPay",
+    INSURANCE: "Даатгал",
+    VOUCHER: "Ваучер",
+    BARTER: "Бартер",
+    APPLICATION: "Апп",
+    OTHER: "Бусад",
+    WALLET: "Хэтэвч",
+    EMPLOYEE_BENEFIT: "Ажилтны хөнгөлөлт",
+  };
+  return map[method] || method || "-";
 }
 
 function getDiscountLabel(discountPercent: string): string {
@@ -309,9 +327,7 @@ export default function EncounterReportModal({
                 </div>
                 <div>
                   <strong>Эмч:</strong>{" "}
-                  {[data.doctor.ovog, data.doctor.name]
-                    .filter(Boolean)
-                    .join(" ")}
+                  {formatDoctorName(data.doctor)}
                 </div>
               </div>
 
@@ -496,7 +512,7 @@ export default function EncounterReportModal({
                               <td style={tableCellStyle}>
                                 {formatDateTime(payment.timestamp)}
                               </td>
-                              <td style={tableCellStyle}>{payment.method}</td>
+                              <td style={tableCellStyle}>{formatPaymentMethod(payment.method)}</td>
                               <td style={tableCellStyle}>
                                 {formatNumber(payment.amount)} ₮
                               </td>
@@ -703,9 +719,7 @@ export default function EncounterReportModal({
                 >
                   <div style={{ fontSize: 13, marginBottom: 8 }}>
                     <strong>Эмч:</strong>{" "}
-                    {[data.doctor.ovog, data.doctor.name]
-                      .filter(Boolean)
-                      .join(" ")}
+                    {formatDoctorName(data.doctor)}
                   </div>
                   {data.doctor.signatureImagePath && (
                     <div>

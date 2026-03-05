@@ -10,6 +10,7 @@ import PatientHistoryBook from "../../components/patients/PatientHistoryBook";
 import type { ActiveTab, Patient, PatientBook } from "../../types/patients";
 import type { VisitCardType, VisitCardAnswers } from "../../types/visitCard";
 import { formatDateTime, formatDate, displayOrDash, formatDisplayName, formatDoctorName } from "../../utils/format";
+import { formatStatus } from "../../components/appointments/formatters";
 import { usePatientProfile } from "../../hooks/usePatientProfile";
 import { useVisitCard } from "../../hooks/useVisitCard";
 import type { Encounter, Appointment, PatientProfileResponse } from "../../types/patients";
@@ -276,7 +277,7 @@ export default function PatientProfilePage() {
     <main className="max-w-7xl px-4 lg:px-8 py-8 font-sans">
       <button
         type="button"
-        onClick={() => router.push("/patients")}
+        onClick={() => router.back()}
         className="mb-4 px-2 py-1 text-sm rounded border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer"
       >
         ← Буцах
@@ -813,7 +814,7 @@ export default function PatientProfilePage() {
                               {formatDoctorName(a.doctor)}
                             </td>
                             <td className="border-b border-gray-100 py-1.5 px-2">
-                              {a.status}
+                              {formatStatus(a.status)}
                             </td>
                             <td className="border-b border-gray-100 py-1.5 px-2">
                               {displayOrDash(a.notes ?? null)}
@@ -827,7 +828,7 @@ export default function PatientProfilePage() {
                                   }}
                                   className="px-2 py-1 text-xs bg-blue-500 text-white rounded cursor-pointer hover:bg-blue-600 border-0"
                                 >
-                                  Үзэх
+                                  Харах
                                 </button>
                               )}
                             </td>
