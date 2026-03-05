@@ -1,7 +1,13 @@
 // Formatting helpers for appointments
 
-import type { Doctor, Appointment, PatientLite } from "./types";
+import type { Doctor, Appointment, PatientLite, CompletedHistoryItem } from "./types";
 import { pad2, getSlotTimeString } from "./time";
+
+/** Convert a CompletedHistoryItem doctor object to a full Doctor for use with formatDoctorName. */
+export function historyDoctorToDoctor(d: CompletedHistoryItem["doctor"]): Doctor | null {
+  if (!d) return null;
+  return { id: d.id, name: d.name ?? null, ovog: d.ovog ?? null, regNo: null, phone: null };
+}
 
 export function formatDoctorName(d?: Doctor | null) {
   if (!d) return "";

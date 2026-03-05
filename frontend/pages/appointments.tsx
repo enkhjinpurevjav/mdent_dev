@@ -9,7 +9,7 @@ import { useRouter } from "next/router";
 import { useBranchLock } from "../components/appointments/useBranchLock";
 import type { Branch, Doctor, ScheduledDoctor, PatientLite, Appointment, DoctorScheduleDay, TimeSlot, CompletedHistoryItem } from "../components/appointments/types";
 import { SLOT_MINUTES, floorToSlotStart, addMinutes, getSlotKey, enumerateSlotStartsOverlappingRange, generateTimeSlotsForDay, getSlotTimeString, addMinutesToTimeString, isTimeWithinRange, getDateFromYMD, pad2 } from "../components/appointments/time";
-import { formatDoctorName, formatPatientLabel, formatGridShortLabel, formatPatientSearchLabel, formatDateYmdDots, formatStatus, formatDetailedTimeRange, formatHistoryDate } from "../components/appointments/formatters";
+import { formatDoctorName, historyDoctorToDoctor, formatPatientLabel, formatGridShortLabel, formatPatientSearchLabel, formatDateYmdDots, formatStatus, formatDetailedTimeRange, formatHistoryDate } from "../components/appointments/formatters";
 import AppointmentDetailsModal from "../components/appointments/AppointmentDetailsModal";
 import QuickAppointmentModal from "../components/appointments/QuickAppointmentModal";
 import PendingSaveBar from "../components/appointments/PendingSaveBar";
@@ -2673,7 +2673,7 @@ const handleCancelDraft = (appointmentId: number) => {
                 ) : (
                   filterPatientHistory.map((h) => (
                     <div key={h.id} style={{ color: "#374151", fontSize: 11, padding: "1px 0" }}>
-                      {formatHistoryDate(h.scheduledAt)} — Эмч: {h.doctor ? formatDoctorName(h.doctor) : "-"}
+                      {formatHistoryDate(h.scheduledAt)} — Эмч: {h.doctor ? formatDoctorName(historyDoctorToDoctor(h.doctor)) : "-"}
                     </div>
                   ))
                 )}
@@ -2818,7 +2818,7 @@ const handleCancelDraft = (appointmentId: number) => {
                           setPrefError("");
                         }
                       }}
-                      title={h.doctor ? `${formatDoctorName(h.doctor)} эмчийг сонгох` : undefined}
+                      title={h.doctor ? `${formatDoctorName(historyDoctorToDoctor(h.doctor))} эмчийг сонгох` : undefined}
                       style={{
                         display: "block",
                         width: "100%",
@@ -2832,7 +2832,7 @@ const handleCancelDraft = (appointmentId: number) => {
                         fontSize: 11,
                       }}
                     >
-                      {formatHistoryDate(h.scheduledAt)} — Эмч: {h.doctor ? formatDoctorName(h.doctor) : "-"}
+                      {formatHistoryDate(h.scheduledAt)} — Эмч: {h.doctor ? formatDoctorName(historyDoctorToDoctor(h.doctor)) : "-"}
                     </button>
                   ))
                 )}

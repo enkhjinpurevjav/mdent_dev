@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import type { Branch, Doctor, ScheduledDoctor, Appointment, PatientLite, DoctorScheduleDay, CompletedHistoryItem } from "./types";
-import { formatDoctorName, formatPatientSearchLabel, formatHistoryDate } from "./formatters";
+import { formatDoctorName, historyDoctorToDoctor, formatPatientSearchLabel, formatHistoryDate } from "./formatters";
 import { SLOT_MINUTES, addMinutesToTimeString, generateTimeSlotsForDay, getSlotTimeString, isTimeWithinRange } from "./time";
 
 const PATIENT_RESULTS_LIMIT = 10;
@@ -917,13 +917,7 @@ export default function QuickAppointmentModal({
                     }}
                     title={
   h.doctor
-    ? `${formatDoctorName({
-        id: h.doctor.id,
-        name: h.doctor.name ?? null,
-        ovog: h.doctor.ovog ?? null,
-        regNo: null,
-        phone: null,
-      })} эмчийг сонгох`
+    ? `${formatDoctorName(historyDoctorToDoctor(h.doctor))} эмчийг сонгох`
     : undefined
 }
                     style={{
@@ -941,13 +935,7 @@ export default function QuickAppointmentModal({
                   >
                     {formatHistoryDate(h.scheduledAt)} — Эмч:{" "}
 {h.doctor
-  ? formatDoctorName({
-      id: h.doctor.id,
-      name: h.doctor.name ?? null,
-      ovog: h.doctor.ovog ?? null,
-      regNo: null,
-      phone: null,
-    })
+  ? formatDoctorName(historyDoctorToDoctor(h.doctor))
   : "-"}
                   </button>
                 ))
