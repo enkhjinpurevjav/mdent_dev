@@ -939,7 +939,16 @@ export default function QuickAppointmentModal({
                       fontSize: 11,
                     }}
                   >
-                    {formatHistoryDate(h.scheduledAt)} — Эмч: {h.doctor ? formatDoctorName(h.doctor) : "-"}
+                    {formatHistoryDate(h.scheduledAt)} — Эмч:{" "}
+{h.doctor
+  ? formatDoctorName({
+      id: h.doctor.id,
+      name: h.doctor.name ?? null,
+      ovog: h.doctor.ovog ?? null,
+      regNo: null,
+      phone: null,
+    })
+  : "-"}
                   </button>
                 ))
               )}
