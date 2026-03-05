@@ -591,16 +591,6 @@ export default function QuickAppointmentModal({
         setError("Үйлчлүүлэгчийг жагсаалтаас сонгоно уу.");
         return;
       }
-      if (!form.doctorId) {
-        setError("Цаг захиалахын өмнө эмчийг заавал сонгоно уу.");
-        return;
-      }
-    } else {
-      // edit mode: branch/date/patient fixed; doctor can be blank? you said allow doctor change => must exist.
-      if (!form.doctorId) {
-        setError("Эмч сонгоно уу.");
-        return;
-      }
     }
 
     const parsed = parseYmd(form.date);
@@ -634,7 +624,7 @@ export default function QuickAppointmentModal({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             patientId: form.patientId,
-            doctorId: Number(form.doctorId),
+            doctorId: form.doctorId ? Number(form.doctorId) : null,
             branchId: Number(form.branchId),
             scheduledAt: scheduledAtStr,
             endAt: endAtStr,
@@ -672,7 +662,7 @@ export default function QuickAppointmentModal({
         body: JSON.stringify({
           scheduledAt: scheduledAtStr,
           endAt: endAtStr,
-          doctorId: Number(form.doctorId),
+          doctorId: form.doctorId ? Number(form.doctorId) : null,
           notes: form.notes || null,
           // IMPORTANT: do not send patientId/branchId/status in edit mode
         }),
@@ -962,28 +952,7 @@ export default function QuickAppointmentModal({
             />
           </div>
 
-          {/* Doctor (editable in edit mode) */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label>Эмч</label>
-            <select
-              name="doctorId"
-              value={form.doctorId}
-              onChange={handleChange}
-              required
-              style={{
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                padding: "6px 8px",
-              }}
-            >
-              <option value="">Сонгох</option>
-              {workingDoctors.map((d: any) => (
-                <option key={d.id} value={d.id}>
-                  {formatDoctorName(d)}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Doctor field hidden - doctor is optional */}
 
           {/* Start time (editable) */}
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>

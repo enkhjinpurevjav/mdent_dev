@@ -587,11 +587,6 @@ if (quickPatientForm.regNo.trim()) {
       return;
     }
 
-    if (!form.doctorId) {
-      setError("Цаг захиалахын өмнө эмчийг заавал сонгоно уу.");
-      return;
-    }
-
     const [year, month, day] = form.date.split("-").map(Number);
     const [startHour, startMinute] = form.startTime.split(":").map(Number);
     const [endHour, endMinute] = form.endTime.split(":").map(Number);
@@ -631,7 +626,7 @@ if (quickPatientForm.regNo.trim()) {
 
     const patientId = selectedPatientId;
 
-    if (!isWithinDoctorSchedule(scheduledAt)) {
+    if (form.doctorId && !isWithinDoctorSchedule(scheduledAt)) {
       setError("Сонгосон цагт эмчийн ажлын хуваарь байхгүй байна.");
       return;
     }
@@ -656,7 +651,7 @@ if (quickPatientForm.regNo.trim()) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           patientId,
-          doctorId: Number(form.doctorId),
+          doctorId: form.doctorId ? Number(form.doctorId) : null,
           branchId: Number(form.branchId),
           scheduledAt: scheduledAtStr,
           endAt: endAtStr,
@@ -845,36 +840,7 @@ if (quickPatientForm.regNo.trim()) {
         </div>
       )}
 
-      {/* Doctor */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <label>Эмч (заавал)</label>
-        <select
-          name="doctorId"
-          value={form.doctorId}
-          onChange={(e) => {
-            handleChange(e);
-            setError("");
-          }}
-          required
-          style={{
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            padding: "6px 8px",
-          }}
-        >
-          <option value="">Эмч сонгох</option>
-          {workingDoctors.map((d) => (
-            <option key={d.id} value={d.id}>
-              {formatDoctorName(d)}
-            </option>
-          ))}
-        </select>
-        {scheduledDoctors.length === 0 && (
-          <span style={{ fontSize: 11, color: "#b91c1c", marginTop: 2 }}>
-            Энэ өдөр сонгосон салбарт эмчийн ажлын хуваарь олдсонгүй.
-          </span>
-        )}
-      </div>
+      {/* Doctor field hidden - doctor is optional */}
 
       {/* Date */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
