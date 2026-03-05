@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import multer from "multer";          
 import path from "path";
 import { parseRegNo } from "../utils/regno.js";
+import { getPatientBalance } from "./reports-patient-balances.js";
 
 const router = express.Router();
 const uploadDir = process.env.MEDIA_UPLOAD_DIR || "/data/media";
@@ -451,6 +452,7 @@ router.get("/profile/by-book/:bookNumber", async (req, res) => {
     }
 
     const patient = pb.patient;
+    const balanceData = await getPatientBalance(patient.id).catch(() => ({ balance: 0 }));
 
     // Load encounters for this patientBook
     const encounters = await prisma.encounter.findMany({
@@ -531,6 +533,7 @@ router.get("/profile/by-book/:bookNumber", async (req, res) => {
     res.json({
       patient,
       patientBook: { id: pb.id, bookNumber: pb.bookNumber },
+      patientBalance: balanceData.balance,
       encounters,
       invoices,
       media,

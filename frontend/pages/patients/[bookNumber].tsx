@@ -314,6 +314,16 @@ export default function PatientProfilePage() {
                   Бүртгэсэн: {formatDate(patient.createdAt)}
                 </div>
               )}
+              {(() => {
+                const wallet = -(data?.patientBalance ?? 0);
+                const absFormatted = new Intl.NumberFormat("mn-MN").format(Math.abs(wallet));
+                const prefix = wallet > 0 ? "+" : wallet < 0 ? "-" : "";
+                return (
+                  <div className="text-xs text-gray-400 mt-1">
+                    Хэтэвч: {prefix}{absFormatted}
+                  </div>
+                );
+              })()}
 
               {/* Side menu */}
               <div className="mt-4">

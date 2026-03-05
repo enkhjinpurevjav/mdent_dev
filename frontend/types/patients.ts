@@ -71,6 +71,7 @@ export type Appointment = {
 export type PatientProfileResponse = {
   patient: Patient;
   patientBook: PatientBook;
+  patientBalance?: number;
   encounters: Encounter[];
   appointments: Appointment[];
   visitCard?: VisitCard | null;
