@@ -43,10 +43,11 @@ export function formatDisplayName(patient: Patient) {
 
 export function formatDoctorName(doctor?: { name?: string | null; ovog?: string | null } | null) {
   if (!doctor) return "-";
-  const name = doctor.name || "";
+  const name = (doctor.name || "").trim();
   const ovog = (doctor.ovog || "").trim();
   if (ovog && name) {
-    return `${ovog} ${name}`;
+    const first = ovog.charAt(0).toUpperCase();
+    return `${first}. ${name}`;
   }
   return name || ovog || "-";
 }
