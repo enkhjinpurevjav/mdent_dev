@@ -595,18 +595,45 @@ export default function PatientsPage() {
                       {getBranchName(p.branchId)}
                     </td>
                     <td className="border-b border-gray-100 py-2 px-3">
-                      {p.patientBook?.bookNumber ? (
-                        <a
-                          href={`/patients/${encodeURIComponent(
-                            p.patientBook.bookNumber
-                          )}`}
-                          className="text-xs px-2 py-1 rounded border border-gray-300 no-underline text-gray-900 bg-gray-50 hover:bg-gray-100 transition-colors"
-                        >
-                          Дэлгэрэнгүй
-                        </a>
-                      ) : (
-                        "-"
-                      )}
+                      {(() => {
+                        if (!p.patientBook?.bookNumber) return "-";
+                        const baseUrl = `/patients/${encodeURIComponent(p.patientBook.bookNumber)}`;
+                        const btnCls = "inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 bg-gray-50 text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors";
+                        return (
+                          <div className="flex items-center gap-1">
+                            {/* Профайл */}
+                            <a href={baseUrl} title="Профайл" className={btnCls}>
+                              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
+                              </svg>
+                            </a>
+                            {/* Үйлчлүүлэгчийн карт */}
+                            <a href={`${baseUrl}?tab=patient_history`} title="Үйлчлүүлэгчийн карт" className={btnCls}>
+                              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H5zm0 2h10v10H5V5zm2 2a1 1 0 000 2h6a1 1 0 100-2H7zm0 4a1 1 0 000 2h4a1 1 0 100-2H7z" />
+                              </svg>
+                            </a>
+                            {/* Цагууд */}
+                            <a href={`${baseUrl}?tab=appointments`} title="Цагууд" className={btnCls}>
+                              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clipRule="evenodd" />
+                              </svg>
+                            </a>
+                            {/* Карт бөглөх */}
+                            <a href={`${baseUrl}?tab=visit_card`} title="Карт бөглөх" className={btnCls}>
+                              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M2.695 14.762l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.342z" />
+                              </svg>
+                            </a>
+                            {/* Гажиг заслын карт */}
+                            <a href={`${baseUrl}?tab=ortho_card`} title="Гажиг заслын карт" className={btnCls}>
+                              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M3.5 2A1.5 1.5 0 002 3.5V5a1.5 1.5 0 001.5 1.5H5A1.5 1.5 0 006.5 5V3.5A1.5 1.5 0 005 2H3.5zM9.5 2A1.5 1.5 0 008 3.5V5a1.5 1.5 0 001.5 1.5H11A1.5 1.5 0 0012.5 5V3.5A1.5 1.5 0 0011 2H9.5zM15.5 2A1.5 1.5 0 0014 3.5V5a1.5 1.5 0 001.5 1.5H17A1.5 1.5 0 0018.5 5V3.5A1.5 1.5 0 0017 2h-1.5zM3.5 8A1.5 1.5 0 002 9.5V11a1.5 1.5 0 001.5 1.5H5A1.5 1.5 0 006.5 11V9.5A1.5 1.5 0 005 8H3.5zM9.5 8A1.5 1.5 0 008 9.5V11a1.5 1.5 0 001.5 1.5H11A1.5 1.5 0 0012.5 11V9.5A1.5 1.5 0 0011 8H9.5zM15.5 8A1.5 1.5 0 0014 9.5V11a1.5 1.5 0 001.5 1.5H17A1.5 1.5 0 0018.5 11V9.5A1.5 1.5 0 0017 8h-1.5zM3.5 14A1.5 1.5 0 002 15.5V17a1.5 1.5 0 001.5 1.5H5A1.5 1.5 0 006.5 17v-1.5A1.5 1.5 0 005 14H3.5zM9.5 14A1.5 1.5 0 008 15.5V17a1.5 1.5 0 001.5 1.5H11A1.5 1.5 0 0012.5 17v-1.5A1.5 1.5 0 0011 14H9.5zM15.5 14A1.5 1.5 0 0014 15.5V17a1.5 1.5 0 001.5 1.5H17A1.5 1.5 0 0018.5 17v-1.5A1.5 1.5 0 0017 14h-1.5z" />
+                              </svg>
+                            </a>
+                          </div>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))}
