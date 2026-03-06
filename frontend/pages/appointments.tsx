@@ -3519,6 +3519,10 @@ const handleCancelDraft = (appointmentId: number) => {
       time: detailsModalState.slotTime || "09:00",
       branchId: slotBranchId,
     });
+    if (!bookingIntent && selectedFilterPatient) {
+      const label = formatPatientSearchLabel(selectedFilterPatient);
+      setBookingIntent({ patientId: selectedFilterPatient.id, patientLabel: label, doctorId: undefined });
+    }
   }}
 />
 
