@@ -1344,12 +1344,7 @@ const [pendingSaving, setPendingSaving] = useState(false);
   const [filterPatientHistoryLoading, setFilterPatientHistoryLoading] = useState(false);
 
   // ---- Preference popup (before slot picking) ----
-  const [prefPopupOpen, setPrefPopupOpen] = useState(false);
-  const [prefDate, setPrefDate] = useState<string>("");
-  const [prefDoctorId, setPrefDoctorId] = useState<string>("");
-  const [prefError, setPrefError] = useState("");
-  const [prefHistory, setPrefHistory] = useState<CompletedHistoryItem[]>([]);
-  const [prefHistoryLoading, setPrefHistoryLoading] = useState(false);
+
 
   const loadFilterPatientHistory = async (patientId: number) => {
     try {
@@ -2652,34 +2647,6 @@ const handleCancelDraft = (appointmentId: number) => {
                 <button
                   type="button"
                   onClick={() => {
-                    setPrefDate(filterDate);
-                    setPrefDoctorId("");
-                    setPrefError("");
-                    setPrefHistory([]);
-                    setPrefHistoryLoading(true);
-                    fetch(`/api/patients/${selectedFilterPatient.id}/completed-appointments?limit=3`)
-                      .then((r) => r.ok ? r.json() : [])
-                      .then((data) => setPrefHistory(Array.isArray(data) ? data : []))
-                      .catch((e) => { console.error("Failed to load completed history for popup", e); setPrefHistory([]); })
-                      .finally(() => setPrefHistoryLoading(false));
-                    setPrefPopupOpen(true);
-                  }}
-                  style={{
-                    padding: "5px 12px",
-                    borderRadius: 6,
-                    border: "none",
-                    background: "#2563eb",
-                    color: "white",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  Цаг захиалах
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
                     setSelectedFilterPatient(null);
                     setFilterPatientHistory([]);
                     setFilterPatientQuery("");
@@ -2702,160 +2669,6 @@ const handleCancelDraft = (appointmentId: number) => {
           )}
         </div>
       </section>
-
-      {/* Preference popup */}
-      {prefPopupOpen && selectedFilterPatient && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 80,
-          }}
-          onClick={() => setPrefPopupOpen(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "#fff",
-              borderRadius: 10,
-              padding: 20,
-              width: 360,
-              maxWidth: "95vw",
-              boxShadow: "0 14px 40px rgba(0,0,0,0.2)",
-              fontSize: 13,
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 15 }}>Цаг захиалах тохиргоо</h3>
-              <button type="button" onClick={() => setPrefPopupOpen(false)} style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
-            </div>
-
-            <div style={{ fontSize: 12, color: "#374151", marginBottom: 10, padding: "6px 8px", background: "#f3f4f6", borderRadius: 6 }}>
-              {[
-                selectedFilterPatient.ovog && selectedFilterPatient.name
-                  ? `${selectedFilterPatient.ovog} ${selectedFilterPatient.name}`
-                  : (selectedFilterPatient.name || selectedFilterPatient.ovog || ""),
-                selectedFilterPatient.regNo ? `(${selectedFilterPatient.regNo})` : "",
-              ].filter(Boolean).join(" ")}
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {/* Date field */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 500 }}>Огноо</label>
-                <input
-                  type="date"
-                  value={prefDate}
-                  onChange={(e) => { setPrefDate(e.target.value); setPrefError(""); }}
-                  style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px", fontSize: 13 }}
-                />
-              </div>
-
-              {/* Doctor field */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 500 }}>Эмч</label>
-                <select
-                  value={prefDoctorId}
-                  onChange={(e) => { setPrefDoctorId(e.target.value); setPrefError(""); }}
-                  style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px", fontSize: 13 }}
-                >
-                  <option value="">Эмч сонгох (заавал биш)</option>
-                  {doctors.map((d) => (
-                    <option key={d.id} value={d.id}>{formatDoctorName(d)}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* History inside popup */}
-              <div style={{ borderRadius: 6, border: "1px solid #e5e7eb", padding: "6px 8px", background: "#f9fafb", fontSize: 11 }}>
-                <div style={{ color: "#6b7280", marginBottom: 4, fontWeight: 500 }}>Сүүлийн дууссан үзлэгүүд:</div>
-                {prefHistoryLoading ? (
-                  <div style={{ color: "#9ca3af" }}>Уншиж байна...</div>
-                ) : prefHistory.length === 0 ? (
-                  <div style={{ color: "#9ca3af" }}>Өмнөх дууссан үзлэг байхгүй</div>
-                ) : (
-                  prefHistory.map((h) => (
-                    <button
-                      key={h.id}
-                      type="button"
-                      onClick={() => {
-                        if (h.doctor) {
-                          setPrefDoctorId(String(h.doctor.id));
-                          setPrefError("");
-                        }
-                      }}
-                      title={h.doctor ? `${formatDoctorName(historyDoctorToDoctor(h.doctor))} эмчийг сонгох` : undefined}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "2px 0",
-                        border: "none",
-                        background: "transparent",
-                        cursor: h.doctor ? "pointer" : "default",
-                        color: h.doctor ? "#2563eb" : "#374151",
-                        textDecoration: h.doctor ? "underline" : "none",
-                        fontSize: 11,
-                      }}
-                    >
-                      {formatHistoryDate(h.scheduledAt)} — Эмч: {h.doctor ? formatDoctorName(historyDoctorToDoctor(h.doctor)) : "-"}
-                    </button>
-                  ))
-                )}
-              </div>
-
-              {prefError && (
-                <div style={{ color: "#b91c1c", fontSize: 12 }}>{prefError}</div>
-              )}
-
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
-                <button
-                  type="button"
-                  onClick={() => setPrefPopupOpen(false)}
-                  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #d1d5db", background: "#f9fafb", cursor: "pointer", fontSize: 13 }}
-                >
-                  Хаах
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!prefDate && !prefDoctorId) {
-                      setPrefError("Огноо эсвэл эмч сонгоно уу.");
-                      return;
-                    }
-                    // Apply date filter if chosen
-                    if (prefDate) setFilterDate(prefDate);
-                    // Apply doctor filter if chosen
-                    if (prefDoctorId) setFilterDoctorId(prefDoctorId);
-                    // Set booking intent
-                    const patientLabel = [
-                      selectedFilterPatient.ovog && selectedFilterPatient.name
-                        ? `${selectedFilterPatient.ovog} ${selectedFilterPatient.name}`
-                        : (selectedFilterPatient.name || selectedFilterPatient.ovog || ""),
-                      selectedFilterPatient.regNo ? `(${selectedFilterPatient.regNo})` : "",
-                      selectedFilterPatient.phone ? `📞 ${selectedFilterPatient.phone}` : "",
-                      selectedFilterPatient.patientBook?.bookNumber ? `#${selectedFilterPatient.patientBook.bookNumber}` : "",
-                    ].filter(Boolean).join(" ");
-                    setBookingIntent({
-                      patientId: selectedFilterPatient.id,
-                      patientLabel,
-                      doctorId: prefDoctorId ? Number(prefDoctorId) : undefined,
-                    });
-                    setPrefPopupOpen(false);
-                  }}
-                  style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "#2563eb", color: "white", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                >
-                  Үргэлжлүүлэх
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Booking intent banner */}
       {bookingIntent && (
@@ -3338,11 +3151,12 @@ const handleCancelDraft = (appointmentId: number) => {
                               : new Date(otherStart.getTime() + SLOT_MINUTES * 60 * 1000);
                           return otherStart < aSlotEnd && otherEnd > aSlotStart;
                         }).length;
+                        const slotTimeStr = getSlotTimeString(aSlotStart);
                         setDetailsModalState({
                           open: true,
                           doctor: doc,
-                          slotLabel: "",
-                          slotTime: "",
+                          slotLabel: slotTimeStr,
+                          slotTime: slotTimeStr,
                           date: filterDate,
                           appointments: [a],
                           slotAppointmentCount,
@@ -3532,7 +3346,6 @@ const handleCancelDraft = (appointmentId: number) => {
     setQuickModalState((prev) => ({ ...prev, open: false }));
     setQuickOpen(false);
     setEditingAppointment(null);
-    setBookingIntent(null);
   }}
   defaultDoctorId={bookingIntent?.doctorId ?? quickModalState.doctorId}
   defaultDate={quickModalState.date}
@@ -3549,7 +3362,6 @@ const handleCancelDraft = (appointmentId: number) => {
     setAppointments((prev) => [a, ...prev]);
     // close create mode
     setQuickModalState((prev) => ({ ...prev, open: false }));
-    setBookingIntent(null);
   }}
   editingAppointment={editingAppointment}
   onUpdated={(updated) => {
@@ -3560,7 +3372,6 @@ const handleCancelDraft = (appointmentId: number) => {
     // close edit mode
     setQuickOpen(false);
     setEditingAppointment(null);
-    setBookingIntent(null);
 
     // optional: also close details modal (up to you)
     // setDetailsModalState((prev) => ({ ...prev, open: false }));
