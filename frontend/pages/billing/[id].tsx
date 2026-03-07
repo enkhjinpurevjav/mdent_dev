@@ -2551,9 +2551,8 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
             <>
               <input
                 type="text"
-                value={row.name}
+                value={row.itemType === "SERVICE" && svcOpenRow === index ? (svcQueryByRow[index] ?? "") : row.name}
                 disabled={locked}
-                readOnly={row.itemType === "SERVICE"}
                 onFocus={() => {
                   if (row.itemType !== "SERVICE" || locked) return;
                   setSvcOpenRow(index);
@@ -2565,9 +2564,72 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
                   setSvcQueryByRow((prev) => ({ ...prev, [index]: "" }));
                 }}
                 onChange={(e) => {
-                  if (row.itemType === "SERVICE") return;
                   const v = e.target.value;
-                  handleItemChange(index, "name", v);
+                  if (row.itemType === "SERVICE") {
+                    setSvcQueryByRow((prev) => ({ ...prev, [index]: v }));
+                    setSvcOpenRow(index);
+                  } else {
+                    handleItemChange(index, "name", v);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (row.itemType !== "SERVICE") return;
+                  if (e.key === "Escape") {
+                    setSvcOpenRow(null);
+                    setSvcQueryByRow((prev) => ({ ...prev, [index]: "" }));
+                    return;
+                  }
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    if (visibleOptions.length > 0)
+                      setSvcActiveIndex((i) =>
+                        Math.min(i + 1, visibleOptions.length - 1)
+                      );
+                    return;
+                  }
+                  if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    if (visibleOptions.length > 0)
+                      setSvcActiveIndex((i) => Math.max(i - 1, 0));
+                    return;
+                  }
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const picked = visibleOptions[svcActiveIndex];
+                    if (!picked) return;
+
+                    setItems((prev) =>
+                      prev.map((r, i) =>
+                        i === index
+                          ? {
+                              ...r,
+                              itemType: "SERVICE",
+                              serviceId: picked.id,
+                              productId: null,
+                              name: picked.name,
+                              unitPrice: picked.price,
+                              source: r.source ?? "MANUAL",
+                              serviceCategory: picked.category ?? null,
+                              meta: null,
+                            }
+                          : r
+                      )
+                    );
+
+                    // Fetch nurses if IMAGING service selected
+                    if (picked.category === "IMAGING" && invoice?.branchId && nurses.length === 0 && !nursesLoading) {
+                      setNursesLoading(true);
+                      fetch(`/api/users/nurses/today?branchId=${invoice.branchId}`)
+                        .then((r) => r.json())
+                        .then((data) => { const items2 = data.items || []; setNurses(items2.map((n: any) => ({ id: n.nurseId, name: n.name }))); })
+                        .catch(() => {})
+                        .finally(() => setNursesLoading(false));
+                    }
+
+                    setSvcOpenRow(null);
+                    setSvcOptions([]);
+                    setSvcQueryByRow((prev) => ({ ...prev, [index]: "" }));
+                  }
                 }}
                 onBlur={() => {
                   setTimeout(
@@ -2580,81 +2642,11 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
                     ? "Үйлчилгээний нэр"
                     : "Бүтээгдэхүүний нэр"
                 }
-                className={`w-full rounded-md border border-gray-300 py-1 px-[6px] text-[13px] mb-1 ${locked ? "bg-gray-100 cursor-not-allowed" : row.itemType === "SERVICE" ? "bg-white cursor-pointer" : "bg-white cursor-text"}`}
+                className={`w-full rounded-md border border-gray-300 py-1 px-[6px] text-[13px] mb-1 ${locked ? "bg-gray-100 cursor-not-allowed" : "bg-white cursor-text"}`}
               />
               {row.itemType === "SERVICE" &&
                 svcOpenRow === index && (
                   <div className="absolute left-0 top-full mt-[6px] w-[360px] bg-white border border-gray-200 rounded-lg z-[100] shadow-lg">
-                    <div className="p-2 border-b border-gray-100">
-                      <input
-                        type="text"
-                        autoFocus
-                        value={svcQueryByRow[index] ?? ""}
-                        placeholder="Үйлчилгээ хайх..."
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setSvcQueryByRow((prev) => ({ ...prev, [index]: v }));
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Escape") {
-                            setSvcOpenRow(null);
-                            return;
-                          }
-                          if (e.key === "ArrowDown") {
-                            e.preventDefault();
-                            if (visibleOptions.length > 0)
-                              setSvcActiveIndex((i) =>
-                                Math.min(i + 1, visibleOptions.length - 1)
-                              );
-                            return;
-                          }
-                          if (e.key === "ArrowUp") {
-                            e.preventDefault();
-                            if (visibleOptions.length > 0)
-                              setSvcActiveIndex((i) => Math.max(i - 1, 0));
-                            return;
-                          }
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            const picked = visibleOptions[svcActiveIndex];
-                            if (!picked) return;
-
-                            setItems((prev) =>
-                              prev.map((r, i) =>
-                                i === index
-                                  ? {
-                                      ...r,
-                                      itemType: "SERVICE",
-                                      serviceId: picked.id,
-                                      productId: null,
-                                      name: picked.name,
-                                      unitPrice: picked.price,
-                                      source: r.source ?? "MANUAL",
-                                      serviceCategory: picked.category ?? null,
-                                      meta: null,
-                                    }
-                                  : r
-                              )
-                            );
-
-                            // Fetch nurses if IMAGING service selected
-                            if (picked.category === "IMAGING" && invoice?.branchId && nurses.length === 0 && !nursesLoading) {
-                              setNursesLoading(true);
-                              fetch(`/api/users/nurses/today?branchId=${invoice.branchId}`)
-                                .then((r) => r.json())
-                                .then((data) => { const items2 = data.items || []; setNurses(items2.map((n: any) => ({ id: n.nurseId, name: n.name }))); })
-                                .catch(() => {})
-                                .finally(() => setNursesLoading(false));
-                            }
-
-                            setSvcOpenRow(null);
-                            setSvcOptions([]);
-                            setSvcQueryByRow((prev) => ({ ...prev, [index]: "" }));
-                          }
-                        }}
-                        className="w-full rounded-md border border-gray-300 py-1 px-[6px] text-[13px]"
-                      />
-                    </div>
                     <div className="max-h-[220px] overflow-y-auto">
                     {svcLoading && (
                       <div className="p-[10px] text-xs text-gray-500">
