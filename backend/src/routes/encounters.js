@@ -1808,7 +1808,7 @@ router.post("/:id/follow-up-appointments", optionalAuthenticateJWT, async (req, 
       return res.status(400).json({ error: "Invalid encounter id" });
     }
 
-    const { slotStartIso, durationMinutes } = req.body || {};
+    const { slotStartIso, durationMinutes, note } = req.body || {};
 
     // Validate required fields
     if (!slotStartIso) {
@@ -2032,7 +2032,7 @@ const slotTimeString = `${String(slotHourLocal).padStart(2, "0")}:${String(
         scheduledAt: slotStart,
         endAt: slotEnd,
         status: "booked",
-        notes: `Давтан үзлэг — Encounter #${encounterId}`,
+        notes: note ? `Давтан үзлэг — Encounter #${encounterId}\n${note}` : `Давтан үзлэг — Encounter #${encounterId}`,
         // Provenance fields for deletion permission tracking
         createdByUserId: req.user?.id || null,
         source: "FOLLOW_UP_ENCOUNTER",

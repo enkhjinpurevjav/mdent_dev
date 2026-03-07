@@ -1152,7 +1152,7 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
     }
   };
 
-  const createFollowUpAppointment = async (slotStartIso: string, durationMinutes: number = 30) => {
+  const createFollowUpAppointment = async (slotStartIso: string, durationMinutes: number = 30, note?: string) => {
   if (!encounter) return;
 
   setFollowUpBooking(true);
@@ -1167,6 +1167,7 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
       body: JSON.stringify({
         slotStartIso: slotStartIso,
         durationMinutes: durationMinutes,
+        ...(note ? { note } : {}),
       }),
     });
 
