@@ -128,6 +128,8 @@ export type EncounterService = {
   meta?: {
     assignedTo?: AssignedTo;
     diagnosisId?: number | null;
+    nurseId?: number | null;
+    toothScope?: string;
   } | null;
   texts?: EncounterServiceText[];
 };
@@ -192,6 +194,7 @@ export type EditableDiagnosis = EncounterDiagnosisRow & {
   // NEW: Local tool line selections (allows duplicates, stored before save)
   selectedToolLineIds?: number[];
   assignedTo?: AssignedTo;
+  nurseId?: number | null;
   // Dirty tracking: true if user has explicitly modified indicators
   indicatorsDirty?: boolean;
   // Draft text arrays for local editing before save

@@ -553,6 +553,7 @@ const loadEncounter = async () => {
 
       const assignedTo: AssignedTo =
         ((linkedService?.meta as any)?.assignedTo as AssignedTo) || "DOCTOR";
+      const nurseId: number | null = (linkedService?.meta as any)?.nurseId ?? null;
 
       // Build service search text with same format as after save (code – name)
       let serviceSearchText = "";
@@ -569,6 +570,7 @@ const loadEncounter = async () => {
         serviceId: linkedService?.serviceId,
         serviceSearchText,
         assignedTo,
+        nurseId,
         draftServiceTexts,
       };
     });
@@ -1718,11 +1720,13 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
   items: rowsWithServices.map((r) => {
       const svc = services.find((s) => s.id === r.serviceId);
       const isImaging = svc?.category === "IMAGING";
+      const assignedTo = isImaging ? (r.assignedTo ?? "DOCTOR") : "DOCTOR";
 
       return {
         serviceId: r.serviceId!,
         quantity: 1,
-        assignedTo: isImaging ? (r.assignedTo ?? "DOCTOR") : "DOCTOR",
+        assignedTo,
+        nurseId: (isImaging && assignedTo === "NURSE") ? (r.nurseId ?? null) : null,
         diagnosisId: r.id!, // Now guaranteed to exist due to validation
       };
     }),
@@ -1760,6 +1764,7 @@ setRows((prev) =>
       serviceId: linked.serviceId,
       serviceSearchText: svc ? `${svc.code} – ${svc.name}` : dxRow.serviceSearchText,
       assignedTo: (linked.meta as any)?.assignedTo ?? dxRow.assignedTo ?? "DOCTOR",
+      nurseId: (linked.meta as any)?.nurseId ?? null,
     };
   })
 );

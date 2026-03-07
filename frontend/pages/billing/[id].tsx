@@ -19,7 +19,7 @@ type PatientBook = { id: number; bookNumber: string; patient: Patient };
 
 type Doctor = { id: number; name?: string | null; ovog?: string | null; email: string };
 
-type Service = { id: number; code?: string | null; name: string; price: number };
+type Service = { id: number; code?: string | null; name: string; price: number; category?: string | null };
 
 // ✅ NEW
 type Product = { id: number; name: string; price: number; sku?: string | null };
@@ -36,6 +36,8 @@ type InvoiceItem = {
   teethNumbers?: string[];
   source?: "ENCOUNTER" | "MANUAL";
   alreadyAllocated?: number;
+  serviceCategory?: string | null;
+  meta?: { assignedTo?: "DOCTOR" | "NURSE"; nurseId?: number | null } | null;
 };
 
 type Payment = { id: number; amount: number; method: string; timestamp: string };
@@ -1914,6 +1916,10 @@ export default function BillingPage() {
   const [productsError, setProductsError] = useState("");
   const [productQuery, setProductQuery] = useState("");
 
+  // Nurses for IMAGING rows
+  const [nurses, setNurses] = useState<{ id: number; name: string | null }[]>([]);
+  const [nursesLoading, setNursesLoading] = useState(false);
+
  // --- NEW: inline service autocomplete (per-row) ---
 const [svcOpenRow, setSvcOpenRow] = useState<number | null>(null);
 const [svcQueryByRow, setSvcQueryByRow] = useState<Record<number, string>>({});
@@ -1935,7 +1941,7 @@ const searchServices = useCallback(
       const params = new URLSearchParams();
       params.set("q", query);
       params.set("onlyActive", "true");
-      params.set("limit", "20");
+      params.set("limit", "50");
       if (branchId) params.set("branchId", String(branchId));
 
       const res = await fetch(`/api/services?${params.toString()}`);
@@ -1966,13 +1972,7 @@ const [consents, setConsents] = useState<EncounterConsent[]>([]);
 const [consentLoading, setConsentLoading] = useState(false);
 const [consentError, setConsentError] = useState("");
 
-  // Service selector state
-  const [serviceModalOpen, setServiceModalOpen] = useState(false);
-  const [serviceModalRowIndex, setServiceModalRowIndex] = useState<number | null>(null);
-  const [services, setServices] = useState<Service[]>([]);
-  const [servicesLoading, setServicesLoading] = useState(false);
-  const [servicesError, setServicesError] = useState("");
-  const [serviceQuery, setServiceQuery] = useState("");
+  // Service selector state (modal removed - using inline autocomplete only)
 
   // ✅ NEW: load products for product modal
   const loadProducts = async () => {
@@ -2082,6 +2082,25 @@ const [consentError, setConsentError] = useState("");
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [svcOpenRow, svcQueryByRow, searchServices]);
 
+  // Fetch nurses for IMAGING attribution
+  useEffect(() => {
+    const branchId = invoice?.branchId;
+    if (!branchId) return;
+    const hasImaging = items.some((r) => r.serviceCategory === "IMAGING" && r.itemType === "SERVICE");
+    if (!hasImaging) return;
+    if (nurses.length > 0 || nursesLoading) return;
+    setNursesLoading(true);
+    fetch(`/api/users/nurses/today?branchId=${branchId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const items2: { nurseId: number; name: string | null }[] = data.items || [];
+        setNurses(items2.map((n) => ({ id: n.nurseId, name: n.name })));
+      })
+      .catch(() => {})
+      .finally(() => setNursesLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoice?.branchId, items]);
+
   // XRAY
   useEffect(() => {
     if (!encounterId || Number.isNaN(encounterId)) return;
@@ -2146,6 +2165,24 @@ const [consentError, setConsentError] = useState("");
         if (field === "quantity") return { ...row, quantity: num > 0 ? num : 1 };
         if (field === "unitPrice") return { ...row, unitPrice: num >= 0 ? num : 0 };
         return row;
+      })
+    );
+  };
+
+  const handleMetaChange = (
+    index: number,
+    patch: Partial<{ assignedTo: "DOCTOR" | "NURSE"; nurseId: number | null }>
+  ) => {
+    setItems((prev) =>
+      prev.map((row, i) => {
+        if (i !== index) return row;
+        const currentMeta = row.meta || {};
+        const newMeta = { ...currentMeta, ...patch };
+        // If switching to DOCTOR, clear nurseId
+        if (patch.assignedTo === "DOCTOR") {
+          delete newMeta.nurseId;
+        }
+        return { ...row, meta: newMeta };
       })
     );
   };
@@ -2219,13 +2256,28 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
     if (!encounterId || Number.isNaN(encounterId)) return;
     setSaveError("");
     setSaveSuccess("");
+
+    // Frontend validation: IMAGING rows must have meta.assignedTo
+    const filteredForSave = items.filter((r) => r.serviceId || r.productId || r.name.trim());
+    for (const r of filteredForSave) {
+      if (r.itemType === "SERVICE" && r.serviceCategory === "IMAGING") {
+        if (!r.meta?.assignedTo) {
+          setSaveError("IMAGING үйлчилгээ бүрт гүйцэтгэгч (Эмч эсвэл Сувилагч) сонгоно уу.");
+          return;
+        }
+        if (r.meta.assignedTo === "NURSE" && !r.meta.nurseId) {
+          setSaveError("IMAGING үйлчилгээнд Сувилагч сонгосон бол сувилагч заавал сонгоно уу.");
+          return;
+        }
+      }
+    }
+
     setSaving(true);
 
     try {
       const payload = {
         discountPercent,
-        items: items
-          .filter((r) => r.serviceId || r.productId || r.name.trim())
+        items: filteredForSave
           .map((r) => ({
             id: r.id,
             itemType: r.itemType,
@@ -2235,6 +2287,9 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
             unitPrice: r.unitPrice,
             quantity: r.quantity,
             teethNumbers: r.teethNumbers,
+            meta: r.itemType === "SERVICE" && r.serviceCategory === "IMAGING" && r.meta?.assignedTo
+              ? { assignedTo: r.meta.assignedTo, ...(r.meta.assignedTo === "NURSE" && r.meta.nurseId ? { nurseId: r.meta.nurseId } : {}) }
+              : null,
           })),
       };
 
@@ -2262,77 +2317,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
     }
   };
 
-  // ---- Service modal logic ----
-  const loadServices = async () => {
-    if (services.length > 0 || servicesLoading) return;
-    setServicesLoading(true);
-    setServicesError("");
-    try {
-      const res = await fetch(`/api/services`);
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error((data && data.error) || "Үйлчилгээний жагсаалт ачаалахад алдаа гарлаа.");
-      }
-
-      const list: Service[] = Array.isArray(data)
-        ? data
-        : Array.isArray((data as any).services)
-        ? (data as any).services
-        : [];
-
-      setServices(list);
-    } catch (err: any) {
-      console.error("Failed to load services:", err);
-      setServicesError(err.message || "Үйлчилгээний жагсаалт ачаалахад алдаа гарлаа.");
-    } finally {
-      setServicesLoading(false);
-    }
-  };
-
-  const openServiceModalForRow = (index: number) => {
-    setServiceModalRowIndex(index);
-    setServiceModalOpen(true);
-    setServiceQuery("");
-    void loadServices();
-  };
-
-  const closeServiceModal = () => {
-    setServiceModalOpen(false);
-    setServiceModalRowIndex(null);
-    setServiceQuery("");
-  };
-
-  const handleSelectServiceForRow = (svc: Service) => {
-    if (serviceModalRowIndex == null) return;
-    setItems((prev) =>
-      prev.map((row, i) =>
-        i === serviceModalRowIndex
-          ? {
-              ...row,
-              itemType: "SERVICE",
-              serviceId: svc.id,
-              productId: null,
-              name: svc.name,
-              unitPrice: svc.price,
-            }
-          : row
-      )
-    );
-    closeServiceModal();
-  };
-
-  const filteredServices = useMemo(() => {
-    const q = serviceQuery.trim().toLowerCase();
-    if (!q) return [];
-    return services
-      .filter((s) => {
-        const name = (s.name || "").toLowerCase();
-        const code = (s.code || "").toLowerCase();
-        return name.includes(q) || code.includes(q);
-      })
-      .slice(0, 50);
-  }, [services, serviceQuery]);
+  // ---- Service modal logic removed (using inline autocomplete only) ----
 
   const filteredProducts = useMemo(() => {
     const q = productQuery.trim().toLowerCase();
@@ -2523,6 +2508,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
               {items.map((row, index) => {
   const locked = row.source === "ENCOUNTER";
   const lineTotal = (row.unitPrice || 0) * (row.quantity || 0);
+  const isImaging = row.itemType === "SERVICE" && row.serviceCategory === "IMAGING";
 
   // Check if this service has toothScope=ALL from encounter
   const matchingEncounterService = encounter?.encounterServices?.find(
@@ -2535,12 +2521,18 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
     ? (diagnosisById.get(diagnosisId)?.toothCode ?? null)
     : null;
 
+  const imagingMissingAttribution = isImaging && !row.meta?.assignedTo;
+  const imagingMissingNurse = isImaging && row.meta?.assignedTo === "NURSE" && !row.meta?.nurseId;
+
   return (
     <div
       key={index}
-      style={{ display: "grid", gridTemplateColumns: "2fr 80px 120px 80px 120px auto" }}
-      className="gap-2 items-center rounded-lg border border-gray-200 p-2 bg-gray-50"
+      className={`gap-2 rounded-lg border p-2 bg-gray-50 ${imagingMissingAttribution || imagingMissingNurse ? "border-red-300" : "border-gray-200"}`}
     >
+      <div
+        style={{ display: "grid", gridTemplateColumns: "2fr 80px 120px 80px 120px auto" }}
+        className="gap-2 items-center"
+      >
       {/* 1 - Name cell */}
       <div className="relative">
         {(() => {
@@ -2636,10 +2628,22 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
                                       name: picked.name,
                                       unitPrice: picked.price,
                                       source: r.source ?? "MANUAL",
+                                      serviceCategory: picked.category ?? null,
+                                      meta: null,
                                     }
                                   : r
                               )
                             );
+
+                            // Fetch nurses if IMAGING service selected
+                            if (picked.category === "IMAGING" && invoice?.branchId && nurses.length === 0 && !nursesLoading) {
+                              setNursesLoading(true);
+                              fetch(`/api/users/nurses/today?branchId=${invoice.branchId}`)
+                                .then((r) => r.json())
+                                .then((data) => { const items2 = data.items || []; setNurses(items2.map((n: any) => ({ id: n.nurseId, name: n.name }))); })
+                                .catch(() => {})
+                                .finally(() => setNursesLoading(false));
+                            }
 
                             setSvcOpenRow(null);
                             setSvcOptions([]);
@@ -2674,10 +2678,22 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
                                       name: svc.name,
                                       unitPrice: svc.price,
                                       source: r.source ?? "MANUAL",
+                                      serviceCategory: svc.category ?? null,
+                                      meta: null,
                                     }
                                   : r
                               )
                             );
+
+                            // Fetch nurses if IMAGING service selected
+                            if (svc.category === "IMAGING" && invoice?.branchId && nurses.length === 0 && !nursesLoading) {
+                              setNursesLoading(true);
+                              fetch(`/api/users/nurses/today?branchId=${invoice.branchId}`)
+                                .then((r) => r.json())
+                                .then((data) => { const items2 = data.items || []; setNurses(items2.map((n: any) => ({ id: n.nurseId, name: n.name }))); })
+                                .catch(() => {})
+                                .finally(() => setNursesLoading(false));
+                            }
 
                             setSvcOpenRow(null);
                             setSvcOptions([]);
@@ -2759,6 +2775,64 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
         >
           Устгах
         </button>
+      )}
+      </div>
+
+      {/* IMAGING attribution row */}
+      {isImaging && (
+        <div className="mt-2 pt-2 border-t border-gray-100 flex flex-wrap gap-3 items-center text-[12px]">
+          <span className="text-gray-500 font-medium">🩻 Зураг авах оноох:</span>
+          <label className="inline-flex gap-1 items-center cursor-pointer">
+            <input
+              type="radio"
+              name={`billing-assignedTo-${index}`}
+              checked={(row.meta?.assignedTo ?? "") === "DOCTOR"}
+              onChange={() => handleMetaChange(index, { assignedTo: "DOCTOR" })}
+            />
+            Эмч
+          </label>
+          <label className="inline-flex gap-1 items-center cursor-pointer">
+            <input
+              type="radio"
+              name={`billing-assignedTo-${index}`}
+              checked={row.meta?.assignedTo === "NURSE"}
+              onChange={() => handleMetaChange(index, { assignedTo: "NURSE", nurseId: null })}
+            />
+            Сувилагч
+          </label>
+
+          {row.meta?.assignedTo === "NURSE" && (
+            <div className="flex flex-col gap-1">
+              {nursesLoading ? (
+                <span className="text-gray-400">Ачаалж байна...</span>
+              ) : (
+                <select
+                  value={row.meta?.nurseId ?? ""}
+                  onChange={(e) =>
+                    handleMetaChange(index, {
+                      nurseId: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                  className={`py-1 px-2 rounded border text-[12px] ${!row.meta?.nurseId ? "border-red-400" : "border-gray-300"}`}
+                >
+                  <option value="">— Сувилагч сонгох —</option>
+                  {nurses.map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.name ?? `Nurse #${n.id}`}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {!row.meta?.nurseId && (
+                <span className="text-red-500 text-[11px]">Сувилагч сонгоно уу</span>
+              )}
+            </div>
+          )}
+
+          {!row.meta?.assignedTo && (
+            <span className="text-red-500">⚠ Гүйцэтгэгч сонгоно уу</span>
+          )}
+        </div>
       )}
     </div>
   );
@@ -3062,85 +3136,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
         </div>
       )}
 
-      {/* Service picker modal */}
-      {serviceModalOpen && (
-        <div
-          className="fixed inset-0 bg-black/35 flex items-center justify-center z-[80]"
-          onClick={closeServiceModal}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-[480px] max-w-[95vw] max-h-[80vh] overflow-y-auto bg-white rounded-lg shadow-2xl p-4 text-[13px]"
-          >
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="m-0 text-[15px]">Үйлчилгээ сонгох</h3>
-              <button
-                type="button"
-                onClick={closeServiceModal}
-                className="border-none bg-transparent cursor-pointer text-lg leading-none"
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="mb-2">
-              <input
-                type="text"
-                value={serviceQuery}
-                onChange={(e) => setServiceQuery(e.target.value)}
-                placeholder="Нэр эсвэл кодоор хайх..."
-                className="w-full rounded-md border border-gray-300 py-[6px] px-2 text-[13px]"
-              />
-            </div>
-
-            {servicesLoading && (
-              <div className="text-xs text-gray-500">
-                Үйлчилгээнүүдийг ачаалж байна...
-              </div>
-            )}
-            {servicesError && (
-              <div className="text-xs text-red-700">
-                {servicesError}
-              </div>
-            )}
-
-            {!servicesLoading &&
-              !servicesError &&
-              serviceQuery.trim().length === 0 && (
-                <div className="text-xs text-gray-500">
-                  Нэр эсвэл код оруулаад хайна уу.
-                </div>
-              )}
-
-            {!servicesLoading &&
-              !servicesError &&
-              serviceQuery.trim().length > 0 &&
-              filteredServices.length === 0 && (
-                <div className="text-xs text-gray-500">
-                  Хайлтад тохирох үйлчилгээ олдсонгүй.
-                </div>
-              )}
-
-            <div className="mt-2 rounded-md border border-gray-200 max-h-[320px] overflow-y-auto">
-              {filteredServices.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => handleSelectServiceForRow(s)}
-                  className="block w-full text-left py-[6px] px-2 border-none border-b border-gray-100 bg-white cursor-pointer text-[13px]"
-                >
-                  <div className="font-medium">{s.name}</div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">
-                    Код: {s.code || "-"} • Үнэ:{" "}
-                    {s.price.toLocaleString("mn-MN")}₮
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Service picker modal - removed in favor of inline autocomplete */}
     </main>
   );
 }

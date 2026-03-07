@@ -626,6 +626,11 @@ router.put("/:id/services", async (req, res) => {
           diagnosisId: item.diagnosisId ?? null,
         };
 
+        // Add nurseId for IMAGING services assigned to NURSE
+        if (meta.assignedTo === "NURSE" && item.nurseId != null) {
+          meta.nurseId = Number(item.nurseId);
+        }
+
         // Add toothScope for imaging encounters
         if (isImagingEncounter) {
           meta.toothScope = "ALL";

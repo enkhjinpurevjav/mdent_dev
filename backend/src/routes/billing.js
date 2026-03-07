@@ -134,7 +134,7 @@ router.get("/encounters/:id/invoice", async (req, res) => {
       include: {
         patientBook: { include: { patient: { include: { branch: true } } } },
         encounterServices: { include: { service: true } },
-        invoice: { include: { items: true, eBarimtReceipt: true } },
+        invoice: { include: { items: { include: { service: true } }, eBarimtReceipt: true } },
       },
     });
 
@@ -215,6 +215,7 @@ router.get("/encounters/:id/invoice", async (req, res) => {
           lineTotal: it.lineTotal,
           source: it.source,
           meta: it.meta ?? null,
+          serviceCategory: it.service?.category ?? null,
           alreadyAllocated: allocByItemId.get(it.id) ?? 0,
         })),
         patientTotalBilled: balanceData.totalBilled,
@@ -247,6 +248,8 @@ router.get("/encounters/:id/invoice", async (req, res) => {
           quantity,
           lineTotal,
           source: "ENCOUNTER",
+          serviceCategory: es.service?.category ?? null,
+          meta: (es.meta?.assignedTo) ? { assignedTo: es.meta.assignedTo, nurseId: es.meta.nurseId ?? undefined } : null,
         };
       }) ?? [];
 
@@ -429,6 +432,30 @@ router.post("/encounters/:id/invoice", async (req, res) => {
       });
     }
 
+    // ---------- Validate meta for IMAGING rows ----------
+    for (const it of normalizedItems) {
+      if (it.meta != null) {
+        const allowedKeys = new Set(["assignedTo", "nurseId"]);
+        for (const k of Object.keys(it.meta)) {
+          if (!allowedKeys.has(k)) {
+            return res.status(400).json({ error: `Invalid meta key: ${k}. Allowed: assignedTo, nurseId.` });
+          }
+        }
+        const { assignedTo, nurseId } = it.meta;
+        if (assignedTo !== "DOCTOR" && assignedTo !== "NURSE") {
+          return res.status(400).json({ error: 'meta.assignedTo must be "DOCTOR" or "NURSE".' });
+        }
+        if (assignedTo === "NURSE") {
+          if (!Number.isFinite(Number(nurseId))) {
+            return res.status(400).json({ error: 'meta.nurseId must be a number when assignedTo is "NURSE".' });
+          }
+        }
+        if (assignedTo === "DOCTOR" && nurseId != null) {
+          return res.status(400).json({ error: 'meta.nurseId must not be set when assignedTo is "DOCTOR".' });
+        }
+      }
+    }
+
     // ---------- NEW: totals + discount only on SERVICES ----------
     const servicesSubtotal = normalizedItems
       .filter((it) => it.itemType === "SERVICE")
@@ -473,7 +500,7 @@ router.post("/encounters/:id/invoice", async (req, res) => {
             })),
           },
         },
-        include: { items: true, eBarimtReceipt: true },
+        include: { items: { include: { service: true } }, eBarimtReceipt: true },
       });
     } else {
       invoice = await prisma.invoice.update({
@@ -500,7 +527,7 @@ router.post("/encounters/:id/invoice", async (req, res) => {
             })),
           },
         },
-        include: { items: true, eBarimtReceipt: true },
+        include: { items: { include: { service: true } }, eBarimtReceipt: true },
       });
     }
 
@@ -527,6 +554,7 @@ router.post("/encounters/:id/invoice", async (req, res) => {
         lineTotal: it.lineTotal,
         source: it.source,
         meta: it.meta ?? null,
+        serviceCategory: it.service?.category ?? null,
       })),
     });
   } catch (err) {

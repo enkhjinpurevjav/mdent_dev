@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type {
   EditableDiagnosis,
   Diagnosis,
@@ -99,6 +99,24 @@ export default function DiagnosesEditor({
   onResetToothSelection,
   onReloadEncounter,
 }: DiagnosesEditorProps) {
+  const [todayNurses, setTodayNurses] = useState<{ id: number; name: string | null }[]>([]);
+
+  useEffect(() => {
+    if (!branchId) return;
+    const fetchNurses = async () => {
+      try {
+        const res = await fetch(`/api/users/nurses/today?branchId=${branchId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const items: { nurseId: number; name: string | null }[] = data.items || [];
+        setTodayNurses(items.map((n) => ({ id: n.nurseId, name: n.name })));
+      } catch {
+        // ignore
+      }
+    };
+    void fetchNurses();
+  }, [branchId]);
+
   return (
     <section
       style={{
@@ -460,7 +478,44 @@ export default function DiagnosesEditor({
                     Сувилагч
                   </label>
 
-                  {/* Badge: All imaging services apply to all teeth */}
+                  {/* Nurse picker for IMAGING rows assigned to NURSE */}
+                  {row.assignedTo === "NURSE" && (
+                    <div style={{ width: "100%", marginTop: 6 }}>
+                      <select
+                        disabled={isLocked}
+                        value={row.nurseId ?? ""}
+                        onChange={(e) => {
+                          if (isLocked) return;
+                          const val = e.target.value;
+                          onUpdateRowField(
+                            index,
+                            "nurseId",
+                            val === "" ? null : Number(val)
+                          );
+                        }}
+                        style={{
+                          padding: "4px 8px",
+                          borderRadius: 4,
+                          border: row.nurseId == null ? "1.5px solid #ef4444" : "1px solid #d1d5db",
+                          fontSize: 12,
+                          minWidth: 160,
+                          background: isLocked ? "#f3f4f6" : "white",
+                        }}
+                      >
+                        <option value="">— Сувилагч сонгох —</option>
+                        {todayNurses.map((n) => (
+                          <option key={n.id} value={n.id}>
+                            {n.name ?? `Nurse #${n.id}`}
+                          </option>
+                        ))}
+                      </select>
+                      {row.nurseId == null && (
+                        <div style={{ fontSize: 11, color: "#ef4444", marginTop: 2 }}>
+                          Сувилагч сонгоно уу
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div
                     style={{
                       padding: "4px 10px",

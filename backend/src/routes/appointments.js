@@ -1453,7 +1453,25 @@ router.post("/:id/imaging/transition-to-ready", async (req, res) => {
       return res.status(400).json({ error: "Invalid appointment id" });
     }
 
-    const { serviceIds } = req.body || {};
+    const { serviceIds, serviceLines } = req.body || {};
+
+    // Build normalized service lines: support legacy serviceIds or new serviceLines format
+    let normalizedLines = [];
+    if (Array.isArray(serviceLines) && serviceLines.length > 0) {
+      // New format: [{ serviceId, assignedTo?, nurseId? }]
+      normalizedLines = serviceLines.map((l) => ({
+        serviceId: Number(l.serviceId),
+        assignedTo: l.assignedTo === "NURSE" ? "NURSE" : "DOCTOR",
+        nurseId: l.assignedTo === "NURSE" && l.nurseId != null ? Number(l.nurseId) : null,
+      }));
+    } else if (Array.isArray(serviceIds)) {
+      // Legacy format: [serviceId, ...]
+      normalizedLines = serviceIds.map((id) => ({
+        serviceId: Number(id),
+        assignedTo: "DOCTOR",
+        nurseId: null,
+      }));
+    }
 
     // Validate appointment exists and is in imaging status
     const appt = await prisma.appointment.findUnique({
@@ -1505,19 +1523,20 @@ router.post("/:id/imaging/transition-to-ready", async (req, res) => {
       encounter = appt.encounters[0];
     }
 
-    // Validate serviceIds
-    if (!Array.isArray(serviceIds)) {
+    // Validate service lines
+    if (!Array.isArray(normalizedLines)) {
       return res.status(400).json({
-        error: "serviceIds must be an array",
+        error: "serviceIds or serviceLines must be an array",
       });
     }
 
     // Check for duplicates in existing services
-    if (serviceIds.length > 0) {
+    if (normalizedLines.length > 0) {
+      const newServiceIds = normalizedLines.map((l) => l.serviceId);
       const existingServiceIds = new Set(
         encounter.encounterServices.map((es) => es.serviceId)
       );
-      const duplicates = serviceIds.filter((sid) => existingServiceIds.has(sid));
+      const duplicates = newServiceIds.filter((sid) => existingServiceIds.has(sid));
 
       if (duplicates.length > 0) {
         // Fetch service names for error message
@@ -1535,12 +1554,12 @@ router.post("/:id/imaging/transition-to-ready", async (req, res) => {
       // Validate all serviceIds exist and are IMAGING category
       const services = await prisma.service.findMany({
         where: {
-          id: { in: serviceIds },
+          id: { in: newServiceIds },
           isActive: true,
         },
       });
 
-      if (services.length !== serviceIds.length) {
+      if (services.length !== newServiceIds.length) {
         return res.status(400).json({
           error: "One or more services not found or inactive",
         });
@@ -1554,15 +1573,26 @@ router.post("/:id/imaging/transition-to-ready", async (req, res) => {
         });
       }
 
-      // Add services to encounter with toothScope: "ALL" for imaging
+      // Build a map for quick lookup of performer info per serviceId
+      const lineByServiceId = new Map(normalizedLines.map((l) => [l.serviceId, l]));
+
+      // Add services to encounter with toothScope: "ALL" and performer meta
       for (const service of imagingServices) {
+        const line = lineByServiceId.get(service.id) || {};
+        const metaData = {
+          toothScope: "ALL",
+          assignedTo: line.assignedTo ?? "DOCTOR",
+        };
+        if (metaData.assignedTo === "NURSE" && line.nurseId != null) {
+          metaData.nurseId = line.nurseId;
+        }
         await prisma.encounterService.create({
           data: {
             encounterId: encounter.id,
             serviceId: service.id,
             quantity: 1,
             price: service.price,
-            meta: { toothScope: "ALL" },
+            meta: metaData,
           },
         });
       }

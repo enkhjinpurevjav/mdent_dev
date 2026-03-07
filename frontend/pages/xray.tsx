@@ -25,19 +25,17 @@ export default function XrayPage() {
   const [mediaError, setMediaError] = useState("");
   const [uploadingMedia, setUploadingMedia] = useState(false);
 
-  // Performer state (for imaging appointments)
-  const [performerType, setPerformerType] = useState<"DOCTOR" | "NURSE">("DOCTOR");
-  const [selectedNurseId, setSelectedNurseId] = useState<number | null>(null);
+  // Performer state (for imaging appointments) - per-service attribution
+  type ServiceLine = { serviceId: number; assignedTo: "DOCTOR" | "NURSE"; nurseId: number | null };
+  const [serviceLines, setServiceLines] = useState<ServiceLine[]>([]);
   const [nurses, setNurses] = useState<Nurse[]>([]);
   const [loadingNurses, setLoadingNurses] = useState(false);
 
   // Service state (for imaging appointments)
   const [services, setServices] = useState<Service[]>([]);
-  const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
 
   // Action state
-  const [saving, setSaving] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -95,9 +93,7 @@ export default function XrayPage() {
     if (!selectedAppt) {
       setEncounterId(null);
       setMedia([]);
-      setPerformerType("DOCTOR");
-      setSelectedNurseId(null);
-      setSelectedServiceIds([]);
+      setServiceLines([]);
       return;
     }
 
@@ -268,58 +264,30 @@ export default function XrayPage() {
     }
   };
 
-  const handleSavePerformer = async () => {
-    if (!selectedAppt || selectedAppt.status !== "imaging") return;
-
-    // Validate nurse selection if performer type is NURSE
-    if (performerType === "NURSE" && !selectedNurseId) {
-      setError("Сувилагч сонгоно уу");
-      return;
-    }
-
-    setSaving(true);
-    setError("");
-    setSuccessMsg("");
-
-    try {
-      const performerRes = await fetch(
-        `/api/appointments/${selectedAppt.id}/imaging/set-performer`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            performerType,
-            nurseId: performerType === "NURSE" ? selectedNurseId : undefined,
-          }),
-        }
-      );
-
-      if (!performerRes.ok) {
-        const data = await performerRes.json();
-        throw new Error(data.error || "Гүйцэтгэгч хадгалахад алдаа гарлаа");
-      }
-
-      setSuccessMsg("Гүйцэтгэгч амжилттай хадгалагдлаа");
-    } catch (err: any) {
-      setError(err.message || "Хадгалахад алдаа гарлаа");
-    } finally {
-      setSaving(false);
-    }
+  const updateServiceLine = (
+    serviceId: number,
+    patch: Partial<{ assignedTo: "DOCTOR" | "NURSE"; nurseId: number | null }>
+  ) => {
+    setServiceLines((prev) =>
+      prev.map((l) => (l.serviceId === serviceId ? { ...l, ...patch } : l))
+    );
   };
 
   const handleTransitionToReady = async () => {
     if (!selectedAppt || selectedAppt.status !== "imaging") return;
 
-    // Validate performer selection
-    if (performerType === "NURSE" && !selectedNurseId) {
-      setError("Төлбөрт шилжүүлэхээс өмнө сувилагч сонгоно уу");
+    // Validate service selection
+    if (serviceLines.length === 0) {
+      setError("Төлбөрт шилжүүлэхээс өмнө үйлчилгээ сонгоно уу");
       return;
     }
 
-    // Validate service selection
-    if (selectedServiceIds.length === 0) {
-      setError("Төлбөрт шилжүүлэхээс өмнө үйлчилгээ сонгоно уу");
-      return;
+    // Validate per-service performer attribution
+    for (const line of serviceLines) {
+      if (line.assignedTo === "NURSE" && !line.nurseId) {
+        setError("Бүх IMAGING үйлчилгээнд сувилагч сонгоно уу");
+        return;
+      }
     }
 
     setTransitioning(true);
@@ -332,7 +300,7 @@ export default function XrayPage() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ serviceIds: selectedServiceIds }),
+          body: JSON.stringify({ serviceLines }),
         }
       );
 
@@ -594,142 +562,112 @@ export default function XrayPage() {
                     }}
                   >
                     <h3 style={{ fontSize: 14, marginBottom: 8 }}>
-                      Гүйцэтгэгч сонгох
-                    </h3>
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>
-                        Төрөл:
-                      </label>
-                      <select
-                        value={performerType}
-                        onChange={(e) =>
-                          setPerformerType(e.target.value as "DOCTOR" | "NURSE")
-                        }
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          border: "1px solid #d1d5db",
-                          borderRadius: 6,
-                          fontSize: 13,
-                        }}
-                      >
-                        <option value="DOCTOR">Эмч</option>
-                        <option value="NURSE">Сувилагч</option>
-                      </select>
-                    </div>
-
-                    {performerType === "NURSE" && (
-                      <div style={{ marginBottom: 12 }}>
-                        <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>
-                          Сувилагч:
-                        </label>
-                        {loadingNurses ? (
-                          <div style={{ fontSize: 13 }}>Уншиж байна...</div>
-                        ) : (
-                          <select
-                            value={selectedNurseId || ""}
-                            onChange={(e) =>
-                              setSelectedNurseId(
-                                e.target.value ? Number(e.target.value) : null
-                              )
-                            }
-                            style={{
-                              width: "100%",
-                              padding: "8px 12px",
-                              border: "1px solid #d1d5db",
-                              borderRadius: 6,
-                              fontSize: 13,
-                            }}
-                          >
-                            <option value="">-- Сонгох --</option>
-                            {nurses.map((n) => (
-                              <option key={n.id} value={n.id}>
-                                {n.name}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                    )}
-
-                    {performerType === "DOCTOR" && (
-                      <div style={{ fontSize: 13, color: "#6b7280", marginTop: 8 }}>
-                        Эмч: {selectedAppt.doctorName || "—"}
-                      </div>
-                    )}
-                  </div>
-
-                  <div
-                    style={{
-                      borderTop: "1px dashed #e5e7eb",
-                      paddingTop: 16,
-                      marginBottom: 16,
-                    }}
-                  >
-                    <h3 style={{ fontSize: 14, marginBottom: 8 }}>
-                      Үйлчилгээ сонгох
+                      Үйлчилгээ сонгох / Гүйцэтгэгч оноох
                     </h3>
                     {loadingServices ? (
                       <div style={{ fontSize: 13 }}>Уншиж байна...</div>
                     ) : (
-                      <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: 6, padding: 8 }}>
-                        {services.map((s) => (
-                          <label
-                            key={s.id}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              padding: "6px 8px",
-                              cursor: "pointer",
-                              borderRadius: 4,
-                              fontSize: 13,
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedServiceIds.includes(s.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedServiceIds((prev) => [...prev, s.id]);
-                                } else {
-                                  setSelectedServiceIds((prev) =>
-                                    prev.filter((id) => id !== s.id)
-                                  );
-                                }
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {services.map((s) => {
+                          const line = serviceLines.find((l) => l.serviceId === s.id);
+                          const isSelected = !!line;
+                          return (
+                            <div
+                              key={s.id}
+                              style={{
+                                border: "1px solid #e5e7eb",
+                                borderRadius: 6,
+                                padding: "8px 12px",
+                                background: isSelected ? "#f0f9ff" : "white",
                               }}
-                              style={{ marginRight: 8 }}
-                            />
-                            <span>
-                              {s.code || s.id}: {s.name} ({s.price}₮)
-                            </span>
-                          </label>
-                        ))}
+                            >
+                              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, fontWeight: 500 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setServiceLines((prev) => [
+                                        ...prev,
+                                        { serviceId: s.id, assignedTo: "DOCTOR", nurseId: null },
+                                      ]);
+                                    } else {
+                                      setServiceLines((prev) =>
+                                        prev.filter((l) => l.serviceId !== s.id)
+                                      );
+                                    }
+                                  }}
+                                />
+                                {s.code ? `${s.code}: ` : ""}{s.name} ({s.price.toLocaleString("mn-MN")}₮)
+                              </label>
+
+                              {isSelected && (
+                                <div style={{ marginTop: 8, paddingLeft: 24, display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+                                  <span style={{ fontSize: 12, color: "#6b7280" }}>Гүйцэтгэгч:</span>
+                                  <label style={{ display: "inline-flex", gap: 4, alignItems: "center", fontSize: 12, cursor: "pointer" }}>
+                                    <input
+                                      type="radio"
+                                      name={`xray-assignedTo-${s.id}`}
+                                      checked={(line?.assignedTo ?? "DOCTOR") === "DOCTOR"}
+                                      onChange={() => updateServiceLine(s.id, { assignedTo: "DOCTOR", nurseId: null })}
+                                    />
+                                    Эмч: {selectedAppt.doctorName || "—"}
+                                  </label>
+                                  <label style={{ display: "inline-flex", gap: 4, alignItems: "center", fontSize: 12, cursor: "pointer" }}>
+                                    <input
+                                      type="radio"
+                                      name={`xray-assignedTo-${s.id}`}
+                                      checked={line?.assignedTo === "NURSE"}
+                                      onChange={() => updateServiceLine(s.id, { assignedTo: "NURSE", nurseId: null })}
+                                    />
+                                    Сувилагч
+                                  </label>
+
+                                  {line?.assignedTo === "NURSE" && (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                      {loadingNurses ? (
+                                        <span style={{ fontSize: 12 }}>Уншиж байна...</span>
+                                      ) : (
+                                        <select
+                                          value={line.nurseId ?? ""}
+                                          onChange={(e) =>
+                                            updateServiceLine(s.id, {
+                                              nurseId: e.target.value ? Number(e.target.value) : null,
+                                            })
+                                          }
+                                          style={{
+                                            padding: "4px 8px",
+                                            border: line.nurseId === null ? "1.5px solid #ef4444" : "1px solid #d1d5db",
+                                            borderRadius: 4,
+                                            fontSize: 12,
+                                          }}
+                                        >
+                                          <option value="">— Сувилагч сонгох —</option>
+                                          {nurses.map((n) => (
+                                            <option key={n.id} value={n.id}>
+                                              {n.name}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      )}
+                                      {line.nurseId === null && (
+                                        <span style={{ fontSize: 11, color: "#ef4444" }}>Сувилагч сонгоно уу</span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
 
                   <div style={{ display: "flex", gap: 12 }}>
                     <button
-                      onClick={handleSavePerformer}
-                      disabled={saving || (performerType === "NURSE" && !selectedNurseId)}
-                      style={{
-                        flex: 1,
-                        padding: "10px 16px",
-                        background: "#2563eb",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 6,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        cursor: saving || (performerType === "NURSE" && !selectedNurseId) ? "default" : "pointer",
-                        opacity: saving || (performerType === "NURSE" && !selectedNurseId) ? 0.6 : 1,
-                      }}
-                    >
-                      {saving ? "Хадгалж байна..." : "Гүйцэтгэгч хадгалах"}
-                    </button>
-                    <button
                       onClick={handleTransitionToReady}
-                      disabled={transitioning}
+                      disabled={transitioning || serviceLines.length === 0}
                       style={{
                         flex: 1,
                         padding: "10px 16px",
@@ -739,8 +677,8 @@ export default function XrayPage() {
                         borderRadius: 6,
                         fontSize: 14,
                         fontWeight: 500,
-                        cursor: transitioning ? "default" : "pointer",
-                        opacity: transitioning ? 0.6 : 1,
+                        cursor: (transitioning || serviceLines.length === 0) ? "default" : "pointer",
+                        opacity: (transitioning || serviceLines.length === 0) ? 0.6 : 1,
                       }}
                     >
                       {transitioning ? "Шилжүүлж байна..." : "Төлбөрт шилжүүлэх"}
