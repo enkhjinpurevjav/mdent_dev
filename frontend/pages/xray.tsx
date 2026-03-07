@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import MediaGallery from "../components/encounter/MediaGallery";
 import type { AppointmentRow } from "../types/appointments";
 import type { EncounterMedia, Service, Nurse } from "../types/encounter-admin";
@@ -18,6 +18,9 @@ type ImagingConfig = {
   nurseId: number | null;
   selectedServiceIds: number[];
 };
+
+/** How often (ms) to poll for new appointments when the nurse is idle. */
+const APPOINTMENT_POLL_INTERVAL_MS = 60_000;
 
 export default function XrayPage() {
   const today = new Date().toISOString().slice(0, 10);
@@ -63,34 +66,43 @@ export default function XrayPage() {
   // Debounce timer for auto-saving imaging config
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ─── Load appointments ───────────────────────────────────────────────────
+  // ─── Load appointments (initial + idle polling every 60s) ──────────────────
+  // Polling is active only when no appointment is selected, so nurses working
+  // on an appointment (uploading images, selecting services) are never
+  // interrupted by a list refresh.
+  // Re-fetches immediately when transitioning back to idle so any Reception
+  // changes (e.g., ready_to_pay) appear without waiting for the next interval.
+  const fetchAppointments = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams();
+      params.set("dateFrom", dateFrom);
+      params.set("dateTo", dateTo);
+      const res = await fetch(`/api/appointments?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch appointments");
+      const data = await res.json();
+      const filtered: XrayAppointment[] = Array.isArray(data)
+        ? data.filter(
+            (a: XrayAppointment) => a.status === "ongoing" || a.status === "imaging"
+          )
+        : [];
+      setAppointments(filtered);
+    } catch (err: any) {
+      setError(err.message || "Цаг татахад алдаа гарлаа");
+      setAppointments([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [dateFrom, dateTo]);
+
   useEffect(() => {
-    const fetchAppointments = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const params = new URLSearchParams();
-        params.set("dateFrom", dateFrom);
-        params.set("dateTo", dateTo);
-        const res = await fetch(`/api/appointments?${params.toString()}`);
-        if (!res.ok) throw new Error("Failed to fetch appointments");
-        const data = await res.json();
-        const filtered: XrayAppointment[] = Array.isArray(data)
-          ? data.filter(
-              (a: XrayAppointment) => a.status === "ongoing" || a.status === "imaging"
-            )
-          : [];
-        setAppointments(filtered);
-      } catch (err: any) {
-        setError(err.message || "Цаг татахад алдаа гарлаа");
-        setAppointments([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (selectedAppt !== null) return;
 
     fetchAppointments();
-  }, [dateFrom, dateTo]);
+    const id = setInterval(fetchAppointments, APPOINTMENT_POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [selectedAppt, fetchAppointments]);
 
   // ─── Filter by search text ───────────────────────────────────────────────
   useEffect(() => {
