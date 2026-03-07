@@ -1978,36 +1978,22 @@ const handleFinishEncounter = async () => {
 
   if (!id || typeof id !== "string") {
     return (
-      <main
-        style={{
-          maxWidth: 900,
-          margin: "40px auto",
-          padding: 24,
-          fontFamily: "sans-serif",
-        }}
-      >
+      <main className="max-w-[900px] mx-auto mt-10 p-6 font-sans">
         <h1>Үзлэгийн дэлгэрэнгүй</h1>
-        <div style={{ color: "red" }}>ID буруу байна.</div>
+        <div className="text-red-600">ID буруу байна.</div>
       </main>
     );
   }
 
   return (
-    <main
-      style={{
-        maxWidth: 1000,
-        margin: "40px auto",
-        padding: 24,
-        fontFamily: "sans-serif",
-      }}
-    >
-      <h1 style={{ fontSize: 20, marginBottom: 12 }}>
+    <main className="max-w-[1000px] mx-auto mt-10 p-6 font-sans">
+      <h1 className="text-xl mb-3">
         Үзлэгийн дэлгэрэнгүй
       </h1>
 
       {loading && <div>Ачаалж байна...</div>}
       {!loading && error && (
-        <div style={{ color: "red", marginBottom: 12 }}>{error}</div>
+        <div className="text-red-600 mb-3">{error}</div>
       )}
 
       {!loading && !error && encounter && (
@@ -2048,11 +2034,7 @@ const handleFinishEncounter = async () => {
             }
           />
 
-          <section
-            style={{
-              marginBottom: 16,
-            }}
-          >
+          <section className="mb-4">
             <ConsentFormsBlock
               encounter={encounter}
               consents={consents}
@@ -2120,15 +2102,7 @@ const handleFinishEncounter = async () => {
             areAllModeTeethSelected={areAllModeTeethSelected}
           />
 
-          <section
-            style={{
-              marginTop: 16,
-              padding: 16,
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              background: "#ffffff",
-            }}
-          >
+          <section className="mt-4 p-4 rounded-lg border border-gray-200 bg-white">
             <DiagnosesEditor
               rows={rows}
               diagnoses={diagnoses}
