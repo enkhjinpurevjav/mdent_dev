@@ -2559,21 +2559,21 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
                 type="text"
                 value={row.name}
                 disabled={locked}
+                readOnly={row.itemType === "SERVICE"}
                 onFocus={() => {
                   if (row.itemType !== "SERVICE" || locked) return;
                   setSvcOpenRow(index);
-                  setSvcQueryByRow((prev) => ({
-                    ...prev,
-                    [index]: row.name || prev[index] || "",
-                  }));
+                  setSvcQueryByRow((prev) => ({ ...prev, [index]: "" }));
+                }}
+                onClick={() => {
+                  if (row.itemType !== "SERVICE" || locked) return;
+                  setSvcOpenRow(index);
+                  setSvcQueryByRow((prev) => ({ ...prev, [index]: "" }));
                 }}
                 onChange={(e) => {
+                  if (row.itemType === "SERVICE") return;
                   const v = e.target.value;
                   handleItemChange(index, "name", v);
-
-                  if (row.itemType !== "SERVICE" || locked) return;
-                  setSvcQueryByRow((prev) => ({ ...prev, [index]: v }));
-                  setSvcOpenRow(index);
                 }}
                 onBlur={() => {
                   setTimeout(
@@ -2581,62 +2581,75 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
                     150
                   );
                 }}
-                onKeyDown={(e) => {
-                  if (svcOpenRow !== index) return;
-
-                  if (e.key === "Escape") {
-                    setSvcOpenRow(null);
-                    return;
-                  }
-                  if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    setSvcActiveIndex((i) =>
-                      Math.min(i + 1, visibleOptions.length - 1)
-                    );
-                    return;
-                  }
-                  if (e.key === "ArrowUp") {
-                    e.preventDefault();
-                    setSvcActiveIndex((i) => Math.max(i - 1, 0));
-                    return;
-                  }
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    const picked = visibleOptions[svcActiveIndex];
-                    if (!picked) return;
-
-                    setItems((prev) =>
-                      prev.map((r, i) =>
-                        i === index
-                          ? {
-                              ...r,
-                              itemType: "SERVICE",
-                              serviceId: picked.id,
-                              productId: null,
-                              name: picked.name,
-                              unitPrice: picked.price,
-                              source: r.source ?? "MANUAL",
-                            }
-                          : r
-                      )
-                    );
-
-                    setSvcOpenRow(null);
-                    setSvcOptions([]);
-                    setSvcQueryByRow((prev) => ({ ...prev, [index]: "" }));
-                  }
-                }}
                 placeholder={
                   row.itemType === "SERVICE"
                     ? "Үйлчилгээний нэр"
                     : "Бүтээгдэхүүний нэр"
                 }
-                className={`w-full rounded-md border border-gray-300 py-1 px-[6px] text-[13px] mb-1 ${locked ? "bg-gray-100 cursor-not-allowed" : "bg-white cursor-text"}`}
+                className={`w-full rounded-md border border-gray-300 py-1 px-[6px] text-[13px] mb-1 ${locked ? "bg-gray-100 cursor-not-allowed" : row.itemType === "SERVICE" ? "bg-white cursor-pointer" : "bg-white cursor-text"}`}
               />
               {row.itemType === "SERVICE" &&
-                svcOpenRow === index &&
-                (svcLoading || visibleOptions.length > 0) && (
-                  <div className="absolute left-0 top-full mt-[6px] w-[360px] max-h-[260px] overflow-y-auto bg-white border border-gray-200 rounded-lg z-[100] shadow-lg">
+                svcOpenRow === index && (
+                  <div className="absolute left-0 top-full mt-[6px] w-[360px] bg-white border border-gray-200 rounded-lg z-[100] shadow-lg">
+                    <div className="p-2 border-b border-gray-100">
+                      <input
+                        type="text"
+                        autoFocus
+                        value={svcQueryByRow[index] ?? ""}
+                        placeholder="Үйлчилгээ хайх..."
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setSvcQueryByRow((prev) => ({ ...prev, [index]: v }));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") {
+                            setSvcOpenRow(null);
+                            return;
+                          }
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            if (visibleOptions.length > 0)
+                              setSvcActiveIndex((i) =>
+                                Math.min(i + 1, visibleOptions.length - 1)
+                              );
+                            return;
+                          }
+                          if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            if (visibleOptions.length > 0)
+                              setSvcActiveIndex((i) => Math.max(i - 1, 0));
+                            return;
+                          }
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const picked = visibleOptions[svcActiveIndex];
+                            if (!picked) return;
+
+                            setItems((prev) =>
+                              prev.map((r, i) =>
+                                i === index
+                                  ? {
+                                      ...r,
+                                      itemType: "SERVICE",
+                                      serviceId: picked.id,
+                                      productId: null,
+                                      name: picked.name,
+                                      unitPrice: picked.price,
+                                      source: r.source ?? "MANUAL",
+                                    }
+                                  : r
+                              )
+                            );
+
+                            setSvcOpenRow(null);
+                            setSvcOptions([]);
+                            setSvcQueryByRow((prev) => ({ ...prev, [index]: "" }));
+                          }
+                        }}
+                        className="w-full rounded-md border border-gray-300 py-1 px-[6px] text-[13px]"
+                      />
+                    </div>
+                    <div className="max-h-[220px] overflow-y-auto">
                     {svcLoading && (
                       <div className="p-[10px] text-xs text-gray-500">
                         Хайж байна...
@@ -2684,6 +2697,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
                           </div>
                         </div>
                       ))}
+                    </div>
                   </div>
                 )}
             </>
@@ -2706,9 +2720,9 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
         type="number"
         min={0}
         value={row.unitPrice}
-        disabled={locked}
+        disabled={locked || row.itemType === "SERVICE"}
         onChange={(e) => handleItemChange(index, "unitPrice", e.target.value)}
-        className={`w-full rounded-md border border-gray-300 py-1 px-[6px] text-[13px] text-right ${locked ? "bg-gray-100 cursor-not-allowed" : "bg-white cursor-text"}`}
+        className={`w-full rounded-md border border-gray-300 py-1 px-[6px] text-[13px] text-right ${locked || row.itemType === "SERVICE" ? "bg-gray-100 cursor-not-allowed" : "bg-white cursor-text"}`}
       />
 
       {/* 4 - Teeth Numbers */}
