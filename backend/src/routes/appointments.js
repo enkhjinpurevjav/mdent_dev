@@ -1434,17 +1434,255 @@ router.post("/:id/imaging/set-performer", async (req, res) => {
 });
 
 /**
- * POST /api/appointments/:id/imaging/transition-to-ready
- * 
- * Reception/admin endpoint: Transition imaging → ready_to_pay with service addition.
- * - Popup shown only when current status is "imaging"
- * - Add IMAGING services (add-only, no removal)
- * - Duplicate prevention: block if any selected service already exists
- * - Performer is immutable (read-only in popup)
- * - Can proceed without media upload
- * 
+ * GET /api/appointments/:id/imaging/config
+ *
+ * Returns the saved imaging performer + selected service IDs for an imaging appointment.
+ * Used by the XRAY page to pre-fill the UI after a reload or on a different computer.
+ *
+ * Response:
+ * - encounterId: number | null
+ * - performerType: "DOCTOR" | "NURSE"
+ * - nurseId: number | null
+ * - selectedServiceIds: number[]
+ */
+router.get("/:id/imaging/config", async (req, res) => {
+  try {
+    const apptId = Number(req.params.id);
+    if (!apptId || Number.isNaN(apptId)) {
+      return res.status(400).json({ error: "Invalid appointment id" });
+    }
+
+    const appt = await prisma.appointment.findUnique({
+      where: { id: apptId },
+      include: {
+        encounters: {
+          orderBy: { id: "desc" },
+          take: 1,
+          include: {
+            encounterServices: {
+              include: { service: { select: { id: true, category: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    if (!appt) {
+      return res.status(404).json({ error: "Appointment not found" });
+    }
+
+    const encounter = appt.encounters?.[0] ?? null;
+    if (!encounter) {
+      return res.json({
+        encounterId: null,
+        performerType: "DOCTOR",
+        nurseId: null,
+        selectedServiceIds: [],
+      });
+    }
+
+    const performerType = encounter.nurseId ? "NURSE" : "DOCTOR";
+    const selectedServiceIds = encounter.encounterServices
+      .filter((es) => es.service?.category === "IMAGING")
+      .map((es) => es.serviceId);
+
+    return res.json({
+      encounterId: encounter.id,
+      performerType,
+      nurseId: encounter.nurseId ?? null,
+      selectedServiceIds,
+    });
+  } catch (err) {
+    console.error("GET /api/appointments/:id/imaging/config error:", err);
+    return res.status(500).json({ error: "Failed to load imaging config" });
+  }
+});
+
+/**
+ * PATCH /api/appointments/:id/imaging/config
+ *
+ * Save (draft) imaging performer + selected service IDs for an imaging appointment.
+ * Replaces existing IMAGING encounterServices so the selection persists across computers.
+ *
  * Request body:
- * - serviceIds: number[] (array of service IDs to add)
+ * - performerType: "DOCTOR" | "NURSE"
+ * - nurseId: number (required if performerType === "NURSE")
+ * - selectedServiceIds: number[] (IDs of IMAGING services to select)
+ */
+router.patch("/:id/imaging/config", async (req, res) => {
+  try {
+    const apptId = Number(req.params.id);
+    if (!apptId || Number.isNaN(apptId)) {
+      return res.status(400).json({ error: "Invalid appointment id" });
+    }
+
+    const { performerType, nurseId, selectedServiceIds } = req.body || {};
+
+    // Validate appointment exists and is in imaging status
+    const appt = await prisma.appointment.findUnique({
+      where: { id: apptId },
+      include: {
+        encounters: {
+          orderBy: { id: "desc" },
+          take: 1,
+        },
+      },
+    });
+
+    if (!appt) {
+      return res.status(404).json({ error: "Appointment not found" });
+    }
+
+    if (appt.status !== "imaging") {
+      return res.status(400).json({
+        error: "Config can only be saved when appointment status is 'imaging'",
+      });
+    }
+
+    // Ensure encounter exists
+    let encounter;
+    if (!appt.encounters || appt.encounters.length === 0) {
+      try {
+        encounter = await ensureEncounterForAppointment(apptId);
+      } catch (err) {
+        console.error("Failed to ensure encounter:", err);
+        return res.status(400).json({
+          error: "Failed to create encounter for this imaging appointment",
+        });
+      }
+    } else {
+      encounter = appt.encounters[0];
+    }
+
+    // Validate performerType
+    if (performerType !== "DOCTOR" && performerType !== "NURSE") {
+      return res.status(400).json({
+        error: "performerType must be 'DOCTOR' or 'NURSE'",
+      });
+    }
+
+    let nurseIdValue = null;
+    if (performerType === "NURSE") {
+      if (!nurseId || Number.isNaN(Number(nurseId))) {
+        return res.status(400).json({
+          error: "nurseId is required when performerType is NURSE",
+        });
+      }
+      const parsedNurseId = Number(nurseId);
+
+      const nurse = await prisma.user.findUnique({ where: { id: parsedNurseId } });
+      if (!nurse || nurse.role !== "nurse") {
+        return res.status(400).json({ error: "Invalid nurse selection" });
+      }
+
+      // Check nurse is currently on shift
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(todayStart);
+      todayEnd.setDate(todayEnd.getDate() + 1);
+
+      const nurseSchedule = await prisma.nurseSchedule.findFirst({
+        where: {
+          nurseId: parsedNurseId,
+          branchId: appt.branchId,
+          date: { gte: todayStart, lt: todayEnd },
+        },
+      });
+
+      if (!nurseSchedule) {
+        return res.status(400).json({
+          error: "Selected nurse is not currently on shift",
+        });
+      }
+
+      nurseIdValue = parsedNurseId;
+    }
+
+    // Update encounter performer
+    await prisma.encounter.update({
+      where: { id: encounter.id },
+      data: { nurseId: nurseIdValue },
+    });
+
+    // Replace IMAGING encounterServices with the new selection
+    const serviceIdsToSet = Array.isArray(selectedServiceIds)
+      ? selectedServiceIds.map(Number).filter((n) => !Number.isNaN(n) && n > 0)
+      : [];
+
+    // Load existing IMAGING service IDs for this encounter
+    const existingImagingServices = await prisma.encounterService.findMany({
+      where: { encounterId: encounter.id },
+      include: { service: { select: { id: true, category: true } } },
+    });
+    const existingImagingIds = existingImagingServices
+      .filter((es) => es.service?.category === "IMAGING")
+      .map((es) => es.id);
+
+    // Delete existing IMAGING services
+    if (existingImagingIds.length > 0) {
+      await prisma.encounterService.deleteMany({
+        where: { id: { in: existingImagingIds } },
+      });
+    }
+
+    // Create new IMAGING services with single performer meta
+    if (serviceIdsToSet.length > 0) {
+      const services = await prisma.service.findMany({
+        where: { id: { in: serviceIdsToSet }, isActive: true, category: "IMAGING" },
+      });
+
+      if (services.length !== serviceIdsToSet.length) {
+        return res.status(400).json({
+          error: "One or more services not found, inactive, or not IMAGING category",
+        });
+      }
+
+      for (const service of services) {
+        const metaData = {
+          toothScope: "ALL",
+          assignedTo: performerType,
+          nurseId: performerType === "NURSE" ? nurseIdValue : null,
+        };
+        await prisma.encounterService.create({
+          data: {
+            encounterId: encounter.id,
+            serviceId: service.id,
+            quantity: 1,
+            price: service.price,
+            meta: metaData,
+          },
+        });
+      }
+    }
+
+    return res.json({
+      success: true,
+      encounterId: encounter.id,
+      performerType,
+      nurseId: nurseIdValue,
+      selectedServiceIds: serviceIdsToSet,
+    });
+  } catch (err) {
+    console.error("PATCH /api/appointments/:id/imaging/config error:", err);
+    return res.status(500).json({ error: "Failed to save imaging config" });
+  }
+});
+
+/**
+ * POST /api/appointments/:id/imaging/transition-to-ready
+ *
+ * Transition an imaging appointment to ready_to_pay status.
+ * The imaging performer and selected services must already be saved via
+ * PATCH /imaging/config before calling this endpoint.
+ *
+ * The request body is optional; if omitted the endpoint uses the services
+ * already saved on the encounter.  For backward compatibility, if
+ * serviceLines/serviceIds are provided they will replace the existing
+ * IMAGING encounterServices before transitioning.
+ *
+ * Validation:
+ * - Appointment must be in "imaging" status.
+ * - Encounter must have at least one IMAGING service saved.
  */
 router.post("/:id/imaging/transition-to-ready", async (req, res) => {
   try {
@@ -1454,24 +1692,6 @@ router.post("/:id/imaging/transition-to-ready", async (req, res) => {
     }
 
     const { serviceIds, serviceLines } = req.body || {};
-
-    // Build normalized service lines: support legacy serviceIds or new serviceLines format
-    let normalizedLines = [];
-    if (Array.isArray(serviceLines) && serviceLines.length > 0) {
-      // New format: [{ serviceId, assignedTo?, nurseId? }]
-      normalizedLines = serviceLines.map((l) => ({
-        serviceId: Number(l.serviceId),
-        assignedTo: l.assignedTo === "NURSE" ? "NURSE" : "DOCTOR",
-        nurseId: l.assignedTo === "NURSE" && l.nurseId != null ? Number(l.nurseId) : null,
-      }));
-    } else if (Array.isArray(serviceIds)) {
-      // Legacy format: [serviceId, ...]
-      normalizedLines = serviceIds.map((id) => ({
-        serviceId: Number(id),
-        assignedTo: "DOCTOR",
-        nurseId: null,
-      }));
-    }
 
     // Validate appointment exists and is in imaging status
     const appt = await prisma.appointment.findUnique({
@@ -1499,19 +1719,14 @@ router.post("/:id/imaging/transition-to-ready", async (req, res) => {
       });
     }
 
-    // Ensure encounter exists (auto-create if missing)
+    // Ensure encounter exists
     let encounter;
     if (!appt.encounters || appt.encounters.length === 0) {
       try {
         encounter = await ensureEncounterForAppointment(apptId);
-        // Re-fetch with encounterServices for duplicate check
         encounter = await prisma.encounter.findUnique({
           where: { id: encounter.id },
-          include: {
-            encounterServices: {
-              include: { service: true },
-            },
-          },
+          include: { encounterServices: { include: { service: true } } },
         });
       } catch (err) {
         console.error("Failed to ensure encounter:", err);
@@ -1523,49 +1738,37 @@ router.post("/:id/imaging/transition-to-ready", async (req, res) => {
       encounter = appt.encounters[0];
     }
 
-    // Validate service lines
-    if (!Array.isArray(normalizedLines)) {
-      return res.status(400).json({
-        error: "serviceIds or serviceLines must be an array",
-      });
-    }
+    // If serviceLines/serviceIds are supplied (backward compat), replace IMAGING services
+    const hasBodyLines =
+      (Array.isArray(serviceLines) && serviceLines.length > 0) ||
+      (Array.isArray(serviceIds) && serviceIds.length > 0);
 
-    // Check for duplicates in existing services
-    if (normalizedLines.length > 0) {
-      const newServiceIds = normalizedLines.map((l) => l.serviceId);
-      const existingServiceIds = new Set(
-        encounter.encounterServices.map((es) => es.serviceId)
-      );
-      const duplicates = newServiceIds.filter((sid) => existingServiceIds.has(sid));
-
-      if (duplicates.length > 0) {
-        // Fetch service names for error message
-        const duplicateServices = await prisma.service.findMany({
-          where: { id: { in: duplicates } },
-          select: { id: true, name: true, code: true },
-        });
-
-        return res.status(400).json({
-          error: "Duplicate services detected. The following services already exist on this encounter:",
-          duplicates: duplicateServices.map((s) => `${s.code || s.id}: ${s.name}`),
-        });
+    if (hasBodyLines) {
+      // Build normalized lines
+      let normalizedLines = [];
+      if (Array.isArray(serviceLines) && serviceLines.length > 0) {
+        normalizedLines = serviceLines.map((l) => ({
+          serviceId: Number(l.serviceId),
+          assignedTo: l.assignedTo === "NURSE" ? "NURSE" : "DOCTOR",
+          nurseId: l.assignedTo === "NURSE" && l.nurseId != null ? Number(l.nurseId) : null,
+        }));
+      } else if (Array.isArray(serviceIds)) {
+        normalizedLines = serviceIds.map((id) => ({
+          serviceId: Number(id),
+          assignedTo: "DOCTOR",
+          nurseId: null,
+        }));
       }
 
-      // Validate all serviceIds exist and are IMAGING category
+      const newServiceIds = normalizedLines.map((l) => l.serviceId);
       const services = await prisma.service.findMany({
-        where: {
-          id: { in: newServiceIds },
-          isActive: true,
-        },
+        where: { id: { in: newServiceIds }, isActive: true },
       });
 
       if (services.length !== newServiceIds.length) {
-        return res.status(400).json({
-          error: "One or more services not found or inactive",
-        });
+        return res.status(400).json({ error: "One or more services not found or inactive" });
       }
 
-      // Add only IMAGING services
       const imagingServices = services.filter((s) => s.category === "IMAGING");
       if (imagingServices.length !== services.length) {
         return res.status(400).json({
@@ -1573,19 +1776,23 @@ router.post("/:id/imaging/transition-to-ready", async (req, res) => {
         });
       }
 
-      // Build a map for quick lookup of performer info per serviceId
-      const lineByServiceId = new Map(normalizedLines.map((l) => [l.serviceId, l]));
+      // Replace existing IMAGING services
+      const existingImagingIds = encounter.encounterServices
+        .filter((es) => es.service?.category === "IMAGING")
+        .map((es) => es.id);
+      if (existingImagingIds.length > 0) {
+        await prisma.encounterService.deleteMany({ where: { id: { in: existingImagingIds } } });
+      }
 
-      // Add services to encounter with toothScope: "ALL" and performer meta
+      const lineByServiceId = new Map(normalizedLines.map((l) => [l.serviceId, l]));
       for (const service of imagingServices) {
         const line = lineByServiceId.get(service.id) || {};
+        const assignedTo = line.assignedTo ?? "DOCTOR";
         const metaData = {
           toothScope: "ALL",
-          assignedTo: line.assignedTo ?? "DOCTOR",
+          assignedTo,
+          nurseId: assignedTo === "NURSE" && line.nurseId != null ? line.nurseId : null,
         };
-        if (metaData.assignedTo === "NURSE" && line.nurseId != null) {
-          metaData.nurseId = line.nurseId;
-        }
         await prisma.encounterService.create({
           data: {
             encounterId: encounter.id,
@@ -1596,6 +1803,25 @@ router.post("/:id/imaging/transition-to-ready", async (req, res) => {
           },
         });
       }
+
+      // Re-fetch encounter services for validation
+      encounter = await prisma.encounter.findUnique({
+        where: { id: encounter.id },
+        include: { encounterServices: { include: { service: true } } },
+      });
+    }
+
+    // Validate: encounter must have at least one IMAGING service
+    const imagingServiceCount = encounter.encounterServices.filter(
+      (es) => es.service?.category === "IMAGING"
+    ).length;
+
+    if (imagingServiceCount === 0) {
+      return res.status(400).json({
+        error:
+          "Please select at least one imaging service before transitioning to billing. " +
+          "Save the imaging config first.",
+      });
     }
 
     // Update appointment status to ready_to_pay
