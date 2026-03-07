@@ -58,6 +58,7 @@ router.get("/staff-income-settings", async (_req, res) => {
         defectPct: true,
         surgeryPct: true,
         generalPct: true,
+        imagingPct: true,
         monthlyGoalAmountMnt: true,
         updatedAt: true,
       },
@@ -77,8 +78,33 @@ router.get("/staff-income-settings", async (_req, res) => {
         defectPct: Number(cfg?.defectPct ?? 0),
         surgeryPct: Number(cfg?.surgeryPct ?? 0),
         generalPct: Number(cfg?.generalPct ?? 0),
+        imagingPct: Number(cfg?.imagingPct ?? 0),
 
         monthlyGoalAmountMnt: Number(cfg?.monthlyGoalAmountMnt ?? 0),
+        configUpdatedAt: cfg?.updatedAt ?? null,
+      };
+    });
+
+    // Load nurses with their commission configs
+    const nurseUsers = await prisma.user.findMany({
+      where: { role: "nurse" },
+      select: { id: true, ovog: true, name: true, email: true },
+      orderBy: { name: "asc" },
+    });
+
+    const nurseConfigs = await prisma.nurseCommissionConfig.findMany({
+      select: { nurseId: true, imagingPct: true, updatedAt: true },
+    });
+    const nurseCfgByNurseId = new Map(nurseConfigs.map((c) => [c.nurseId, c]));
+
+    const nurseRows = nurseUsers.map((n) => {
+      const cfg = nurseCfgByNurseId.get(n.id);
+      return {
+        nurseId: n.id,
+        ovog: n.ovog ?? null,
+        name: n.name ?? null,
+        email: n.email ?? null,
+        imagingPct: Number(cfg?.imagingPct ?? 0),
         configUpdatedAt: cfg?.updatedAt ?? null,
       };
     });
@@ -86,6 +112,7 @@ router.get("/staff-income-settings", async (_req, res) => {
     return res.json({
       whiteningDeductAmountMnt,
       doctors: rows,
+      nurses: nurseRows,
     });
   } catch (e) {
     console.error("Failed to load staff income settings", e);
@@ -101,6 +128,7 @@ router.put("/staff-income-settings", async (req, res) => {
     const body = req.body || {};
     const whitening = Number(body.whiteningDeductAmountMnt ?? 0);
     const doctors = Array.isArray(body.doctors) ? body.doctors : [];
+    const nurses = Array.isArray(body.nurses) ? body.nurses : [];
 
     if (!Number.isFinite(whitening) || whitening < 0) {
       return res.status(400).json({ error: "whiteningDeductAmountMnt must be >= 0" });
@@ -118,9 +146,10 @@ router.put("/staff-income-settings", async (req, res) => {
       const defectPct = Number(d.defectPct ?? 0);
       const surgeryPct = Number(d.surgeryPct ?? 0);
       const generalPct = Number(d.generalPct ?? 0);
+      const imagingPct = Number(d.imagingPct ?? 0);
       const monthlyGoalAmountMnt = Number(d.monthlyGoalAmountMnt ?? 0);
 
-      const pcts = [orthoPct, defectPct, surgeryPct, generalPct];
+      const pcts = [orthoPct, defectPct, surgeryPct, generalPct, imagingPct];
       if (pcts.some((x) => !Number.isFinite(x) || x < 0)) {
         return res.status(400).json({ error: "Percent values must be >= 0 numbers" });
       }
@@ -130,8 +159,25 @@ router.put("/staff-income-settings", async (req, res) => {
 
       await prisma.doctorCommissionConfig.upsert({
         where: { doctorId },
-        update: { orthoPct, defectPct, surgeryPct, generalPct, monthlyGoalAmountMnt },
-        create: { doctorId, orthoPct, defectPct, surgeryPct, generalPct, monthlyGoalAmountMnt },
+        update: { orthoPct, defectPct, surgeryPct, generalPct, imagingPct, monthlyGoalAmountMnt },
+        create: { doctorId, orthoPct, defectPct, surgeryPct, generalPct, imagingPct, monthlyGoalAmountMnt },
+      });
+    }
+
+    // Persist nurses configs
+    for (const n of nurses) {
+      const nurseId = Number(n.nurseId);
+      if (!nurseId || !Number.isFinite(nurseId)) continue;
+
+      const imagingPct = Number(n.imagingPct ?? 0);
+      if (!Number.isFinite(imagingPct) || imagingPct < 0) {
+        return res.status(400).json({ error: "imagingPct must be >= 0" });
+      }
+
+      await prisma.nurseCommissionConfig.upsert({
+        where: { nurseId },
+        update: { imagingPct },
+        create: { nurseId, imagingPct },
       });
     }
 

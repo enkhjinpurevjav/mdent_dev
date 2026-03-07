@@ -74,10 +74,13 @@ router.get("/doctors-income", async (req, res) => {
         items: {
           include: {
             service: true,
-            allocations: { select: { amount: true } },
           },
         },
-        payments: true,
+        payments: {
+          include: {
+            allocations: { select: { invoiceItemId: true, amount: true } },
+          },
+        },
       },
     });
 
@@ -185,51 +188,81 @@ router.get("/doctors-income", async (req, res) => {
         acc.doctorIncomeMnt += barterIncluded * (generalPct / 100);
       }
 
-      // ---------- INCOME (Phase A: invoice-based, PAID invoices by invoice.createdAt range) ----------
-      // We still apply override feeMultiplier to income base if INSURANCE/APPLICATION exists.
-      const status = String(inv.statusLegacy || "").toLowerCase();
-      if (status === "paid" && inv.createdAt >= start && inv.createdAt < endExclusive) {
+      // ---------- INCOME (Option 2: payment-timestamp-based commission) ----------
+      {
         const orthoPct = Number(cfg?.orthoPct || 0);
         const defectPct = Number(cfg?.defectPct || 0);
         const surgeryPct = Number(cfg?.surgeryPct || 0);
         const generalPct = Number(cfg?.generalPct || 0);
-
+        const imagingPct = Number(cfg?.imagingPct || 0);
         const feeMultiplier = hasOverride ? 0.9 : 1;
 
-        // Determine whether ANY service item on this invoice has allocations.
-        const invoiceHasAllocations = serviceItems.some(
-          (it) => it.allocations && it.allocations.length > 0
+        // Build itemId -> item map
+        const itemById = new Map(serviceItems.map((it) => [it.id, it]));
+
+        // Total service net (for proportional split denominator)
+        const totalServiceNet = serviceItems.reduce(
+          (sum, it) =>
+            sum + Number(it.lineTotal || it.unitPrice * it.quantity || 0) * netMultiplier,
+          0
         );
 
+        // Accumulate per-item income base from in-range payments
+        const itemIncomeBase = new Map();
+        serviceItems.forEach((it) => itemIncomeBase.set(it.id, 0));
+
+        for (const p of payments) {
+          const method = String(p.method || "").toUpperCase();
+          const ts = new Date(p.timestamp);
+          if (!inRange(ts, start, endExclusive)) continue;
+          if (EXCLUDED_METHODS.has(method) || method === "BARTER") continue;
+          if (!INCLUDED_METHODS.has(method) && !OVERRIDE_METHODS.has(method)) continue;
+
+          const payAmt = Number(p.amount || 0);
+          const payAllocs = p.allocations || [];
+
+          if (payAllocs.length > 0) {
+            // Allocations-only: use allocation amounts, ignore remainder
+            for (const alloc of payAllocs) {
+              const item = itemById.get(alloc.invoiceItemId);
+              if (!item) continue;
+              const contribution = Number(alloc.amount || 0) * feeMultiplier;
+              itemIncomeBase.set(item.id, (itemIncomeBase.get(item.id) || 0) + contribution);
+            }
+          } else {
+            // Proportional split across all service items
+            if (totalServiceNet <= 0) continue;
+            for (const it of serviceItems) {
+              const itemNet =
+                Number(it.lineTotal || it.unitPrice * it.quantity || 0) * netMultiplier;
+              const share = itemNet / totalServiceNet;
+              const contribution = payAmt * share * feeMultiplier;
+              itemIncomeBase.set(it.id, (itemIncomeBase.get(it.id) || 0) + contribution);
+            }
+          }
+        }
+
+        // Apply category pcts to accumulated income bases
         for (const it of serviceItems) {
           const service = it.service;
+          const lineNet = itemIncomeBase.get(it.id) || 0;
+          if (lineNet <= 0) continue;
 
-          // 1) IMAGING rule: exclude from doctor income (0%)
           if (service?.category === "IMAGING") {
+            // Only credit doctor when explicitly assignedTo=DOCTOR
+            const assignedTo = it.meta?.assignedTo;
+            if (assignedTo === "DOCTOR") {
+              acc.doctorIncomeMnt += lineNet * (imagingPct / 100);
+            }
             continue;
           }
 
-          // Compute income base: use allocation sum when present, else proportional multiplier.
-          let lineNet;
-          if (invoiceHasAllocations) {
-            const allocatedTotal = (it.allocations || []).reduce(
-              (s, a) => s + Number(a.amount || 0),
-              0
-            );
-            lineNet = allocatedTotal * feeMultiplier;
-          } else {
-            const lineGross = Number(it.lineTotal || it.unitPrice * it.quantity || 0);
-            lineNet = lineGross * netMultiplier * feeMultiplier;
-          }
-
-          // 2) Home bleaching rule: serviceId=110 (code 151)
           if (it.serviceId === HOME_BLEACHING_SERVICE_ID) {
             const base = Math.max(0, lineNet - homeBleachingDeductAmountMnt);
             acc.doctorIncomeMnt += base * (generalPct / 100);
             continue;
           }
 
-          // 3) Default category pct mapping
           let pct = generalPct;
           if (service?.category === "ORTHODONTIC_TREATMENT") pct = orthoPct;
           else if (service?.category === "DEFECT_CORRECTION") pct = defectPct;
@@ -294,9 +327,8 @@ router.get("/doctors-income/:doctorId/details", async (req, res) => {
 
   function initBuckets(cfg) {
     return {
-      // IMAGING services contribute 0% to doctor income per business requirement
-      // (IMAGING revenue is excluded from doctor sales and commission calculations)
-      IMAGING: { key: "IMAGING", label: LABELS.IMAGING, salesMnt: 0, incomeMnt: 0, pctUsed: 0 },
+      // IMAGING: uses imagingPct when assignedTo=DOCTOR
+      IMAGING: { key: "IMAGING", label: LABELS.IMAGING, salesMnt: 0, incomeMnt: 0, pctUsed: Number(cfg?.imagingPct || 0) },
       ORTHODONTIC_TREATMENT: {
         key: "ORTHODONTIC_TREATMENT",
         label: LABELS.ORTHODONTIC_TREATMENT,
@@ -363,10 +395,13 @@ router.get("/doctors-income/:doctorId/details", async (req, res) => {
         items: {
           include: {
             service: true,
-            allocations: { select: { amount: true } },
           },
         },
-        payments: true,
+        payments: {
+          include: {
+            allocations: { select: { invoiceItemId: true, amount: true } },
+          },
+        },
       },
     });
 
@@ -491,42 +526,76 @@ router.get("/doctors-income/:doctorId/details", async (req, res) => {
         }
       }
 
-      // ---------- INCOME (invoice-based, category-first) ----------
-      if (isPaid && inv.createdAt >= start && inv.createdAt < endExclusive) {
+      // ---------- INCOME (Option 2: payment-timestamp-based commission) ----------
+      {
         const orthoPct = Number(cfg?.orthoPct || 0);
         const defectPct = Number(cfg?.defectPct || 0);
         const surgeryPct = Number(cfg?.surgeryPct || 0);
         const generalPct = Number(cfg?.generalPct || 0);
-
+        const imagingPct = Number(cfg?.imagingPct || 0);
         const feeMultiplier = hasOverride ? 0.9 : 1;
 
-        // Use allocation amounts when any item has allocations.
-        const invoiceHasAllocations = serviceItems.some(
-          (it) => it.allocations && it.allocations.length > 0
+        // Build itemId -> item map
+        const itemById = new Map(serviceItems.map((it) => [it.id, it]));
+
+        // Total service net (proportional split denominator)
+        const totalServiceNetForCommission = serviceItems.reduce(
+          (sum, it) =>
+            sum + Number(it.lineTotal || it.unitPrice * it.quantity || 0) * netMultiplier,
+          0
         );
 
+        // Accumulate per-item income base from in-range payments
+        const itemIncomeBase = new Map();
+        serviceItems.forEach((it) => itemIncomeBase.set(it.id, 0));
+
+        for (const p of payments) {
+          const method = String(p.method || "").toUpperCase();
+          const ts = new Date(p.timestamp);
+          if (!inRange(ts, start, endExclusive)) continue;
+          if (EXCLUDED_METHODS.has(method) || method === "BARTER") continue;
+          if (!INCLUDED_METHODS.has(method) && !OVERRIDE_METHODS.has(method)) continue;
+
+          const payAmt = Number(p.amount || 0);
+          const payAllocs = p.allocations || [];
+
+          if (payAllocs.length > 0) {
+            // Allocations-only for this payment; ignore remainder
+            for (const alloc of payAllocs) {
+              const item = itemById.get(alloc.invoiceItemId);
+              if (!item) continue;
+              const contribution = Number(alloc.amount || 0) * feeMultiplier;
+              itemIncomeBase.set(item.id, (itemIncomeBase.get(item.id) || 0) + contribution);
+            }
+          } else {
+            // Proportional split across all service items by net value
+            if (totalServiceNetForCommission <= 0) continue;
+            for (const it of serviceItems) {
+              const itemNet =
+                Number(it.lineTotal || it.unitPrice * it.quantity || 0) * netMultiplier;
+              const share = itemNet / totalServiceNetForCommission;
+              const contribution = payAmt * share * feeMultiplier;
+              itemIncomeBase.set(it.id, (itemIncomeBase.get(it.id) || 0) + contribution);
+            }
+          }
+        }
+
+        // Apply category pcts to accumulated item income bases
         for (const it of serviceItems) {
           const service = it.service;
+          const lineNet = itemIncomeBase.get(it.id) || 0;
+          if (lineNet <= 0) continue;
 
-          // IMAGING -> 0% (excluded from doctor income)
           if (service?.category === "IMAGING") {
+            // Credit doctor only when explicitly assignedTo=DOCTOR
+            const assignedTo = it.meta?.assignedTo;
+            if (assignedTo === "DOCTOR") {
+              buckets.IMAGING.incomeMnt += lineNet * (imagingPct / 100);
+              totalIncomeMnt += lineNet * (imagingPct / 100);
+            }
             continue;
           }
 
-          // Compute income base: use allocation sum when present, else proportional multiplier.
-          let lineNet;
-          if (invoiceHasAllocations) {
-            const allocatedTotal = (it.allocations || []).reduce(
-              (s, a) => s + Number(a.amount || 0),
-              0
-            );
-            lineNet = allocatedTotal * feeMultiplier;
-          } else {
-            const lineGross = Number(it.lineTotal || it.unitPrice * it.quantity || 0);
-            lineNet = lineGross * netMultiplier * feeMultiplier;
-          }
-
-          // Home bleaching -> deduct then generalPct (income only)
           if (it.serviceId === HOME_BLEACHING_SERVICE_ID) {
             const base = Math.max(0, lineNet - homeBleachingDeductAmountMnt);
             const income = base * (generalPct / 100);
@@ -576,6 +645,309 @@ router.get("/doctors-income/:doctorId/details", async (req, res) => {
   } catch (error) {
     console.error("Error in fetching category income breakdown:", error);
     return res.status(500).json({ error: "Failed to fetch detailed income breakdown." });
+  }
+});
+
+// ==========================================================
+// NURSES INCOME
+// ==========================================================
+
+/**
+ * GET /api/admin/nurses-income
+ * Summary of imaging commission per nurse for date range.
+ */
+router.get("/nurses-income", async (req, res) => {
+  const { startDate, endDate, branchId } = req.query;
+
+  if (!startDate || !endDate) {
+    return res.status(400).json({ error: "startDate and endDate are required parameters." });
+  }
+
+  const start = new Date(`${startDate}T00:00:00.000Z`);
+  const endExclusive = new Date(`${endDate}T00:00:00.000Z`);
+  endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+
+  try {
+    // Load nurse commission configs
+    const nurseConfigs = await prisma.nurseCommissionConfig.findMany();
+    const nurseConfigByNurseId = new Map(nurseConfigs.map((c) => [c.nurseId, c]));
+
+    // Load all nurses for name lookup
+    const nurses = await prisma.user.findMany({
+      where: { role: "nurse" },
+      select: { id: true, name: true, ovog: true },
+    });
+    const nurseById = new Map(nurses.map((n) => [n.id, n]));
+
+    // Query invoices with payments in date range
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        ...(branchId ? { branchId: Number(branchId) } : {}),
+        payments: { some: { timestamp: { gte: start, lt: endExclusive } } },
+      },
+      include: {
+        items: { include: { service: true } },
+        payments: {
+          include: {
+            allocations: { select: { invoiceItemId: true, amount: true } },
+          },
+        },
+      },
+    });
+
+    const byNurse = new Map();
+
+    for (const inv of invoices) {
+      const payments = inv.payments || [];
+      const hasOverride = payments.some((p) =>
+        OVERRIDE_METHODS.has(String(p.method).toUpperCase())
+      );
+      const feeMultiplier = hasOverride ? 0.9 : 1;
+
+      const totalBefore = Number(inv.totalBeforeDiscount || 0);
+      const finalAmount = Number(inv.finalAmount || 0);
+      const netMultiplier = totalBefore > 0 ? finalAmount / totalBefore : 0;
+
+      // All non-PREVIOUS service items (for proportional denominator)
+      const allServiceItems = (inv.items || []).filter(
+        (it) => it.itemType === "SERVICE" && it.service?.category !== "PREVIOUS"
+      );
+
+      // IMAGING items assigned to nurses
+      const nurseImagingItems = allServiceItems.filter(
+        (it) =>
+          it.service?.category === "IMAGING" &&
+          it.meta?.assignedTo === "NURSE" &&
+          it.meta?.nurseId != null
+      );
+
+      if (!nurseImagingItems.length) continue;
+
+      const itemById = new Map(nurseImagingItems.map((it) => [it.id, it]));
+
+      const totalServiceNet = allServiceItems.reduce(
+        (sum, it) =>
+          sum + Number(it.lineTotal || it.unitPrice * it.quantity || 0) * netMultiplier,
+        0
+      );
+
+      // Accumulate per-item income base from in-range payments
+      const itemIncomeBase = new Map();
+      nurseImagingItems.forEach((it) => itemIncomeBase.set(it.id, 0));
+
+      for (const p of payments) {
+        const method = String(p.method || "").toUpperCase();
+        const ts = new Date(p.timestamp);
+        if (!inRange(ts, start, endExclusive)) continue;
+        if (EXCLUDED_METHODS.has(method) || method === "BARTER") continue;
+        if (!INCLUDED_METHODS.has(method) && !OVERRIDE_METHODS.has(method)) continue;
+
+        const payAmt = Number(p.amount || 0);
+        const payAllocs = p.allocations || [];
+
+        if (payAllocs.length > 0) {
+          // Allocations-only for this payment; ignore remainder
+          for (const alloc of payAllocs) {
+            const item = itemById.get(alloc.invoiceItemId);
+            if (!item) continue;
+            const contribution = Number(alloc.amount || 0) * feeMultiplier;
+            itemIncomeBase.set(item.id, (itemIncomeBase.get(item.id) || 0) + contribution);
+          }
+        } else {
+          // Proportional split across ALL service items
+          if (totalServiceNet <= 0) continue;
+          for (const it of nurseImagingItems) {
+            const itemNet =
+              Number(it.lineTotal || it.unitPrice * it.quantity || 0) * netMultiplier;
+            const share = itemNet / totalServiceNet;
+            const contribution = payAmt * share * feeMultiplier;
+            itemIncomeBase.set(it.id, (itemIncomeBase.get(it.id) || 0) + contribution);
+          }
+        }
+      }
+
+      // Apply nurse imagingPct
+      for (const it of nurseImagingItems) {
+        const nurseId = Number(it.meta.nurseId);
+        const nurseConfig = nurseConfigByNurseId.get(nurseId);
+        const imagingPct = Number(nurseConfig?.imagingPct || 0);
+        const lineNet = itemIncomeBase.get(it.id) || 0;
+        if (lineNet <= 0) continue;
+
+        const income = lineNet * (imagingPct / 100);
+
+        if (!byNurse.has(nurseId)) {
+          const nurse = nurseById.get(nurseId);
+          byNurse.set(nurseId, {
+            nurseId,
+            nurseName: nurse?.name ?? null,
+            nurseOvog: nurse?.ovog ?? null,
+            startDate: String(startDate),
+            endDate: String(endDate),
+            imagingIncomeMnt: 0,
+            imagingPct,
+          });
+        }
+        byNurse.get(nurseId).imagingIncomeMnt += income;
+      }
+    }
+
+    const result = Array.from(byNurse.values()).map((n) => ({
+      ...n,
+      imagingIncomeMnt: Math.round(n.imagingIncomeMnt),
+    }));
+
+    return res.json(result);
+  } catch (error) {
+    console.error("Error in fetching nurses income:", error);
+    return res.status(500).json({ error: "Failed to fetch nurses income." });
+  }
+});
+
+/**
+ * GET /api/admin/nurses-income/:nurseId/details
+ * IMAGING commission breakdown for a specific nurse.
+ */
+router.get("/nurses-income/:nurseId/details", async (req, res) => {
+  const { nurseId } = req.params;
+  const { startDate, endDate } = req.query;
+
+  if (!nurseId || !startDate || !endDate) {
+    return res.status(400).json({
+      error: "nurseId, startDate, and endDate are required parameters.",
+    });
+  }
+
+  const NURSE_ID = Number(nurseId);
+  const start = new Date(`${String(startDate)}T00:00:00.000Z`);
+  const endExclusive = new Date(`${String(endDate)}T00:00:00.000Z`);
+  endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+
+  try {
+    const nurseConfig = await prisma.nurseCommissionConfig.findUnique({
+      where: { nurseId: NURSE_ID },
+    });
+    const imagingPct = Number(nurseConfig?.imagingPct || 0);
+
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        payments: { some: { timestamp: { gte: start, lt: endExclusive } } },
+        items: {
+          some: {
+            itemType: "SERVICE",
+            service: { category: "IMAGING" },
+          },
+        },
+      },
+      include: {
+        items: { include: { service: true } },
+        payments: {
+          include: {
+            allocations: { select: { invoiceItemId: true, amount: true } },
+          },
+        },
+      },
+    });
+
+    let totalImagingIncomeMnt = 0;
+    const lines = [];
+
+    for (const inv of invoices) {
+      const payments = inv.payments || [];
+      const hasOverride = payments.some((p) =>
+        OVERRIDE_METHODS.has(String(p.method).toUpperCase())
+      );
+      const feeMultiplier = hasOverride ? 0.9 : 1;
+
+      const totalBefore = Number(inv.totalBeforeDiscount || 0);
+      const finalAmount = Number(inv.finalAmount || 0);
+      const netMultiplier = totalBefore > 0 ? finalAmount / totalBefore : 0;
+
+      const allServiceItems = (inv.items || []).filter(
+        (it) => it.itemType === "SERVICE" && it.service?.category !== "PREVIOUS"
+      );
+
+      // This nurse's IMAGING items on this invoice
+      const myImagingItems = allServiceItems.filter(
+        (it) =>
+          it.service?.category === "IMAGING" &&
+          it.meta?.assignedTo === "NURSE" &&
+          Number(it.meta?.nurseId) === NURSE_ID
+      );
+
+      if (!myImagingItems.length) continue;
+
+      const itemById = new Map(myImagingItems.map((it) => [it.id, it]));
+
+      const totalServiceNet = allServiceItems.reduce(
+        (sum, it) =>
+          sum + Number(it.lineTotal || it.unitPrice * it.quantity || 0) * netMultiplier,
+        0
+      );
+
+      const itemIncomeBase = new Map();
+      myImagingItems.forEach((it) => itemIncomeBase.set(it.id, 0));
+
+      for (const p of payments) {
+        const method = String(p.method || "").toUpperCase();
+        const ts = new Date(p.timestamp);
+        if (!inRange(ts, start, endExclusive)) continue;
+        if (EXCLUDED_METHODS.has(method) || method === "BARTER") continue;
+        if (!INCLUDED_METHODS.has(method) && !OVERRIDE_METHODS.has(method)) continue;
+
+        const payAmt = Number(p.amount || 0);
+        const payAllocs = p.allocations || [];
+
+        if (payAllocs.length > 0) {
+          for (const alloc of payAllocs) {
+            const item = itemById.get(alloc.invoiceItemId);
+            if (!item) continue;
+            const contribution = Number(alloc.amount || 0) * feeMultiplier;
+            itemIncomeBase.set(item.id, (itemIncomeBase.get(item.id) || 0) + contribution);
+          }
+        } else {
+          if (totalServiceNet <= 0) continue;
+          for (const it of myImagingItems) {
+            const itemNet =
+              Number(it.lineTotal || it.unitPrice * it.quantity || 0) * netMultiplier;
+            const share = itemNet / totalServiceNet;
+            const contribution = payAmt * share * feeMultiplier;
+            itemIncomeBase.set(it.id, (itemIncomeBase.get(it.id) || 0) + contribution);
+          }
+        }
+      }
+
+      for (const it of myImagingItems) {
+        const lineNet = itemIncomeBase.get(it.id) || 0;
+        if (lineNet <= 0) continue;
+
+        const income = lineNet * (imagingPct / 100);
+        totalImagingIncomeMnt += income;
+
+        lines.push({
+          invoiceId: inv.id,
+          invoiceItemId: it.id,
+          serviceName: it.service?.name || it.name,
+          lineNet: Math.round(lineNet),
+          imagingPct,
+          incomeMnt: Math.round(income),
+        });
+      }
+    }
+
+    return res.json({
+      nurseId: NURSE_ID,
+      startDate: String(startDate),
+      endDate: String(endDate),
+      imagingPct,
+      lines,
+      totals: {
+        totalImagingIncomeMnt: Math.round(totalImagingIncomeMnt),
+      },
+    });
+  } catch (error) {
+    console.error("Error in fetching nurse income details:", error);
+    return res.status(500).json({ error: "Failed to fetch nurse income details." });
   }
 });
 
