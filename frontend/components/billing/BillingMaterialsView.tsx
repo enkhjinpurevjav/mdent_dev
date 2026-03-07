@@ -126,7 +126,7 @@ export default function BillingMaterialsView({ encounterId }: Props) {
 
   if (loading) {
     return (
-      <div style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>
+      <div className="text-center p-10 text-gray-500">
         Ачаалж байна...
       </div>
     );
@@ -134,7 +134,7 @@ export default function BillingMaterialsView({ encounterId }: Props) {
 
   if (error) {
     return (
-      <div style={{ padding: 16, background: "#fee2e2", color: "#b91c1c", borderRadius: 6 }}>
+      <div className="p-4 bg-red-50 text-red-700 rounded-md">
         {error}
       </div>
     );
@@ -145,7 +145,7 @@ export default function BillingMaterialsView({ encounterId }: Props) {
   const prescription = encounter?.prescription;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="flex flex-col gap-4">
       {/* Print-only styles: hide everything except the e-Barimt receipt */}
       <style>{`
   .ebarimt-receipt-print-root { display: none; }
@@ -174,17 +174,17 @@ export default function BillingMaterialsView({ encounterId }: Props) {
       {/* Hidden print container for e-Barimt receipt */}
       {hasEbarimt && (
         <div className="ebarimt-receipt-print-root">
-          <div style={{ width: 215, padding: "8px 6px", fontFamily: "monospace", fontSize: 11, lineHeight: 1.4 }}>
-            <hr style={{ margin: "4px 0" }} />
+          <div className="w-[215px] py-2 px-[6px] font-mono text-[11px] leading-snug">
+            <hr className="my-1" />
             {receipt!.ddtd && <div>ДДТД: {receipt!.ddtd}</div>}
             {receipt!.printedAtText && <div>Огноо: {receipt!.printedAtText}</div>}
             {receipt!.lottery && <div>Сугалаа: {receipt!.lottery}</div>}
             {receipt!.qrData && (
-              <div style={{ textAlign: "center", margin: "6px 0" }}>
+              <div className="text-center my-[6px]">
                 <QRCodeSVG value={receipt!.qrData} size={140} />
               </div>
             )}
-            <div style={{ fontWeight: 700, marginTop: 2 }}>
+            <div className="font-bold mt-0.5">
               Нийт дүн: {formatMoney(receipt!.totalAmount)}₮
             </div>
           </div>
@@ -193,20 +193,15 @@ export default function BillingMaterialsView({ encounterId }: Props) {
 
       {/* e-Barimt */}
       <section
-        style={{
-          padding: 16,
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-          background: "#ffffff",
-        }}
+        className="p-4 rounded-lg border border-gray-200 bg-white"
       >
-        <h3 style={{ fontSize: 15, margin: 0, marginBottom: 8 }}>e-Barimt</h3>
+        <h3 className="text-[15px] m-0 mb-2">e-Barimt</h3>
         {!hasEbarimt ? (
-          <div style={{ fontSize: 12, color: "#6b7280" }}>
+          <div className="text-xs text-gray-500">
             e-Barimt олгогдоогүй.
           </div>
         ) : (
-          <div style={{ fontSize: 13 }}>
+          <div className="text-[13px]">
             {receipt!.ddtd && (
               <div>
                 <strong>ДДТД:</strong> {receipt!.ddtd}
@@ -228,23 +223,15 @@ export default function BillingMaterialsView({ encounterId }: Props) {
               </div>
             )}
             {receipt!.qrData && (
-              <div style={{ marginTop: 8 }}>
+              <div className="mt-2">
                 <QRCodeSVG value={receipt!.qrData} size={120} />
               </div>
             )}
-            <div style={{ marginTop: 8 }}>
+            <div className="mt-2">
               <button
                 type="button"
                 onClick={() => window.print()}
-                style={{
-                  padding: "5px 12px",
-                  borderRadius: 6,
-                  border: "none",
-                  background: "#2563eb",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontSize: 13,
-                }}
+                className="py-[5px] px-3 rounded-md border-none bg-blue-600 text-white cursor-pointer text-[13px]"
               >
                 🖨️ e-Barimt хэвлэх
               </button>
@@ -255,44 +242,39 @@ export default function BillingMaterialsView({ encounterId }: Props) {
 
       {/* Printable materials */}
       <section
-        style={{
-          padding: 16,
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-          background: "#ffffff",
-        }}
+        className="p-4 rounded-lg border border-gray-200 bg-white"
       >
-        <h3 style={{ fontSize: 15, margin: 0, marginBottom: 4 }}>
+        <h3 className="text-[15px] m-0 mb-1">
           Хэвлэх боломжтой материалууд
         </h3>
-        <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
+        <div className="text-xs text-gray-500 mb-2">
           Үйлчлүүлэгчид цаасаар өгөх шаардлагатай мэдээллүүд.
         </div>
 
         {/* Prescription */}
         <div
-          style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}
+          className="mt-3 pt-3 border-t border-gray-200"
         >
-          <h4 style={{ margin: 0, fontSize: 14, marginBottom: 6 }}>Эмийн жор</h4>
+          <h4 className="m-0 text-sm mb-[6px]">Эмийн жор</h4>
           {prescription?.items?.length ? (
-            <ol style={{ margin: 0, paddingLeft: 18, fontSize: 12 }}>
+            <ol className="m-0 pl-[18px] text-xs">
               {prescription.items
                 .slice()
                 .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                 .map((it) => (
-                  <li key={it.id} style={{ marginBottom: 4 }}>
+                  <li key={it.id} className="mb-1">
                     <div>
                       <strong>{it.drugName}</strong> — {it.quantityPerTake}x,{" "}
                       {it.frequencyPerDay}/өдөр, {it.durationDays} хоног
                     </div>
-                    <div style={{ color: "#6b7280" }}>
+                    <div className="text-gray-500">
                       Тэмдэглэл: {it.note || "-"}
                     </div>
                   </li>
                 ))}
             </ol>
           ) : (
-            <div style={{ fontSize: 12, color: "#6b7280" }}>
+            <div className="text-xs text-gray-500">
               Энэ үзлэгт эмийн жор байхгүй.
             </div>
           )}
@@ -300,34 +282,25 @@ export default function BillingMaterialsView({ encounterId }: Props) {
 
         {/* XRAY */}
         <div
-          style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}
+          className="mt-3 pt-3 border-t border-gray-200"
         >
-          <h4 style={{ margin: 0, fontSize: 14, marginBottom: 6 }}>XRAY зураг</h4>
+          <h4 className="m-0 text-sm mb-[6px]">XRAY зураг</h4>
           {xrays.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#6b7280" }}>
+            <div className="text-xs text-gray-500">
               XRAY зураг хавсаргагдаагүй.
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div className="flex flex-col gap-[6px]">
               {xrays.map((m) => (
                 <div
                   key={m.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "6px 8px",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 8,
-                    background: "#f9fafb",
-                    fontSize: 12,
-                  }}
+                  className="flex items-center gap-2 py-[6px] px-2 border border-gray-200 rounded-lg bg-gray-50 text-xs"
                 >
                   <a href={m.filePath} target="_blank" rel="noreferrer">
                     {m.filePath}
                   </a>
                   {m.toothCode ? (
-                    <span style={{ color: "#6b7280" }}> • Шүд: {m.toothCode}</span>
+                    <span className="text-gray-500"> • Шүд: {m.toothCode}</span>
                   ) : null}
                 </div>
               ))}
@@ -337,31 +310,21 @@ export default function BillingMaterialsView({ encounterId }: Props) {
 
         {/* Consent forms */}
         <div
-          style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}
+          className="mt-3 pt-3 border-t border-gray-200"
         >
-          <h4 style={{ margin: 0, fontSize: 14, marginBottom: 6 }}>
+          <h4 className="m-0 text-sm mb-[6px]">
             Зөвшөөрлийн маягт
           </h4>
           {consents.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#6b7280" }}>
+            <div className="text-xs text-gray-500">
               Энэ үзлэгт бөглөгдсөн зөвшөөрлийн маягт байхгүй.
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div className="flex flex-col gap-[6px]">
               {consents.map((c) => (
                 <div
                   key={`${c.encounterId}-${c.type}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 8,
-                    padding: "6px 8px",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 8,
-                    background: "#f9fafb",
-                    fontSize: 12,
-                  }}
+                  className="flex items-center justify-between gap-2 py-[6px] px-2 border border-gray-200 rounded-lg bg-gray-50 text-xs"
                 >
                   <div>
                     <strong>Төрөл:</strong> {formatConsentTypeLabel(c.type)}
@@ -372,16 +335,7 @@ export default function BillingMaterialsView({ encounterId }: Props) {
                       const url = `/print/consent?encounterId=${c.encounterId}&type=${encodeURIComponent(c.type)}`;
                       window.open(url, "_blank", "width=900,height=700,noopener,noreferrer");
                     }}
-                    style={{
-                      padding: "4px 8px",
-                      borderRadius: 6,
-                      border: "1px solid #2563eb",
-                      background: "#eff6ff",
-                      color: "#2563eb",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      whiteSpace: "nowrap",
-                    }}
+                    className="py-1 px-2 rounded-md border border-blue-600 bg-blue-50 text-blue-600 cursor-pointer text-xs whitespace-nowrap"
                   >
                     Хэвлэх
                   </button>

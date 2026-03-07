@@ -95,6 +95,12 @@ type EncounterService = {
   };
 };
 
+type EncounterDiagnosisRow = {
+  id?: number;
+  diagnosisId?: number | null;
+  toothCode?: string | null;
+};
+
 type Encounter = {
   id: number;
   visitDate: string;
@@ -103,6 +109,7 @@ type Encounter = {
   doctor: Doctor | null;
   prescription?: Prescription | null;
   encounterServices?: EncounterService[];
+  encounterDiagnoses?: EncounterDiagnosisRow[];
 };
 
 type PrescriptionItem = {
@@ -905,45 +912,26 @@ function BillingPaymentSection({
   };
 
   return (
-    <section
-      style={{
-        marginTop: 16,
-        padding: 16,
-        borderRadius: 8,
-        border: "1px solid #e5e7eb",
-        background: "#ffffff",
-      }}
-    >
-      <h2 style={{ fontSize: 16, margin: 0, marginBottom: 8 }}>
+    <section className="mt-4 p-4 rounded-lg border border-gray-200 bg-white">
+      <h2 className="text-base m-0 mb-2">
         Төлбөр бүртгэх
       </h2>
 
       {!hasRealInvoice && (
-        <div style={{ fontSize: 13, color: "#b91c1c", marginBottom: 8 }}>
+        <div className="text-[13px] text-red-700 mb-2">
           Нэхэмжлэлийн мөрүүдийг хадгалсны дараа төлбөр бүртгэх боломжтой.
         </div>
       )}
 
       <form
         onSubmit={handleSubmit}
-        style={{ display: "flex", flexDirection: "column", gap: 8 }}
+        className="flex flex-col gap-2"
       >
         {/* ── Split payment controls (only when marker service present) ── */}
         {hasMarker && hasRealInvoice && (
-          <div
-            style={{
-              padding: 12,
-              borderRadius: 8,
-              border: "1px solid #fbbf24",
-              background: "#fffbeb",
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-              marginBottom: 4,
-            }}
-          >
+          <div className="p-3 rounded-lg border border-[#fbbf24] bg-amber-50 flex flex-col gap-2 mb-1">
             {/* Checkbox: close old balance */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div className="flex items-center gap-2">
               <input
                 id="closeOldBalance"
                 type="checkbox"
@@ -955,9 +943,9 @@ function BillingPaymentSection({
                   }
                 }}
               />
-              <label htmlFor="closeOldBalance" style={{ fontSize: 13, cursor: "pointer", fontWeight: 500 }}>
+              <label htmlFor="closeOldBalance" className="text-[13px] cursor-pointer font-medium">
                 Төлбөрийн үлдэгдлийг дуусгах{" "}
-                <span style={{ color: "#b45309" }}>
+                <span className="text-amber-600">
                   (өмнөх үлдэгдэл: {formatMoney(oldBalance)} ₮)
                 </span>
               </label>
@@ -965,29 +953,20 @@ function BillingPaymentSection({
 
             {/* Breakdown when closeOldBalance is checked */}
             {closeOldBalance && (
-              <div
-                style={{
-                  marginLeft: 26,
-                  fontSize: 13,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 2,
-                  color: "#374151",
-                }}
-              >
+              <div className="ml-[26px] text-[13px] flex flex-col gap-0.5 text-gray-700">
                 <div>
                   Өмнөх үлдэгдэлд орох:{" "}
-                  <strong style={{ color: "#b45309" }}>{formatMoney(amountToOld)} ₮</strong>
+                  <strong className="text-amber-600">{formatMoney(amountToOld)} ₮</strong>
                 </div>
                 <div>
                   Өнөөдрийн үйлчилгээ рүү орох:{" "}
-                  <strong style={{ color: "#15803d" }}>{formatMoney(amountToCurrent)} ₮</strong>
+                  <strong className="text-green-700">{formatMoney(amountToCurrent)} ₮</strong>
                 </div>
               </div>
             )}
 
             {/* Checkbox: split payment (only enabled when Y > 0) */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div className="flex items-center gap-2">
               <input
                 id="splitPayment"
                 type="checkbox"
@@ -1000,24 +979,19 @@ function BillingPaymentSection({
               />
               <label
                 htmlFor="splitPayment"
-                style={{
-                  fontSize: 13,
-                  cursor: splitPaymentEnabled ? "pointer" : "not-allowed",
-                  color: splitPaymentEnabled ? "#111827" : "#9ca3af",
-                  fontWeight: 500,
-                }}
+                className={`text-[13px] font-medium ${splitPaymentEnabled ? "cursor-pointer text-gray-900" : "cursor-not-allowed text-gray-400"}`}
               >
                 Хувааж төлөх{" "}
                 {!splitPaymentEnabled && closeOldBalance && (
-                  <span style={{ fontWeight: 400 }}>(өнөөдрийн үйлчилгээ рүү орох дүн 0)</span>
+                  <span className="font-normal">(өнөөдрийн үйлчилгээ рүү орох дүн 0)</span>
                 )}
               </label>
             </div>
 
             {/* Per-service allocation inputs */}
             {splitPayment && splitPaymentEnabled && (
-              <div style={{ marginLeft: 26 }}>
-                <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>
+              <div className="ml-[26px]">
+                <div className="text-xs text-gray-500 mb-[6px]">
                   Нийт {formatMoney(amountToCurrent)} ₮-г үйлчилгээнүүдэд хувааж оруулна уу:
                 </div>
                 {invoice.items.map((item) => {
@@ -1025,18 +999,11 @@ function BillingPaymentSection({
                     return (
                       <div
                         key={item.id ?? `p-${item.productId}`}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          marginBottom: 4,
-                          fontSize: 13,
-                          color: "#9ca3af",
-                        }}
+                        className="flex items-center gap-2 mb-1 text-[13px] text-gray-400"
                       >
-                        <div style={{ flex: 1 }}>{item.name}</div>
-                        <div style={{ width: 90, textAlign: "right" }}>—</div>
-                        <span style={{ fontSize: 12 }}>₮</span>
+                        <div className="flex-1">{item.name}</div>
+                        <div className="w-[90px] text-right">—</div>
+                        <span className="text-xs">₮</span>
                       </div>
                     );
                   }
@@ -1047,17 +1014,11 @@ function BillingPaymentSection({
                   return (
                     <div
                       key={itemId ?? `s-${item.serviceId}`}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        marginBottom: 4,
-                        fontSize: 13,
-                      }}
+                      className="flex items-center gap-2 mb-1 text-[13px]"
                     >
-                      <div style={{ flex: 1 }}>
+                      <div className="flex-1">
                         {item.name}{" "}
-                        <span style={{ color: "#6b7280", fontSize: 12 }}>
+                        <span className="text-gray-500 text-xs">
                           (Үлдэгдэл: {formatMoney(remainingForItem)} ₮)
                         </span>
                       </div>
@@ -1074,28 +1035,14 @@ function BillingPaymentSection({
                           }));
                         }}
                         placeholder="0"
-                        style={{
-                          width: 90,
-                          borderRadius: 6,
-                          border: "1px solid #d1d5db",
-                          padding: "3px 6px",
-                          fontSize: 13,
-                          textAlign: "right",
-                        }}
+                        className="w-[90px] rounded-md border border-gray-300 py-[3px] px-[6px] text-[13px] text-right"
                       />
-                      <span style={{ fontSize: 12 }}>₮</span>
+                      <span className="text-xs">₮</span>
                     </div>
                   );
                 })}
                 <div
-                  style={{
-                    fontSize: 12,
-                    marginTop: 4,
-                    color:
-                      Math.abs(splitAllocTotal - amountToCurrent) <= PAYMENT_ALLOCATION_TOLERANCE
-                        ? "#15803d"
-                        : "#b91c1c",
-                  }}
+                  className={`text-xs mt-1 ${Math.abs(splitAllocTotal - amountToCurrent) <= PAYMENT_ALLOCATION_TOLERANCE ? "text-green-700" : "text-red-700"}`}
                 >
                   Нийлбэр: {formatMoney(splitAllocTotal)} ₮ / {formatMoney(amountToCurrent)} ₮
                 </div>
@@ -1105,11 +1052,11 @@ function BillingPaymentSection({
         )}
 
         {loadingMethods ? (
-          <div style={{ fontSize: 13, color: "#6b7280" }}>
+          <div className="text-[13px] text-gray-500">
             Төлбөрийн аргууд ачаалж байна...
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-[6px]">
             {paymentMethods.map((m) => {
               const checked = !!enabled[m.key];
               const value = amounts[m.key] ?? "";
@@ -1117,20 +1064,9 @@ function BillingPaymentSection({
               return (
                 <div
                   key={m.key}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                    fontSize: 13,
-                  }}
+                  className="flex flex-col gap-1 text-[13px]"
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
+                  <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       id={`pay-${m.key}`}
@@ -1139,27 +1075,14 @@ function BillingPaymentSection({
                     />
                     <label
                       htmlFor={`pay-${m.key}`}
-                      style={{
-                        minWidth: 180,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
+                      className="min-w-[180px] cursor-pointer flex items-center gap-1"
                     >
                       <span>{m.label}</span>
                   </label>
                 </div>
 
                 {checked && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      marginLeft: 26,
-                    }}
-                  >
+                  <div className="flex items-center gap-2 ml-[26px]">
                     {/* TRANSFER: bank selector */}
                     {m.key === "TRANSFER" && (
   <input
@@ -1167,13 +1090,7 @@ function BillingPaymentSection({
     value={transferNote}
     onChange={(e) => setTransferNote(e.target.value)}
     placeholder="Тайлбар (заавал биш)"
-    style={{
-      width: 200,
-      borderRadius: 6,
-      border: "1px solid #d1d5db",
-      padding: "4px 6px",
-      fontSize: 12,
-    }}
+    className="w-[200px] rounded-md border border-gray-300 py-1 px-[6px] text-xs"
   />
 )}
 
@@ -1186,13 +1103,7 @@ function BillingPaymentSection({
                             e.target.value ? Number(e.target.value) : null
                           )
                         }
-                        style={{
-                          minWidth: 200,
-                          borderRadius: 6,
-                          border: "1px solid #d1d5db",
-                          padding: "4px 6px",
-                          fontSize: 13,
-                        }}
+                        className="min-w-[200px] rounded-md border border-gray-300 py-1 px-[6px] text-[13px]"
                       >
                         <option value="">
                           Даатгалын компанийг сонгох...
@@ -1207,22 +1118,11 @@ function BillingPaymentSection({
 
                     {/* APPLICATION: multiple rows */}
                     {m.key === "APPLICATION" && providers.length > 0 && (
-  <div
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: 4,
-      flex: 1,
-    }}
-  >
+  <div className="flex flex-col gap-1 flex-1">
     {appRows.map((row, idx) => (
       <div
         key={idx}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-        }}
+        className="flex items-center gap-[6px]"
       >
         <select
           value={row.providerId || ""}
@@ -1233,13 +1133,7 @@ function BillingPaymentSection({
               )
             )
           }
-          style={{
-            minWidth: 160,
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            padding: "4px 6px",
-            fontSize: 12,
-          }}
+          className="min-w-[160px] rounded-md border border-gray-300 py-1 px-[6px] text-xs"
         >
           <option value="">Аппликэйшнийг сонгох...</option>
           {providers.map((p) => (
@@ -1261,16 +1155,9 @@ function BillingPaymentSection({
             )
           }
           placeholder="0"
-          style={{
-            width: 100,
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            padding: "4px 6px",
-            fontSize: 12,
-            textAlign: "right",
-          }}
+          className="w-[100px] rounded-md border border-gray-300 py-1 px-[6px] text-xs text-right"
         />
-        <span style={{ fontSize: 12 }}>₮</span>
+        <span className="text-xs">₮</span>
 
         {appRows.length > 1 && (
           <button
@@ -1278,15 +1165,7 @@ function BillingPaymentSection({
             onClick={() =>
               setAppRows((prev) => prev.filter((_, i) => i !== idx))
             }
-            style={{
-              padding: "2px 6px",
-              borderRadius: 4,
-              border: "1px solid #dc2626",
-              background: "#fef2f2",
-              color: "#b91c1c",
-              fontSize: 11,
-              cursor: "pointer",
-            }}
+            className="py-0.5 px-[6px] rounded border border-red-600 bg-red-50 text-red-700 text-[11px] cursor-pointer"
           >
             −
           </button>
@@ -1299,17 +1178,7 @@ function BillingPaymentSection({
       onClick={() =>
         setAppRows((prev) => [...prev, { providerId: null, amount: "" }])
       }
-      style={{
-        alignSelf: "flex-start",
-        marginTop: 2,
-        padding: "2px 6px",
-        borderRadius: 999,
-        border: "1px solid #2563eb",
-        background: "#eff6ff",
-        color: "#2563eb",
-        fontSize: 11,
-        cursor: "pointer",
-      }}
+      className="self-start mt-0.5 py-0.5 px-[6px] rounded-full border border-blue-600 bg-blue-50 text-blue-600 text-[11px] cursor-pointer"
     >
       + Нэмэх
     </button>
@@ -1317,13 +1186,7 @@ function BillingPaymentSection({
 )}
 
                     {m.key === "VOUCHER" && (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 6,
-    }}
-  >
+  <div className="flex items-center gap-[6px]">
     <select
       value={voucherType}
       onChange={(e) =>
@@ -1331,12 +1194,7 @@ function BillingPaymentSection({
           e.target.value as "MARKETING" | "GIFT" | ""
         )
       }
-      style={{
-        borderRadius: 6,
-        border: "1px solid #d1d5db",
-        padding: "4px 6px",
-        fontSize: 12,
-      }}
+      className="rounded-md border border-gray-300 py-1 px-[6px] text-xs"
     >
       <option value="">Төрөл сонгох...</option>
       <option value="MARKETING">
@@ -1350,39 +1208,19 @@ function BillingPaymentSection({
       value={voucherCode}
       onChange={(e) => setVoucherCode(e.target.value)}
       placeholder="Код"
-      style={{
-        width: 120,
-        borderRadius: 6,
-        border: "1px solid #d1d5db",
-        padding: "4px 6px",
-        fontSize: 12,
-      }}
+      className="w-[120px] rounded-md border border-gray-300 py-1 px-[6px] text-xs"
     />
 
     <button
       type="button"
       onClick={handleVerifyVoucherCode}
-      style={{
-        padding: "4px 8px",
-        borderRadius: 4,
-        border: "1px solid #2563eb",
-        background: "#eff6ff",
-        color: "#2563eb",
-        fontSize: 11,
-        cursor: "pointer",
-      }}
+      className="py-1 px-2 rounded border border-blue-600 bg-blue-50 text-blue-600 text-[11px] cursor-pointer"
     >
       Шалгах
     </button>
 
     {voucherMaxAmount != null && (
-      <span
-        style={{
-          fontSize: 12,
-          color: "#16a34a",
-          marginLeft: 4,
-        }}
-      >
+      <span className="text-xs text-green-600 ml-1">
         Дээд дүн: {formatMoney(voucherMaxAmount)} ₮
       </span>
     )}
@@ -1390,13 +1228,7 @@ function BillingPaymentSection({
 )}
 
                     {m.key === "BARTER" && (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
+                      <div className="flex items-center gap-1">
                         <input
                           type="text"
                           value={barterCode}
@@ -1404,25 +1236,13 @@ function BillingPaymentSection({
                             setBarterCode(e.target.value)
                           }
                           placeholder="Бартерын код"
-                          style={{
-                            width: 140,
-                            borderRadius: 6,
-                            border: "1px solid #d1d5db",
-                            padding: "4px 6px",
-                            fontSize: 12,
-                          }}
+                          className="w-[140px] rounded-md border border-gray-300 py-1 px-[6px] text-xs"
                         />
                       </div>
                     )}
 
                     {m.key === "EMPLOYEE_BENEFIT" && (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
+                      <div className="flex items-center gap-1">
                         <input
                           type="text"
                           value={employeeCode}
@@ -1430,37 +1250,17 @@ function BillingPaymentSection({
                             setEmployeeCode(e.target.value)
                           }
                           placeholder="Ажилтны код"
-                          style={{
-                            width: 140,
-                            borderRadius: 6,
-                            border: "1px solid #d1d5db",
-                            padding: "4px 6px",
-                            fontSize: 12,
-                          }}
+                          className="w-[140px] rounded-md border border-gray-300 py-1 px-[6px] text-xs"
                         />
                         <button
                           type="button"
                           onClick={handleVerifyEmployeeCode}
-                          style={{
-                            padding: "4px 8px",
-                            borderRadius: 4,
-                            border: "1px solid #2563eb",
-                            background: "#eff6ff",
-                            color: "#2563eb",
-                            fontSize: 11,
-                            cursor: "pointer",
-                          }}
+                          className="py-1 px-2 rounded border border-blue-600 bg-blue-50 text-blue-600 text-[11px] cursor-pointer"
                         >
                           Шалгах
                         </button>
                         {employeeRemaining != null && (
-                          <span
-                            style={{
-                              fontSize: 12,
-                              color: "#16a34a",
-                              marginLeft: 4,
-                            }}
-                          >
+                          <span className="text-xs text-green-600 ml-1">
                             Үлдэгдэл:{" "}
                             {formatMoney(employeeRemaining)} ₮
                           </span>
@@ -1470,36 +1270,20 @@ function BillingPaymentSection({
 
                     {/* OTHER: optional note field */}
                     {m.key === "OTHER" && (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
+                      <div className="flex items-center gap-1">
                         <input
                           type="text"
                           value={otherNote}
                           onChange={(e) => setOtherNote(e.target.value)}
                           placeholder="Тайлбар (заавал биш)"
-                          style={{
-                            width: 200,
-                            borderRadius: 6,
-                            border: "1px solid #d1d5db",
-                            padding: "4px 6px",
-                            fontSize: 12,
-                          }}
+                          className="w-[200px] rounded-md border border-gray-300 py-1 px-[6px] text-xs"
                         />
                       </div>
                     )}
 
                     {m.key === "WALLET" && (
                       <div
-                        style={{
-                          fontSize: 12,
-                          color:
-                            walletAvailable > 0 ? "#16a34a" : "#6b7280",
-                        }}
+                        className={`text-xs ${walletAvailable > 0 ? "text-green-600" : "text-gray-500"}`}
                       >
                         Хэтэвчийн боломжит үлдэгдэл:{" "}
                         <strong>
@@ -1510,26 +1294,12 @@ function BillingPaymentSection({
 
                     {/* QPAY: Generate QR button */}
                     {m.key === "QPAY" && (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                        }}
-                      >
+                      <div className="flex items-center gap-[6px]">
                         <button
                           type="button"
                           onClick={handleGenerateQPayQR}
                           disabled={qpayGenerating}
-                          style={{
-                            padding: "4px 8px",
-                            borderRadius: 4,
-                            border: "1px solid #2563eb",
-                            background: "#eff6ff",
-                            color: "#2563eb",
-                            fontSize: 11,
-                            cursor: qpayGenerating ? "not-allowed" : "pointer",
-                          }}
+                          className={`py-1 px-2 rounded border border-blue-600 bg-blue-50 text-blue-600 text-[11px] ${qpayGenerating ? "cursor-not-allowed" : "cursor-pointer"}`}
                         >
                           {qpayGenerating ? "Үүсгэж байна..." : "QR үүсгэх"}
                         </button>
@@ -1537,14 +1307,7 @@ function BillingPaymentSection({
                     )}
 
                                         {m.key !== "APPLICATION" && (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                          flex: 1,
-                        }}
-                      >
+                      <div className="flex items-center gap-1 flex-1">
                         <input
                           type="number"
                           min={0}
@@ -1553,16 +1316,9 @@ function BillingPaymentSection({
                             handleAmountChange(m.key, e.target.value)
                           }
                           placeholder="0"
-                          style={{
-                            flex: 1,
-                            borderRadius: 6,
-                            border: "1px solid #d1d5db",
-                            padding: "4px 8px",
-                            fontSize: 13,
-                            textAlign: "right",
-                          }}
+                          className="flex-1 rounded-md border border-gray-300 py-1 px-2 text-[13px] text-right"
                         />
-                        <span style={{ fontSize: 12 }}>₮</span>
+                        <span className="text-xs">₮</span>
                       </div>
                     )}
                   </div>
@@ -1573,16 +1329,7 @@ function BillingPaymentSection({
         </div>
         )}
 
-        <div
-          style={{
-            fontSize: 12,
-            color: "#4b5563",
-            marginTop: 4,
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-          }}
-        >
+        <div className="text-xs text-[#4b5563] mt-1 flex flex-col gap-0.5">
           {invoice.paidTotal != null || invoice.unpaidAmount != null ? (
             <>
               <div>
@@ -1607,30 +1354,17 @@ function BillingPaymentSection({
 
         {/* Sterilization Mismatch Warning */}
         {unresolvedMismatches.length > 0 && (
-          <div
-            style={{
-              background: "#fef3c7",
-              border: "1px solid #f59e0b",
-              borderRadius: 8,
-              padding: 12,
-              marginTop: 12,
-              fontSize: 13,
-            }}
-          >
-            <div style={{ fontWeight: 600, color: "#92400e", marginBottom: 4 }}>
+          <div className="bg-amber-100 border border-[#f59e0b] rounded-lg p-3 mt-3 text-[13px]">
+            <div className="font-semibold text-amber-800 mb-1">
               ⚠️ Ариутгалын тохиргоо дутуу байна
             </div>
-            <div style={{ color: "#78350f", marginBottom: 8 }}>
+            <div className="text-[#78350f] mb-2">
               Энэ үзлэгт {unresolvedMismatches.length} ширхэг ариутгалын багажийн зөрүү шийдвэрлэгдээгүй байна. 
               Төлбөр батлах боломжгүй.
             </div>
             <a
               href="/sterilization/mismatches"
-              style={{
-                color: "#1e40af",
-                textDecoration: "underline",
-                cursor: "pointer",
-              }}
+              className="text-[#1e40af] underline cursor-pointer"
             >
               Зөрүү шийдвэрлэх хуудас руу шилжих →
             </a>
@@ -1638,31 +1372,21 @@ function BillingPaymentSection({
         )}
 
         {error && (
-          <div style={{ fontSize: 13, color: "#b91c1c", marginTop: 4 }}>
+          <div className="text-[13px] text-red-700 mt-1">
             {error}
           </div>
         )}
         {success && (
-          <div style={{ fontSize: 13, color: "#16a34a", marginTop: 4 }}>
+          <div className="text-[13px] text-green-600 mt-1">
             {success}
           </div>
         )}
 
-        <div
-          style={{ marginTop: 4, display: "flex", justifyContent: "flex-end" }}
-        >
+        <div className="mt-1 flex justify-end">
           <button
             type="submit"
             disabled={submitting || !hasRealInvoice || unresolvedMismatches.length > 0}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 6,
-              border: "none",
-              background: hasRealInvoice && unresolvedMismatches.length === 0 ? "#16a34a" : "#9ca3af",
-              color: "#ffffff",
-              cursor: hasRealInvoice && unresolvedMismatches.length === 0 ? "pointer" : "not-allowed",
-              fontSize: 14,
-            }}
+            className={`py-2 px-4 rounded-md border-none text-white text-sm ${hasRealInvoice && unresolvedMismatches.length === 0 ? "bg-[#16a34a] cursor-pointer" : "bg-gray-400 cursor-not-allowed"}`}
           >
             {submitting ? "Төлбөр хадгалж байна..." : "Төлбөр бүртгэх"}
           </button>
@@ -1670,11 +1394,11 @@ function BillingPaymentSection({
       </form>
 
       {invoice.payments && invoice.payments.length > 0 && (
-        <div style={{ marginTop: 12, fontSize: 12 }}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>
+        <div className="mt-3 text-xs">
+          <div className="font-semibold mb-1">
             Бүртгэгдсэн төлбөрүүд
           </div>
-          <ul style={{ margin: 0, paddingLeft: 16 }}>
+          <ul className="m-0 pl-4">
             {invoice.payments.map((p) => (
               <li key={p.id}>
                 {formatDateTime(p.timestamp)} — {p.method} —{" "}
@@ -1688,53 +1412,21 @@ function BillingPaymentSection({
       {/* QPay QR Modal */}
       {qpayModalOpen && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 90,
-          }}
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[90]"
           onClick={handleCloseQPayModal}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{
-              width: 480,
-              maxWidth: "95vw",
-              maxHeight: "80vh",
-              overflowY: "auto",
-              background: "#ffffff",
-              borderRadius: 8,
-              boxShadow: "0 14px 40px rgba(0,0,0,0.3)",
-              padding: 20,
-              fontSize: 14,
-            }}
+            className="w-[480px] max-w-[95vw] max-h-[80vh] overflow-y-auto bg-white rounded-lg shadow-2xl p-5 text-sm"
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 16,
-              }}
-            >
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="m-0 text-lg font-semibold">
                 QPay Төлбөр
               </h3>
               <button
                 type="button"
                 onClick={handleCloseQPayModal}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                  fontSize: 24,
-                  lineHeight: 1,
-                  color: "#6b7280",
-                }}
+                className="border-none bg-transparent cursor-pointer text-2xl leading-none text-gray-500"
                 aria-label="Close"
               >
                 ×
@@ -1742,96 +1434,39 @@ function BillingPaymentSection({
             </div>
 
             {qpayError && (
-              <div
-                style={{
-                  marginBottom: 12,
-                  padding: 10,
-                  borderRadius: 6,
-                  background: "#fef2f2",
-                  color: "#b91c1c",
-                  fontSize: 13,
-                }}
-              >
+              <div className="mb-3 p-[10px] rounded-md bg-red-50 text-red-700 text-[13px]">
                 {qpayError}
               </div>
             )}
 
             {qpayPaidAmount ? (
-              <div
-                style={{
-                  marginBottom: 12,
-                  padding: 12,
-                  borderRadius: 6,
-                  background: "#f0fdf4",
-                  color: "#15803d",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  textAlign: "center",
-                }}
-              >
+              <div className="mb-3 p-3 rounded-md bg-[#f0fdf4] text-green-700 text-sm font-medium text-center">
                 ✓ Төлбөр амжилттай төлөгдлөө: {formatMoney(qpayPaidAmount)} ₮
               </div>
             ) : (
               <>
-                <div
-                  style={{
-                    marginBottom: 12,
-                    padding: 10,
-                    borderRadius: 6,
-                    background: "#eff6ff",
-                    color: "#1e40af",
-                    fontSize: 13,
-                    textAlign: "center",
-                  }}
-                >
+                <div className="mb-3 p-[10px] rounded-md bg-blue-50 text-[#1e40af] text-[13px] text-center">
                   {qpayPolling
                     ? "Төлбөр хүлээж байна... (3 секунд тутамд шалгана)"
                     : "QR код уншуулах эсвэл холбоос дарна уу"}
                 </div>
 
                 {qpayQrImage && (
-                  <div
-                    style={{
-                      marginBottom: 16,
-                      display: "flex",
-                      justifyContent: "center",
-                    }}
-                  >
+                  <div className="mb-4 flex justify-center">
                     <img
                       src={qpayQrImage}
                       alt="QPay QR Code"
-                      style={{
-                        maxWidth: 240,
-                        height: "auto",
-                        border: "2px solid #e5e7eb",
-                        borderRadius: 8,
-                      }}
+                      className="max-w-[240px] h-auto border-2 border-gray-200 rounded-lg"
                     />
                   </div>
                 )}
 
                 {qpayQrText && (
-                  <div style={{ marginBottom: 16 }}>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "#6b7280",
-                        marginBottom: 4,
-                      }}
-                    >
+                  <div className="mb-4">
+                    <div className="text-xs text-gray-500 mb-1">
                       QR текст:
                     </div>
-                    <div
-                      style={{
-                        padding: 8,
-                        borderRadius: 6,
-                        background: "#f9fafb",
-                        border: "1px solid #e5e7eb",
-                        fontSize: 11,
-                        wordBreak: "break-all",
-                        fontFamily: "monospace",
-                      }}
-                    >
+                    <div className="p-2 rounded-md bg-gray-50 border border-gray-200 text-[11px] break-all font-mono">
                       {qpayQrText}
                     </div>
                     <button
@@ -1840,16 +1475,7 @@ function BillingPaymentSection({
                         navigator.clipboard.writeText(qpayQrText);
                         setSuccess("QR текст хуулагдлаа");
                       }}
-                      style={{
-                        marginTop: 6,
-                        padding: "4px 8px",
-                        borderRadius: 4,
-                        border: "1px solid #2563eb",
-                        background: "#eff6ff",
-                        color: "#2563eb",
-                        fontSize: 11,
-                        cursor: "pointer",
-                      }}
+                      className="mt-[6px] py-1 px-2 rounded border border-blue-600 bg-blue-50 text-blue-600 text-[11px] cursor-pointer"
                     >
                       Хуулах
                     </button>
@@ -1857,33 +1483,18 @@ function BillingPaymentSection({
                 )}
 
                 {qpayUrls && qpayUrls.length > 0 && (
-                  <div style={{ marginBottom: 16 }}>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "#6b7280",
-                        marginBottom: 6,
-                      }}
-                    >
+                  <div className="mb-4">
+                    <div className="text-xs text-gray-500 mb-[6px]">
                       Апп-аар төлөх:
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div className="flex flex-col gap-[6px]">
                       {qpayUrls.map((url, idx) => (
                         <a
                           key={idx}
                           href={url}
                           target="_blank"
                           rel="noreferrer"
-                          style={{
-                            padding: "8px 12px",
-                            borderRadius: 6,
-                            border: "1px solid #2563eb",
-                            background: "#eff6ff",
-                            color: "#2563eb",
-                            textDecoration: "none",
-                            fontSize: 12,
-                            textAlign: "center",
-                          }}
+                          className="py-2 px-3 rounded-md border border-blue-600 bg-blue-50 text-blue-600 no-underline text-xs text-center"
                         >
                           Холбоос #{idx + 1} нээх
                         </a>
@@ -1894,27 +1505,11 @@ function BillingPaymentSection({
               </>
             )}
 
-            <div
-              style={{
-                marginTop: 16,
-                paddingTop: 12,
-                borderTop: "1px solid #e5e7eb",
-                display: "flex",
-                justifyContent: "flex-end",
-              }}
-            >
+            <div className="mt-4 pt-3 border-t border-gray-200 flex justify-end">
               <button
                 type="button"
                 onClick={handleCloseQPayModal}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  background: "#ffffff",
-                  color: "#374151",
-                  fontSize: 13,
-                  cursor: "pointer",
-                }}
+                className="py-2 px-4 rounded-md border border-gray-300 bg-white text-gray-700 text-[13px] cursor-pointer"
               >
                 Хаах
               </button>
@@ -2050,57 +1645,26 @@ function BillingEbarimtSection({
   };
 
   return (
-    <section
-      style={{
-        marginTop: 16,
-        padding: 16,
-        borderRadius: 8,
-        border: "1px solid #e5e7eb",
-        background: "#ffffff",
-      }}
-    >
-      <h2 style={{ fontSize: 16, margin: 0, marginBottom: 8 }}>
+    <section className="mt-4 p-4 rounded-lg border border-gray-200 bg-white">
+      <h2 className="text-base m-0 mb-2">
         e-Barimt
       </h2>
 
       {!isPaid && (
-        <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
+        <div className="text-[13px] text-gray-500 mb-2">
           Нэхэмжлэл бүрэн төлөгдсөний дараа e-Barimt мэдээлэл оруулах боломжтой.
         </div>
       )}
 
       {isLocked && (
-        <div
-          style={{
-            fontSize: 13,
-            color: "#92400e",
-            background: "#fef3c7",
-            border: "1px solid #fcd34d",
-            borderRadius: 6,
-            padding: "6px 10px",
-            marginBottom: 8,
-          }}
-        >
+        <div className="text-[13px] text-amber-800 bg-amber-100 border border-[#fcd34d] rounded-md py-[6px] px-[10px] mb-2">
           e-Barimt баримт аль хэдийн гаргасан тул худалдан авагчийн мэдээллийг өөрчлөх боломжгүй.
         </div>
       )}
 
       {isLocked && invoice.ebarimtReceipt?.status === "SUCCESS" && !receipt && (
-        <div
-          style={{
-            marginBottom: 8,
-            padding: "10px 14px",
-            background: "#f0fdf4",
-            border: "1px solid #86efac",
-            borderRadius: 8,
-            fontFamily: "monospace",
-            fontSize: 13,
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-          }}
-        >
-          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>✅ e-Barimt гаргасан</div>
+        <div className="mb-2 py-[10px] px-[14px] bg-[#f0fdf4] border border-[#86efac] rounded-lg font-mono text-[13px] flex flex-col gap-1">
+          <div className="font-bold text-sm mb-0.5">✅ e-Barimt гаргасан</div>
           {invoice.ebarimtReceipt.ddtd && (
             <div><strong>ДДТД:</strong> {invoice.ebarimtReceipt.ddtd}</div>
           )}
@@ -2114,20 +1678,14 @@ function BillingEbarimtSection({
       )}
 
       <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-          opacity: disabled ? 0.6 : 1,
-          pointerEvents: disabled ? "none" : undefined,
-        }}
+        className={`flex flex-col gap-[10px] ${disabled ? "opacity-60 pointer-events-none" : ""}`}
       >
         {/* Buyer type selector */}
-        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-          <label style={{ fontSize: 13, fontWeight: 500, minWidth: 120 }}>
+        <div className="flex gap-4 items-center">
+          <label className="text-[13px] font-medium min-w-[120px]">
             Худалдан авагч:
           </label>
-          <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+          <label className="text-[13px] flex items-center gap-1 cursor-pointer">
             <input
               type="radio"
               name="buyerType"
@@ -2141,7 +1699,7 @@ function BillingEbarimtSection({
             />
             Хувь хүн
           </label>
-          <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+          <label className="text-[13px] flex items-center gap-1 cursor-pointer">
             <input
               type="radio"
               name="buyerType"
@@ -2156,8 +1714,8 @@ function BillingEbarimtSection({
 
         {/* TIN input (only for B2B) */}
         {buyerType === "B2B" && (
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <label style={{ fontSize: 13, fontWeight: 500, minWidth: 120 }}>
+          <div className="flex gap-2 items-center">
+            <label className="text-[13px] font-medium min-w-[120px]">
               ТТД (TIN):
             </label>
             <input
@@ -2167,64 +1725,39 @@ function BillingEbarimtSection({
               placeholder="11 эсвэл 14 оронтой тоо"
               disabled={disabled}
               maxLength={14}
-              style={{
-                padding: "5px 8px",
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                fontSize: 13,
-                width: 200,
-              }}
+              className="py-[5px] px-2 rounded-md border border-gray-300 text-[13px] w-[200px]"
             />
           </div>
         )}
 
         {/* Save & Issue button */}
         {invoice.id != null && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex items-center gap-[10px]">
             <button
               type="button"
               onClick={handleSave}
               disabled={disabled || saving}
-              style={{
-                padding: "6px 14px",
-                borderRadius: 6,
-                border: "none",
-                background: disabled || saving ? "#9ca3af" : "#2563eb",
-                color: "#ffffff",
-                cursor: disabled || saving ? "not-allowed" : "pointer",
-                fontSize: 13,
-              }}
+              className={`py-[6px] px-[14px] rounded-md border-none text-white text-[13px] ${disabled || saving ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 cursor-pointer"}`}
             >
               {saving ? "e-Barimt гаргаж байна..." : "e-Barimt гаргах"}
             </button>
             {success && (
-              <span style={{ fontSize: 13, color: "#15803d" }}>{success}</span>
+              <span className="text-[13px] text-green-700">{success}</span>
             )}
           </div>
         )}
 
         {(issuedDdtd || issuedPrintedAtText) && !receipt && (
-          <div
-            style={{
-              fontSize: 13,
-              background: "#f0fdf4",
-              border: "1px solid #86efac",
-              borderRadius: 6,
-              padding: "8px 12px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
+          <div className="text-[13px] bg-[#f0fdf4] border border-[#86efac] rounded-md py-2 px-3 flex flex-col gap-1">
             {issuedDdtd && (
               <div>
-                <span style={{ fontWeight: 500 }}>Баримтын дугаар (ДДТД): </span>
-                <span style={{ fontFamily: "monospace" }}>{issuedDdtd}</span>
+                <span className="font-medium">Баримтын дугаар (ДДТД): </span>
+                <span className="font-mono">{issuedDdtd}</span>
               </div>
             )}
             {issuedPrintedAtText && (
               <div>
-                <span style={{ fontWeight: 500 }}>Огноо: </span>
+                <span className="font-medium">Огноо: </span>
                 {issuedPrintedAtText}
               </div>
             )}
@@ -2261,15 +1794,15 @@ function BillingEbarimtSection({
 `}</style>
           {/* Hidden full-page print container */}
           <div className="ebarimt-receipt-print-root">
-            <div style={{ width: 215, padding: "8px 6px", fontFamily: "monospace", fontSize: 11, lineHeight: 1.4 }}>
-              <div style={{ textAlign: "center", marginBottom: 4 }}>
+            <div className="w-[215px] py-2 px-[6px] font-mono text-[11px] leading-snug">
+              <div className="text-center mb-1">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="https://mdent.cloud/clinic-logo.png" alt="Clinic logo" style={{ width: 90, height: "auto" }} />
+                <img src="https://mdent.cloud/clinic-logo.png" alt="Clinic logo" className="w-[90px] h-auto" />
               </div>
             
               <div>Утас: 7715-1551</div>
               <div>И-мэйл: info@monfamily.mn</div>
-              <hr style={{ margin: "4px 0" }} />
+              <hr className="my-1" />
               <div>ТТД: 6948472</div>
               {receipt.id && <div>ДДТД: {receipt.id}</div>}
               {(invoice.ebarimtReceipt?.ddtd) && !receipt.id && <div>ДДТД: {invoice.ebarimtReceipt.ddtd}</div>}
@@ -2278,54 +1811,41 @@ function BillingEbarimtSection({
               {invoice.patientOvog && <div>Овог: {invoice.patientOvog}</div>}
               {invoice.patientName && <div>Нэр: {invoice.patientName}</div>}
               {invoice.patientRegNo && <div>РД: {invoice.patientRegNo}</div>}
-              <hr style={{ margin: "4px 0" }} />
-              <div style={{ fontWeight: 700, marginBottom: 2 }}>НӨАТ-оос чөлөөлөгдөх бараа</div>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
+              <hr className="my-1" />
+              <div className="font-bold mb-0.5">НӨАТ-оос чөлөөлөгдөх бараа</div>
+              <table className="w-full border-collapse text-[10px]">
                 <thead>
                   <tr>
-                    <th style={{ textAlign: "left", paddingRight: 2 }}>ҮЙЛЧИЛГЭЭ</th>
-                    <th style={{ textAlign: "right", paddingRight: 2 }}>ТОО</th>
-                    <th style={{ textAlign: "right" }}>НИЙТ</th>
+                    <th className="text-left pr-[2px]">ҮЙЛЧИЛГЭЭ</th>
+                    <th className="text-right pr-[2px]">ТОО</th>
+                    <th className="text-right">НИЙТ</th>
                   </tr>
                 </thead>
                 <tbody>
                   {invoice.items.map((it, idx) => (
                     <tr key={it.id ?? idx}>
-                      <td style={{ paddingRight: 2, wordBreak: "break-word" }}>{it.name}</td>
-                      <td style={{ textAlign: "right", paddingRight: 2 }}>{it.quantity}</td>
-                      <td style={{ textAlign: "right" }}>{formatMoney(it.lineTotal)}</td>
+                      <td className="pr-[2px] break-words">{it.name}</td>
+                      <td className="text-right pr-[2px]">{it.quantity}</td>
+                      <td className="text-right">{formatMoney(it.lineTotal)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <hr style={{ margin: "4px 0" }} />
+              <hr className="my-1" />
               {receipt.qrData && (
-                <div style={{ textAlign: "center", margin: "6px 0" }}>
+                <div className="text-center my-[6px]">
                   <QRCodeSVG value={receipt.qrData} size={140} />
                 </div>
               )}
               {receipt.lottery && <div>Сугалаа: {receipt.lottery}</div>}
-              <div style={{ fontWeight: 700, marginTop: 2 }}>
+              <div className="font-bold mt-0.5">
                 Нийт дүн: {formatMoney(receipt.totalAmount ?? invoice.finalAmount)}₮
               </div>
             </div>
           </div>
           {/* Inline receipt preview card */}
-          <div
-            style={{
-              marginTop: 8,
-              padding: "12px 16px",
-              background: "#f0fdf4",
-              border: "1px solid #86efac",
-              borderRadius: 8,
-              fontFamily: "monospace",
-              fontSize: 13,
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <div style={{ fontWeight: 700, fontSize: 15, textAlign: "center", marginBottom: 4 }}>
+          <div className="mt-2 py-3 px-4 bg-[#f0fdf4] border border-[#86efac] rounded-lg font-mono text-[13px] flex flex-col gap-1">
+            <div className="font-bold text-[15px] text-center mb-1">
               e-БАРИМТ
             </div>
             {/* TODO: clinic name / TIN / address */}
@@ -2342,23 +1862,15 @@ function BillingEbarimtSection({
               <div><strong>Нийт дүн:</strong> {formatMoney(receipt.totalAmount)}₮</div>
             )}
             {receipt.qrData && (
-              <div style={{ marginTop: 8, textAlign: "center" }}>
+              <div className="mt-2 text-center">
                 <QRCodeSVG value={receipt.qrData} size={120} />
               </div>
             )}
-            <div style={{ marginTop: 8 }}>
+            <div className="mt-2">
               <button
                 type="button"
                 onClick={() => window.print()}
-                style={{
-                  padding: "5px 12px",
-                  borderRadius: 6,
-                  border: "none",
-                  background: "#2563eb",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontSize: 13,
-                }}
+                className="py-[5px] px-3 rounded-md border-none bg-blue-600 text-white cursor-pointer text-[13px]"
               >
                 🖨️ e-Barimt хэвлэх
               </button>
@@ -2368,7 +1880,7 @@ function BillingEbarimtSection({
       )}
 
       {error && (
-        <div style={{ fontSize: 13, color: "#b91c1c", marginTop: 8 }}>{error}</div>
+        <div className="text-[13px] text-red-700 mt-2">{error}</div>
       )}
     </section>
   );
@@ -2826,67 +2338,65 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
     return products.filter((p) => (p.name || "").toLowerCase().includes(q));
   }, [products, productQuery]);
 
+  // Pre-compute a Map of diagnosisId -> diagnosis row for O(1) lookup in items.map()
+  const diagnosisById = useMemo(() => {
+    const map = new Map<number, EncounterDiagnosisRow>();
+    if (encounter?.encounterDiagnoses) {
+      for (const dx of encounter.encounterDiagnoses) {
+        if (dx.id != null) {
+          map.set(dx.id, dx);
+        }
+      }
+    }
+    return map;
+  }, [encounter?.encounterDiagnoses]);
+
   if (!encounterId || Number.isNaN(encounterId)) {
     return (
-      <main style={{ maxWidth: 900, margin: "40px auto", padding: 24, fontFamily: "sans-serif" }}>
+      <main className="max-w-[900px] my-[40px] mx-auto p-6 font-sans">
         <h1>Нэхэмжлэлийн хуудас</h1>
-        <div style={{ color: "red" }}>Encounter ID буруу байна.</div>
+        <div className="text-red-600">Encounter ID буруу байна.</div>
       </main>
     );
   }
 
   return (
-    <main style={{ maxWidth: 1000, margin: "40px auto", padding: 24, fontFamily: "sans-serif" }}>
-      <h1 style={{ fontSize: 20, marginBottom: 12 }}>Нэхэмжлэлийн хуудас (Encounter ID: {encounterId})</h1>
+    <main className="max-w-[1000px] my-[40px] mx-auto p-6 font-sans">
+      <h1 className="text-xl mb-3">Нэхэмжлэлийн хуудас (Encounter ID: {encounterId})</h1>
 
      {loading && <div>Ачаалж байна...</div>}
-      {!loading && loadError && <div style={{ color: "red", marginBottom: 12 }}>{loadError}</div>}
+      {!loading && loadError && <div className="text-red-600 mb-3">{loadError}</div>}
 
       {encounter && invoice && (
         <>
           {/* Header / Encounter summary */}
-<section
-  style={{
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 8,
-    border: "1px solid #e5e7eb",
-    background: "#ffffff",
-  }}
->
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      gap: 16,
-    }}
-  >
+<section className="mb-4 p-4 rounded-lg border border-gray-200 bg-white">
+  <div className="flex justify-between items-start gap-4">
     {/* LEFT: existing patient / encounter info */}
-    <div style={{ fontSize: 16, lineHeight: 1.5 }}>
-      <div style={{ marginBottom: 4 }}>
+    <div className="text-base leading-normal">
+      <div className="mb-1">
         <strong>Үйлчлүүлэгч:</strong>{" "}
         {formatPatientName(encounter.patientBook.patient)} (Карт:{" "}
         {encounter.patientBook.bookNumber})
       </div>
-      <div style={{ marginBottom: 4 }}>
+      <div className="mb-1">
         <strong>Салбар:</strong>{" "}
         {encounter.patientBook.patient.branch
           ? encounter.patientBook.patient.branch.name
           : "-"}
       </div>
-      <div style={{ marginBottom: 4 }}>
+      <div className="mb-1">
         <strong>Эмч:</strong> {formatDoctorName(encounter.doctor)}
       </div>
-      <div style={{ marginBottom: 4 }}>
+      <div className="mb-1">
         <strong>Огноо:</strong> {formatDateTime(encounter.visitDate)}
       </div>
       {encounter.notes && (
-        <div style={{ marginTop: 4 }}>
+        <div className="mt-1">
           <strong>Үзлэгийн тэмдэглэл:</strong> {encounter.notes}
         </div>
       )}
-      <div style={{ marginTop: 8, fontSize: 13 }}>
+      <div className="mt-2 text-[13px]">
         <strong>Нэхэмжлэл:</strong>{" "}
         {invoice.id
           ? `#${invoice.id} – ${invoice.finalAmount.toLocaleString(
@@ -2896,7 +2406,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
         {invoice.hasEBarimt && " • e-Barimt хэвлэгдсэн"}
       </div>
       {invoice.paidTotal != null && (
-        <div style={{ marginTop: 4, fontSize: 13 }}>
+        <div className="mt-1 text-[13px]">
           Нийт төлсөн:{" "}
           <strong>{formatMoney(invoice.paidTotal)} ₮</strong> • Үлдэгдэл:{" "}
           <strong>{formatMoney(invoice.unpaidAmount || 0)} ₮</strong>
@@ -2906,26 +2416,11 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
 
     {/* RIGHT: patient balance summary */}
     {invoice.patientBalance != null && (
-      <div
-        style={{
-          minWidth: 260,
-          padding: 10,
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-          background: "#f9fafb",
-          fontSize: 13,
-        }}
-      >
-        <div
-          style={{
-            fontWeight: 600,
-            marginBottom: 4,
-            textAlign: "right",
-          }}
-        >
+      <div className="min-w-[260px] p-[10px] rounded-lg border border-gray-200 bg-gray-50 text-[13px]">
+        <div className="font-semibold mb-1 text-right">
           Санхүүгийн үлдэгдэл
         </div>
-        <div style={{ textAlign: "right" }}>
+        <div className="text-right">
           <div>
             Нийт нэхэмжилсэн:{" "}
             <strong>
@@ -2941,25 +2436,18 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
           <div>
             Үлдэгдэл (бүх үзлэг):{" "}
             <strong
-              style={{
-                color:
-                  invoice.patientBalance > 0
-                    ? "#b91c1c" // owes
-                    : invoice.patientBalance < 0
-                    ? "#15803d" // credit
-                    : "#111827",
-              }}
+              className={invoice.patientBalance > 0 ? "text-red-700" : invoice.patientBalance < 0 ? "text-green-700" : "text-gray-900"}
             >
               {formatMoney(invoice.patientBalance)} ₮
             </strong>
           </div>
           {invoice.patientBalance < 0 && (
-            <div style={{ textAlign: "right", color: "#15803d" }}>
+            <div className="text-right text-green-700">
               (урьдчилгаа / илүү төлөлт)
             </div>
           )}
           {invoice.patientBalance > 0 && (
-            <div style={{ textAlign: "right", color: "#b91c1c" }}>
+            <div className="text-right text-red-700">
               (Үйлчлүүлэгчийн төлөх үлдэгдэл)
             </div>
           )}
@@ -2970,46 +2458,23 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
 </section>
 
           {/* Billing items */}
-<section
-  style={{
-    marginTop: 0,
-    padding: 16,
-    borderRadius: 8,
-    border: "1px solid #e5e7eb",
-    background: "#ffffff",
-  }}
->
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 8,
-    }}
-  >
+<section className="mt-0 p-4 rounded-lg border border-gray-200 bg-white">
+  <div className="flex justify-between items-center mb-2">
     <div>
-      <h2 style={{ fontSize: 16, margin: 0 }}>
+      <h2 className="text-base m-0">
         Үйлчилгээний мөрүүд (Invoice lines)
       </h2>
-      <div style={{ fontSize: 12, color: "#6b7280" }}>
+      <div className="text-xs text-gray-500">
         Доорх жагсаалт нь энэ үзлэгт гүйцэтгэсэн үйлчилгээ, бүтээгдэхүүнийг илэрхийлнэ.
       </div>
     </div>
 
     {/* ✅ Buttons */}
-    <div style={{ display: "flex", gap: 10 }}>
+    <div className="flex gap-[10px]">
       <button
         type="button"
         onClick={handleAddRowFromService}
-        style={{
-          padding: "6px 12px",
-          borderRadius: 6,
-          border: "1px solid #2563eb",
-          background: "#eff6ff",
-          color: "#2563eb",
-          cursor: "pointer",
-          fontSize: 13,
-        }}
+        className="py-[6px] px-3 rounded-md border border-blue-600 bg-blue-50 text-blue-600 cursor-pointer text-[13px]"
       >
         + Эмчилгээ нэмэх
       </button>
@@ -3020,15 +2485,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
           setProductModalOpen(true);
           void loadProducts();
         }}
-        style={{
-          padding: "6px 12px",
-          borderRadius: 6,
-          border: "1px solid #16a34a",
-          background: "#f0fdf4",
-          color: "#166534",
-          cursor: "pointer",
-          fontSize: 13,
-        }}
+        className="py-[6px] px-3 rounded-md border border-green-600 bg-[#f0fdf4] text-[#166534] cursor-pointer text-[13px]"
       >
         + Бүтээгдэхүүн нэмэх
       </button>
@@ -3041,41 +2498,26 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
               
 
             {items.length === 0 && (
-              <div style={{ fontSize: 13, color: "#6b7280" }}>
+              <div className="text-[13px] text-gray-500">
                 Нэхэмжлэлийн мөр алга байна. Үйлчилгээ нэмнэ үү.
               </div>
             )}
 
             {items.length > 0 && (
               <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "2fr 80px 120px 80px 120px auto", // 6 columns!
-    gap: 8,
-    alignItems: "center",
-    padding: "4px 8px",
-    marginTop: 8,
-    fontSize: 11,
-    color: "#6b7280",
-  }}
+  style={{ display: "grid", gridTemplateColumns: "2fr 80px 120px 80px 120px auto" }}
+  className="gap-2 items-center py-1 px-2 mt-2 text-[11px] text-gray-500"
 >
   <div>Үйлчилгээ / Бүтээгдэхүүн</div>
-  <div style={{ textAlign: "center" }}>Тоо хэмжээ</div>
-  <div style={{ textAlign: "center" }}>Нэгж үнэ</div>
-  <div style={{ textAlign: "center" }}>Шүд</div>
-  <div style={{ textAlign: "center" }}>Мөрийн дүн</div>
+  <div className="text-center">Тоо хэмжээ</div>
+  <div className="text-center">Нэгж үнэ</div>
+  <div className="text-center">Шүд</div>
+  <div className="text-center">Мөрийн дүн</div>
   <div />
 </div>
             )}
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-                marginTop: 4,
-              }}
-            >
+            <div className="flex flex-col gap-2 mt-1">
               {items.map((row, index) => {
   const locked = row.source === "ENCOUNTER";
   const lineTotal = (row.unitPrice || 0) * (row.quantity || 0);
@@ -3086,22 +2528,19 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
   );
   const isAllTeeth = matchingEncounterService?.meta?.toothScope === "ALL";
 
+  const diagnosisId = matchingEncounterService?.meta?.diagnosisId;
+  const toothCodeFromDiagnosis = diagnosisId != null
+    ? (diagnosisById.get(diagnosisId)?.toothCode ?? null)
+    : null;
+
   return (
     <div
       key={index}
-      style={{
-        display: "grid",
-        gridTemplateColumns: "2fr 80px 120px 80px 120px auto",
-        gap: 8,
-        alignItems: "center",
-        borderRadius: 8,
-        border: "1px solid #e5e7eb",
-        padding: 8,
-        background: "#f9fafb",
-      }}
+      style={{ display: "grid", gridTemplateColumns: "2fr 80px 120px 80px 120px auto" }}
+      className="gap-2 items-center rounded-lg border border-gray-200 p-2 bg-gray-50"
     >
       {/* 1 - Name cell */}
-      <div style={{ position: "relative" }}>
+      <div className="relative">
         {(() => {
           const q = (svcQueryByRow[index] ?? "").trim().toLowerCase();
           const visibleOptions = q
@@ -3190,45 +2629,14 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
                     ? "Үйлчилгээний нэр"
                     : "Бүтээгдэхүүний нэр"
                 }
-                style={{
-                  width: "100%",
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  padding: "4px 6px",
-                  fontSize: 13,
-                  marginBottom: 4,
-                  background: locked ? "#f3f4f6" : "#ffffff",
-                  cursor: locked ? "not-allowed" : "text",
-                }}
+                className={`w-full rounded-md border border-gray-300 py-1 px-[6px] text-[13px] mb-1 ${locked ? "bg-gray-100 cursor-not-allowed" : "bg-white cursor-text"}`}
               />
-
               {row.itemType === "SERVICE" &&
                 svcOpenRow === index &&
                 (svcLoading || visibleOptions.length > 0) && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: 0,
-                      top: "100%",
-                      marginTop: 6,
-                      width: 360,
-                      maxHeight: 260,
-                      overflowY: "auto",
-                      background: "#ffffff",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 8,
-                      zIndex: 100,
-                      boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
-                    }}
-                  >
+                  <div className="absolute left-0 top-full mt-[6px] w-[360px] max-h-[260px] overflow-y-auto bg-white border border-gray-200 rounded-lg z-[100] shadow-lg">
                     {svcLoading && (
-                      <div
-                        style={{
-                          padding: 10,
-                          fontSize: 12,
-                          color: "#6b7280",
-                        }}
-                      >
+                      <div className="p-[10px] text-xs text-gray-500">
                         Хайж байна...
                       </div>
                     )}
@@ -3263,19 +2671,13 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
                               [index]: "",
                             }));
                           }}
-                          style={{
-                            padding: "10px 12px",
-                            cursor: "pointer",
-                            background:
-                              idx === svcActiveIndex ? "#eff6ff" : "#ffffff",
-                            borderBottom: "1px solid #f3f4f6",
-                          }}
+                          className={`py-[10px] px-3 cursor-pointer border-b border-gray-100 ${idx === svcActiveIndex ? "bg-blue-50" : "bg-white"}`}
                         >
-                          <div style={{ fontWeight: 600, fontSize: 13 }}>
+                          <div className="font-semibold text-[13px]">
                             {svc.code ? `${svc.code} — ` : ""}
                             {svc.name}
                           </div>
-                          <div style={{ fontSize: 12, color: "#6b7280" }}>
+                          <div className="text-xs text-gray-500">
                             {formatMoney(svc.price)} ₮
                           </div>
                         </div>
@@ -3294,16 +2696,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
         value={row.quantity}
         disabled={locked}
         onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
-        style={{
-          width: "100%",
-          borderRadius: 6,
-          border: "1px solid #d1d5db",
-          padding: "4px 6px",
-          fontSize: 13,
-          textAlign: "center",
-          background: locked ? "#f3f4f6" : "#ffffff",
-          cursor: locked ? "not-allowed" : "text",
-        }}
+        className={`w-full rounded-md border border-gray-300 py-1 px-[6px] text-[13px] text-center ${locked ? "bg-gray-100 cursor-not-allowed" : "bg-white cursor-text"}`}
       />
 
       {/* 3 - Unit Price */}
@@ -3313,32 +2706,17 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
         value={row.unitPrice}
         disabled={locked}
         onChange={(e) => handleItemChange(index, "unitPrice", e.target.value)}
-        style={{
-          width: "100%",
-          borderRadius: 6,
-          border: "1px solid #d1d5db",
-          padding: "4px 6px",
-          fontSize: 13,
-          textAlign: "right",
-          background: locked ? "#f3f4f6" : "#ffffff",
-          cursor: locked ? "not-allowed" : "text",
-        }}
+        className={`w-full rounded-md border border-gray-300 py-1 px-[6px] text-[13px] text-right ${locked ? "bg-gray-100 cursor-not-allowed" : "bg-white cursor-text"}`}
       />
 
       {/* 4 - Teeth Numbers */}
       {isAllTeeth ? (
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 500,
-            textAlign: "center",
-            padding: "4px 6px",
-            background: "#fef3c7",
-            borderRadius: 6,
-            color: "#92400e",
-          }}
-        >
+        <div className="text-[13px] font-medium text-center py-1 px-2 bg-amber-100 rounded text-amber-800">
           Бүх шүд
+        </div>
+      ) : locked && toothCodeFromDiagnosis ? (
+        <div className="text-[13px] text-center py-1 px-2 bg-gray-50 rounded border border-gray-200 text-gray-700">
+          {toothCodeFromDiagnosis}
         </div>
       ) : (
         <input
@@ -3347,21 +2725,12 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
           value={(row.teethNumbers || []).join(", ")}
           disabled={locked}
           onChange={(e) => handleTeethNumbersChange(index, e.target.value)}
-          style={{
-            width: "70px",
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            padding: "4px 6px",
-            fontSize: 13,
-            textAlign: "left",
-            background: locked ? "#f3f4f6" : "#ffffff",
-            cursor: locked ? "not-allowed" : "text",
-          }}
+          className={`w-[70px] rounded-md border border-gray-300 py-1 px-[6px] text-[13px] text-left ${locked ? "bg-gray-100 cursor-not-allowed" : "bg-white cursor-text"}`}
         />
       )}
 
       {/* 5 - Line Total */}
-      <div style={{ fontSize: 13, fontWeight: 600, textAlign: "right" }}>
+      <div className="text-[13px] font-semibold text-right">
         {lineTotal.toLocaleString("mn-MN")}₮
       </div>
 
@@ -3370,15 +2739,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
         <button
           type="button"
           onClick={() => handleRemoveRow(index)}
-          style={{
-            padding: "4px 8px",
-            borderRadius: 6,
-            border: "1px solid #dc2626",
-            background: "#fef2f2",
-            color: "#b91c1c",
-            cursor: "pointer",
-            fontSize: 12,
-          }}
+          className="py-1 px-2 rounded-md border border-red-600 bg-red-50 text-red-700 cursor-pointer text-xs"
         >
           Устгах
         </button>
@@ -3388,16 +2749,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
 })}
             </div>
 
-            <div
-  style={{
-    marginTop: 12,
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
-    alignItems: "flex-end",
-    fontSize: 13,
-  }}
->
+            <div className="mt-3 flex flex-col gap-1 items-end text-[13px]">
   {/* ✅ Subtotals */}
   <div>
     Үйлчилгээний дүн:{" "}
@@ -3411,7 +2763,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
   {/* ✅ Discount amount (services only) */}
   <div>
     Хөнгөлөлт (зөвхөн үйлчилгээ):{" "}
-    <strong style={{ color: discountAmount > 0 ? "#b91c1c" : undefined }}>
+    <strong className={discountAmount > 0 ? "text-red-700" : undefined}>
       −{discountAmount.toLocaleString("mn-MN")}₮
     </strong>
   </div>
@@ -3422,11 +2774,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
     <select
       value={discountPercent}
       onChange={(e) => setDiscountPercent(Number(e.target.value))}
-      style={{
-        marginLeft: 8,
-        padding: "2px 4px",
-        fontSize: 13,
-      }}
+      className="ml-2 py-0.5 px-1 text-[13px]"
     >
       <option value={0}>0%</option>
       <option value={5}>5%</option>
@@ -3443,43 +2791,29 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
   {/* Final */}
   <div>
     Төлөх дүн:{" "}
-    <strong style={{ fontSize: 16 }}>
+    <strong className="text-base">
       {finalAmount.toLocaleString("mn-MN")}₮
     </strong>
   </div>
 </div>
 
             {saveError && (
-              <div style={{ color: "#b91c1c", marginTop: 8, fontSize: 13 }}>
+              <div className="text-red-700 mt-2 text-[13px]">
                 {saveError}
               </div>
             )}
             {saveSuccess && (
-              <div style={{ color: "#16a34a", marginTop: 8, fontSize: 13 }}>
+              <div className="text-green-600 mt-2 text-[13px]">
                 {saveSuccess}
               </div>
             )}
 
-            <div
-              style={{
-                marginTop: 12,
-                display: "flex",
-                justifyContent: "flex-end",
-              }}
-            >
+            <div className="mt-3 flex justify-end">
               <button
                 type="button"
                 onClick={handleSaveBilling}
                 disabled={saving}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: 6,
-                  border: "none",
-                  background: "#2563eb",
-                  color: "#ffffff",
-                  cursor: "pointer",
-                  fontSize: 14,
-                }}
+                className="py-2 px-4 rounded-md border-none bg-blue-600 text-white cursor-pointer text-sm"
               >
                 {saving
                   ? "Нэхэмжлэл хадгалж байна..."
@@ -3495,41 +2829,24 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
           <BillingEbarimtSection invoice={invoice} onUpdated={(updated) => setInvoice(updated)} />
 
           {/* NEW: Printable / patient paper sections */}
-          <section
-            style={{
-              marginTop: 16,
-              padding: 16,
-              borderRadius: 8,
-              border: "1px solid #e5e7eb",
-              background: "#ffffff",
-            }}
-          >
-            <h2 style={{ fontSize: 16, margin: 0, marginBottom: 8 }}>
+          <section className="mt-4 p-4 rounded-lg border border-gray-200 bg-white">
+            <h2 className="text-base m-0 mb-2">
               Хэвлэх боломжтой материалууд
             </h2>
-            <div style={{ fontSize: 12, color: "#6b7280" }}>
+            <div className="text-xs text-gray-500">
               Үйлчлүүлэгчид цаасаар өгөх шаардлагатай мэдээллүүд.
             </div>
 
            {/* Prescription */}
-<div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
-  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-    <h3 style={{ margin: 0, fontSize: 14 }}>Эмийн жор</h3>
+<div className="mt-3 pt-3 border-t border-gray-200">
+  <div className="flex justify-between gap-3">
+    <h3 className="m-0 text-sm">Эмийн жор</h3>
 
     {encounter.prescription?.items?.length ? (
       <button
         type="button"
         onClick={() => window.alert("Жор хэвлэх (дараа нь template оруулна)")}
-        style={{
-          padding: "6px 10px",
-          borderRadius: 6,
-          border: "1px solid #2563eb",
-          background: "#eff6ff",
-          color: "#2563eb",
-          cursor: "pointer",
-          fontSize: 12,
-          whiteSpace: "nowrap",
-        }}
+        className="py-[6px] px-[10px] rounded-md border border-blue-600 bg-blue-50 text-blue-600 cursor-pointer text-xs whitespace-nowrap"
       >
         Хэвлэх
       </button>
@@ -3537,18 +2854,18 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
   </div>
 
   {encounter.prescription?.items?.length ? (
-    <div style={{ marginTop: 8, fontSize: 12 }}>
-      <ol style={{ margin: 0, paddingLeft: 18 }}>
+    <div className="mt-2 text-xs">
+      <ol className="m-0 pl-[18px]">
         {encounter.prescription.items
           .slice()
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
           .map((it) => (
-            <li key={it.id} style={{ marginBottom: 4 }}>
+            <li key={it.id} className="mb-1">
               <div>
                 <strong>{it.drugName}</strong> — {it.quantityPerTake}x,{" "}
                 {it.frequencyPerDay}/өдөр, {it.durationDays} хоног
               </div>
-              <div style={{ color: "#6b7280" }}>
+              <div className="text-gray-500">
                 Тэмдэглэл: {it.note || "-"}
               </div>
             </li>
@@ -3556,7 +2873,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
       </ol>
     </div>
   ) : (
-    <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
+    <div className="mt-[6px] text-xs text-gray-500">
       Энэ үзлэгт эмийн жор байхгүй.
     </div>
   )}
@@ -3564,57 +2881,40 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
      
 
             {/* XRAY */}
-<div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
-  <h3 style={{ margin: 0, fontSize: 14 }}>XRAY зураг</h3>
+<div className="mt-3 pt-3 border-t border-gray-200">
+  <h3 className="m-0 text-sm">XRAY зураг</h3>
 
   {xraysLoading && (
-    <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
+    <div className="mt-[6px] text-xs text-gray-500">
       XRAY ачаалж байна...
     </div>
   )}
 
   {!xraysLoading && xraysError && (
-    <div style={{ marginTop: 6, fontSize: 12, color: "#b91c1c" }}>
+    <div className="mt-[6px] text-xs text-red-700">
       {xraysError}
     </div>
   )}
 
   {!xraysLoading && !xraysError && xrays.length === 0 && (
-    <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
+    <div className="mt-[6px] text-xs text-gray-500">
       XRAY зураг хавсаргагдаагүй.
     </div>
   )}
 
   {!xraysLoading && !xraysError && xrays.length > 0 && (
-    <div
-      style={{
-        marginTop: 6,
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-      }}
-    >
+    <div className="mt-[6px] flex flex-col gap-[6px]">
       {xrays.map((m) => (
         <div
           key={m.id}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 8,
-            padding: "6px 8px",
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            background: "#f9fafb",
-            fontSize: 12,
-          }}
+          className="flex items-center justify-between gap-2 py-[6px] px-2 border border-gray-200 rounded-lg bg-gray-50 text-xs"
         >
-          <div style={{ overflow: "hidden" }}>
+          <div className="overflow-hidden">
             <a href={m.filePath} target="_blank" rel="noreferrer">
               {m.filePath}
             </a>
             {m.toothCode ? (
-              <span style={{ color: "#6b7280" }}> • Шүд: {m.toothCode}</span>
+              <span className="text-gray-500"> • Шүд: {m.toothCode}</span>
             ) : null}
           </div>
 
@@ -3623,16 +2923,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
             onClick={() =>
               window.alert(`XRAY хэвлэх: ${m.filePath} (дараа нь template)`)
             }
-            style={{
-              padding: "4px 8px",
-              borderRadius: 6,
-              border: "1px solid #2563eb",
-              background: "#eff6ff",
-              color: "#2563eb",
-              cursor: "pointer",
-              fontSize: 12,
-              whiteSpace: "nowrap",
-            }}
+            className="py-1 px-2 rounded-md border border-blue-600 bg-blue-50 text-blue-600 cursor-pointer text-xs whitespace-nowrap"
           >
             Хэвлэх
           </button>
@@ -3643,41 +2934,31 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
 </div>
 
             {/* Consent */}
-<div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
-  <h3 style={{ margin: 0, fontSize: 14 }}>Зөвшөөрлийн маягт</h3>
+<div className="mt-3 pt-3 border-t border-gray-200">
+  <h3 className="m-0 text-sm">Зөвшөөрлийн маягт</h3>
 
   {consentLoading && (
-    <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
+    <div className="mt-[6px] text-xs text-gray-500">
       Зөвшөөрлийн маягт ачаалж байна...
     </div>
   )}
   {!consentLoading && consentError && (
-    <div style={{ marginTop: 6, fontSize: 12, color: "#b91c1c" }}>
+    <div className="mt-[6px] text-xs text-red-700">
       {consentError}
     </div>
   )}
   {!consentLoading && !consentError && consents.length === 0 && (
-    <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
+    <div className="mt-[6px] text-xs text-gray-500">
       Энэ үзлэгт бөглөгдсөн зөвшөөрлийн маягт байхгүй.
     </div>
   )}
 
   {!consentLoading && !consentError && consents.length > 0 && (
-    <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
+    <div className="mt-[6px] flex flex-col gap-[6px]">
       {consents.map((c) => (
         <div
           key={`${c.encounterId}-${c.type}`}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 8,
-            padding: "6px 8px",
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            background: "#f9fafb",
-            fontSize: 12,
-          }}
+          className="flex items-center justify-between gap-2 py-[6px] px-2 border border-gray-200 rounded-lg bg-gray-50 text-xs"
         >
           <div>
             <div>
@@ -3692,16 +2973,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
               const url = `/print/consent?encounterId=${c.encounterId}&type=${encodeURIComponent(c.type)}`;
               window.open(url, "_blank", "width=900,height=700,noopener,noreferrer");
             }}
-            style={{
-              padding: "4px 8px",
-              borderRadius: 6,
-              border: "1px solid #2563eb",
-              background: "#eff6ff",
-              color: "#2563eb",
-              cursor: "pointer",
-              fontSize: 12,
-              whiteSpace: "nowrap",
-            }}
+            className="py-1 px-2 rounded-md border border-blue-600 bg-blue-50 text-blue-600 cursor-pointer text-xs whitespace-nowrap"
           >
             Хэвлэх
           </button>
@@ -3716,37 +2988,19 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
 {/* ✅ Product picker modal (rendered once, outside header) */}
       {productModalOpen && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 80,
-          }}
+          className="fixed inset-0 bg-black/35 flex items-center justify-center z-[80]"
           onClick={() => setProductModalOpen(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{
-              width: 520,
-              maxWidth: "95vw",
-              maxHeight: "80vh",
-              overflowY: "auto",
-              background: "#ffffff",
-              borderRadius: 8,
-              boxShadow: "0 14px 40px rgba(0,0,0,0.25)",
-              padding: 16,
-              fontSize: 13,
-            }}
+            className="w-[520px] max-w-[95vw] max-h-[80vh] overflow-y-auto bg-white rounded-lg shadow-2xl p-4 text-[13px]"
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <h3 style={{ margin: 0, fontSize: 15 }}>Бүтээгдэхүүн сонгох</h3>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="m-0 text-[15px]">Бүтээгдэхүүн сонгох</h3>
               <button
                 type="button"
                 onClick={() => setProductModalOpen(false)}
-                style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 18, lineHeight: 1 }}
+                className="border-none bg-transparent cursor-pointer text-lg leading-none"
                 aria-label="Close"
               >
                 ×
@@ -3758,50 +3012,33 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
               value={productQuery}
               onChange={(e) => setProductQuery(e.target.value)}
               placeholder="Нэрээр хайх..."
-              style={{
-                width: "100%",
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                padding: "6px 8px",
-                fontSize: 13,
-              }}
+              className="w-full rounded-md border border-gray-300 py-[6px] px-2 text-[13px]"
             />
 
             {productsLoading && (
-              <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>Бүтээгдэхүүн ачаалж байна...</div>
+              <div className="mt-2 text-xs text-gray-500">Бүтээгдэхүүн ачаалж байна...</div>
             )}
             {productsError && (
-              <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c" }}>{productsError}</div>
+              <div className="mt-2 text-xs text-red-700">{productsError}</div>
             )}
 
             {!productsLoading && !productsError && filteredProducts.length === 0 && (
-              <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>Хайлтад тохирох бүтээгдэхүүн олдсонгүй.</div>
+              <div className="mt-2 text-xs text-gray-500">Хайлтад тохирох бүтээгдэхүүн олдсонгүй.</div>
             )}
 
-            <div style={{ marginTop: 8, borderRadius: 6, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+            <div className="mt-2 rounded-md border border-gray-200 overflow-hidden">
               {filteredProducts.map((p) => (
                 <button
                   key={p.id}
                   type="button"
                   onClick={() => handleAddRowFromProduct(p)}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "8px 10px",
-                    border: "none",
-                    borderBottom: "1px solid #f3f4f6",
-                    background: "#ffffff",
-                    cursor: "pointer",
-                    fontSize: 13,
-                  }}
+                  className="flex justify-between w-full text-left py-2 px-[10px] border-none border-b border-gray-100 bg-white cursor-pointer text-[13px]"
                 >
-                  <div style={{ fontWeight: 500 }}>
+                  <div className="font-medium">
                     {p.name}
-                    {p.sku ? <span style={{ marginLeft: 6, color: "#6b7280" }}>({p.sku})</span> : null}
+                    {p.sku ? <span className="ml-[6px] text-gray-500">({p.sku})</span> : null}
                   </div>
-                  <div style={{ color: "#6b7280" }}>{Number(p.price || 0).toLocaleString("mn-MN")}₮</div>
+                  <div className="text-gray-500">{Number(p.price || 0).toLocaleString("mn-MN")}₮</div>
                 </button>
               ))}
             </div>
@@ -3812,79 +3049,42 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
       {/* Service picker modal */}
       {serviceModalOpen && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 80,
-          }}
+          className="fixed inset-0 bg-black/35 flex items-center justify-center z-[80]"
           onClick={closeServiceModal}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{
-              width: 480,
-              maxWidth: "95vw",
-              maxHeight: "80vh",
-              overflowY: "auto",
-              background: "#ffffff",
-              borderRadius: 8,
-              boxShadow: "0 14px 40px rgba(0,0,0,0.25)",
-              padding: 16,
-              fontSize: 13,
-            }}
+            className="w-[480px] max-w-[95vw] max-h-[80vh] overflow-y-auto bg-white rounded-lg shadow-2xl p-4 text-[13px]"
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 8,
-              }}
-            >
-              <h3 style={{ margin: 0, fontSize: 15 }}>Үйлчилгээ сонгох</h3>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="m-0 text-[15px]">Үйлчилгээ сонгох</h3>
               <button
                 type="button"
                 onClick={closeServiceModal}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                  fontSize: 18,
-                  lineHeight: 1,
-                }}
+                className="border-none bg-transparent cursor-pointer text-lg leading-none"
                 aria-label="Close"
               >
                 ×
               </button>
             </div>
 
-            <div style={{ marginBottom: 8 }}>
+            <div className="mb-2">
               <input
                 type="text"
                 value={serviceQuery}
                 onChange={(e) => setServiceQuery(e.target.value)}
                 placeholder="Нэр эсвэл кодоор хайх..."
-                style={{
-                  width: "100%",
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  padding: "6px 8px",
-                  fontSize: 13,
-                }}
+                className="w-full rounded-md border border-gray-300 py-[6px] px-2 text-[13px]"
               />
             </div>
 
             {servicesLoading && (
-              <div style={{ fontSize: 12, color: "#6b7280" }}>
+              <div className="text-xs text-gray-500">
                 Үйлчилгээнүүдийг ачаалж байна...
               </div>
             )}
             {servicesError && (
-              <div style={{ fontSize: 12, color: "#b91c1c" }}>
+              <div className="text-xs text-red-700">
                 {servicesError}
               </div>
             )}
@@ -3892,45 +3092,21 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
             {!servicesLoading &&
               !servicesError &&
               filteredServices.length === 0 && (
-                <div style={{ fontSize: 12, color: "#6b7280" }}>
+                <div className="text-xs text-gray-500">
                   Хайлтад тохирох үйлчилгээ олдсонгүй.
                 </div>
               )}
 
-            <div
-              style={{
-                marginTop: 8,
-                borderRadius: 6,
-                border: "1px solid #e5e7eb",
-                maxHeight: 320,
-                overflowY: "auto",
-              }}
-            >
+            <div className="mt-2 rounded-md border border-gray-200 max-h-[320px] overflow-y-auto">
               {filteredServices.map((s) => (
                 <button
                   key={s.id}
                   type="button"
                   onClick={() => handleSelectServiceForRow(s)}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "6px 8px",
-                    border: "none",
-                    borderBottom: "1px solid #f3f4f6",
-                    background: "#ffffff",
-                    cursor: "pointer",
-                    fontSize: 13,
-                  }}
+                  className="block w-full text-left py-[6px] px-2 border-none border-b border-gray-100 bg-white cursor-pointer text-[13px]"
                 >
-                  <div style={{ fontWeight: 500 }}>{s.name}</div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "#6b7280",
-                      marginTop: 2,
-                    }}
-                  >
+                  <div className="font-medium">{s.name}</div>
+                  <div className="text-[11px] text-gray-500 mt-0.5">
                     Код: {s.code || "-"} • Үнэ:{" "}
                     {s.price.toLocaleString("mn-MN")}₮
                   </div>
