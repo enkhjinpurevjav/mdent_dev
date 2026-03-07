@@ -10,6 +10,7 @@ type DoctorRow = {
   defectPct: number;
   surgeryPct: number;
   generalPct: number;
+  imagingPct: number;
 
   monthlyGoalAmountMnt?: number;
 
@@ -21,7 +22,21 @@ type DoctorDraft = {
   defectPct: string;
   surgeryPct: string;
   generalPct: string;
+  imagingPct: string;
   monthlyGoalAmountMnt: string;
+};
+
+type NurseRow = {
+  nurseId: number;
+  ovog?: string | null;
+  name?: string | null;
+  email?: string | null;
+  imagingPct: number;
+  configUpdatedAt?: string | null;
+};
+
+type NurseDraft = {
+  imagingPct: string;
 };
 
 function formatDateOnly(iso?: string | null) {
@@ -62,6 +77,7 @@ export default function StaffIncomeSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [savingGlobal, setSavingGlobal] = useState(false);
   const [savingDoctorId, setSavingDoctorId] = useState<number | null>(null);
+  const [savingNurseId, setSavingNurseId] = useState<number | null>(null);
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -75,6 +91,11 @@ export default function StaffIncomeSettingsPage() {
   const [doctors, setDoctors] = useState<DoctorRow[]>([]);
   const [editDoctorId, setEditDoctorId] = useState<number | null>(null);
   const [doctorDraftById, setDoctorDraftById] = useState<Record<number, DoctorDraft>>({});
+
+  // Nurses + row editing
+  const [nurses, setNurses] = useState<NurseRow[]>([]);
+  const [editNurseId, setEditNurseId] = useState<number | null>(null);
+  const [nurseDraftById, setNurseDraftById] = useState<Record<number, NurseDraft>>({});
 
   const clearMessagesSoon = () => {
     setTimeout(() => {
@@ -103,8 +124,13 @@ export default function StaffIncomeSettingsPage() {
       const list: DoctorRow[] = Array.isArray(data.doctors) ? data.doctors : [];
       setDoctors(list);
 
+      const nurseList: NurseRow[] = Array.isArray(data.nurses) ? data.nurses : [];
+      setNurses(nurseList);
+
       setEditDoctorId(null);
       setDoctorDraftById({});
+      setEditNurseId(null);
+      setNurseDraftById({});
     } catch (e: any) {
       console.error(e);
       setError(e?.message || "Failed to load staff income settings");
@@ -162,6 +188,7 @@ export default function StaffIncomeSettingsPage() {
         body: JSON.stringify({
           whiteningDeductAmountMnt: n,
           doctors: [],
+          nurses: [],
         }),
       });
 
@@ -194,6 +221,7 @@ export default function StaffIncomeSettingsPage() {
         defectPct: String(d.defectPct ?? 0),
         surgeryPct: String(d.surgeryPct ?? 0),
         generalPct: String(d.generalPct ?? 0),
+        imagingPct: String(d.imagingPct ?? 0),
         monthlyGoalAmountMnt: String(d.monthlyGoalAmountMnt ?? 0),
       },
     }));
@@ -223,6 +251,7 @@ export default function StaffIncomeSettingsPage() {
           defectPct: "0",
           surgeryPct: "0",
           generalPct: "0",
+          imagingPct: "0",
           monthlyGoalAmountMnt: "0",
         }),
         [field]: value,
@@ -244,9 +273,10 @@ export default function StaffIncomeSettingsPage() {
     const defect = nonNegativeOrNaN(toNumberOrNaN(draft.defectPct));
     const surgery = nonNegativeOrNaN(toNumberOrNaN(draft.surgeryPct));
     const general = nonNegativeOrNaN(toNumberOrNaN(draft.generalPct));
+    const imaging = nonNegativeOrNaN(toNumberOrNaN(draft.imagingPct));
     const goal = nonNegativeOrNaN(toNumberOrNaN(draft.monthlyGoalAmountMnt));
 
-    if ([ortho, defect, surgery, general, goal].some((x) => Number.isNaN(x))) {
+    if ([ortho, defect, surgery, general, imaging, goal].some((x) => Number.isNaN(x))) {
       setError("Утга нь 0 эсвэл түүнээс их тоо байна. Хувьд бутархай зөвшөөрнө.");
       return;
     }
@@ -266,9 +296,11 @@ export default function StaffIncomeSettingsPage() {
               defectPct: defect,
               surgeryPct: surgery,
               generalPct: general,
+              imagingPct: imaging,
               monthlyGoalAmountMnt: goal,
             },
           ],
+          nurses: [],
         }),
       });
 
@@ -284,6 +316,7 @@ export default function StaffIncomeSettingsPage() {
                 defectPct: defect,
                 surgeryPct: surgery,
                 generalPct: general,
+                imagingPct: imaging,
                 monthlyGoalAmountMnt: goal,
               }
             : d
@@ -303,13 +336,97 @@ export default function StaffIncomeSettingsPage() {
     }
   };
 
-  const anyRowEditing = editDoctorId !== null;
+  const anyRowEditing = editDoctorId !== null || editNurseId !== null;
 
-  // Fix for overlap + buttons position:
-  // - make Goal column a bit wider
-  // - make % columns fixed width but NOT too small
-  // - keep actions on far right (last column is 200px)
-  const headerAndRowColumns = "200px 180px 90px 90px 90px 90px 110px 200px";
+  // ----- Nurse row edit/save/cancel -----
+  const startEditNurse = (n: NurseRow) => {
+    setError("");
+    setSuccess("");
+    setEditNurseId(n.nurseId);
+    setNurseDraftById((prev) => ({
+      ...prev,
+      [n.nurseId]: { imagingPct: String(n.imagingPct ?? 0) },
+    }));
+  };
+
+  const cancelEditNurse = (nurseId: number) => {
+    setError("");
+    setSuccess("");
+    setEditNurseId(null);
+    setNurseDraftById((prev) => {
+      const copy = { ...prev };
+      delete copy[nurseId];
+      return copy;
+    });
+  };
+
+  const handleNurseDraftChange = (nurseId: number, field: keyof NurseDraft, value: string) => {
+    setNurseDraftById((prev) => ({
+      ...prev,
+      [nurseId]: { ...(prev[nurseId] || { imagingPct: "0" }), [field]: value },
+    }));
+  };
+
+  const saveNurseRow = async (nurseId: number) => {
+    setError("");
+    setSuccess("");
+
+    const draft = nurseDraftById[nurseId];
+    if (!draft) {
+      setError("Хадгалах өгөгдөл олдсонгүй.");
+      return;
+    }
+
+    const imaging = nonNegativeOrNaN(toNumberOrNaN(draft.imagingPct));
+    if (Number.isNaN(imaging)) {
+      setError("imagingPct нь 0 эсвэл түүнээс их тоо байна.");
+      return;
+    }
+
+    try {
+      setSavingNurseId(nurseId);
+
+      const res = await fetch("/api/admin/staff-income-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          whiteningDeductAmountMnt: Number(whiteningValue || 0),
+          doctors: [],
+          nurses: [{ nurseId, imagingPct: imaging }],
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((data && data.error) || "Failed to save nurse config");
+
+      setNurses((prev) =>
+        prev.map((n) => (n.nurseId === nurseId ? { ...n, imagingPct: imaging } : n))
+      );
+
+      await loadData();
+      setEditNurseId(null);
+      setSuccess("Сувилагчийн тохиргоог хадгаллаа.");
+      clearMessagesSoon();
+    } catch (e: any) {
+      console.error(e);
+      setError(e?.message || "Сувилагчийн тохиргоо хадгалахад алдаа гарлаа.");
+    } finally {
+      setSavingNurseId(null);
+    }
+  };
+
+  const nurseRowsSorted = useMemo(() => {
+    const copy = nurses.slice();
+    copy.sort((a, b) => {
+      const an = formatDoctorName(a as any);
+      const bn = formatDoctorName(b as any);
+      return an.localeCompare(bn, "mn");
+    });
+    return copy;
+  }, [nurses]);
+
+  // Doctor columns: name, goal, ortho, defect, surgery, general, imaging, updated, actions
+  const headerAndRowColumns = "200px 160px 80px 80px 80px 80px 80px 110px 200px";
 
   return (
     <main
@@ -473,7 +590,7 @@ export default function StaffIncomeSettingsPage() {
                 color: "#374151",
               }}
             >
-              Зураг (IMAGING): Эмч 5% (fixed)
+              Зураг (IMAGING) урамшуулал: Зурагны мөрөнд assignedTo=DOCTOR тохируулсан үед эмчид тооцно.
             </div>
           </div>
 
@@ -514,7 +631,7 @@ export default function StaffIncomeSettingsPage() {
 
         <div style={{ overflowX: "auto" }}>
           {/* minWidth must be >= total columns width, otherwise overlap */}
-          <div style={{ minWidth: 1150 }}>
+          <div style={{ minWidth: 1280 }}>
             {/* Header */}
             <div
               style={{
@@ -537,6 +654,7 @@ export default function StaffIncomeSettingsPage() {
               <div style={{ textAlign: "right" }}>Согог (%)</div>
               <div style={{ textAlign: "right" }}>Мэс (%)</div>
               <div style={{ textAlign: "right" }}>Бусад (%)</div>
+              <div style={{ textAlign: "right" }}>Зураг (%)</div>
               <div style={{ textAlign: "center" }}>Шинэчилсэн</div>
               <div style={{ textAlign: "right" }} />
             </div>
@@ -653,6 +771,19 @@ export default function StaffIncomeSettingsPage() {
                       style={pctInputStyle}
                     />
 
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      disabled={!editing}
+                      value={editing ? draft?.imagingPct ?? "" : String(d.imagingPct ?? 0)}
+                      onChange={(e) =>
+                        handleDoctorDraftChange(d.doctorId, "imagingPct", e.target.value)
+                      }
+                      style={pctInputStyle}
+                      title="Зураг (IMAGING) авалтын урамшуулал %"
+                    />
+
                     <div style={{ fontSize: 12, color: "#374151", textAlign: "center" }}>
                       {formatDateOnly(d.configUpdatedAt)}
                     </div>
@@ -736,6 +867,175 @@ export default function StaffIncomeSettingsPage() {
 
         <div style={{ marginTop: 14, fontSize: 12, color: "#6b7280" }}>
           Тайлбар: Хувь нь 0 эсвэл түүнээс их тоо байна. Бутархай (ж. 15.5) зөвшөөрнө.
+        </div>
+      </section>
+
+      {/* Nurses table */}
+      <section
+        style={{
+          marginTop: 20,
+          padding: 16,
+          borderRadius: 12,
+          border: "1px solid #e5e7eb",
+          background: "#ffffff",
+          boxShadow: "0 1px 0 rgba(17,24,39,0.03)",
+        }}
+      >
+        <div style={{ fontWeight: 800, marginBottom: 10 }}>Сувилагчийн зурагны урамшуулал</div>
+
+        <div style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: 700 }}>
+            {/* Header */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "200px 80px 110px 200px",
+                gap: 10,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "#f9fafb",
+                border: "1px solid #e5e7eb",
+                fontSize: 12,
+                color: "#6b7280",
+                fontWeight: 800,
+                alignItems: "center",
+              }}
+            >
+              <div>Сувилагч</div>
+              <div style={{ textAlign: "right" }}>Зураг (%)</div>
+              <div style={{ textAlign: "center" }}>Шинэчилсэн</div>
+              <div style={{ textAlign: "right" }} />
+            </div>
+
+            {/* Rows */}
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+              {nurseRowsSorted.map((n) => {
+                const editing = editNurseId === n.nurseId;
+                const draft = nurseDraftById[n.nurseId];
+
+                const pctInputStyle: React.CSSProperties = {
+                  borderRadius: 10,
+                  border: "1px solid #d1d5db",
+                  fontSize: 13,
+                  textAlign: "right",
+                  background: editing ? "#ffffff" : "#f9fafb",
+                  height: 34,
+                  padding: "0 8px",
+                  width: 72,
+                  justifySelf: "end",
+                };
+
+                return (
+                  <div
+                    key={n.nurseId}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "200px 80px 110px 200px",
+                      gap: 10,
+                      padding: "12px 12px",
+                      borderRadius: 12,
+                      border: "1px solid #e5e7eb",
+                      background: "#ffffff",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>
+                      {formatDoctorName(n as any)}
+                    </div>
+
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      disabled={!editing}
+                      value={editing ? draft?.imagingPct ?? "" : String(n.imagingPct ?? 0)}
+                      onChange={(e) => handleNurseDraftChange(n.nurseId, "imagingPct", e.target.value)}
+                      style={pctInputStyle}
+                      title="Зурагны урамшуулал %"
+                    />
+
+                    <div style={{ fontSize: 12, color: "#374151", textAlign: "center" }}>
+                      {formatDateOnly(n.configUpdatedAt)}
+                    </div>
+
+                    <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                      {!editing ? (
+                        <button
+                          type="button"
+                          onClick={() => startEditNurse(n)}
+                          disabled={editNurseId !== null && editNurseId !== n.nurseId}
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 10,
+                            border: "1px solid #d1d5db",
+                            background: "#ffffff",
+                            cursor:
+                              editNurseId !== null && editNurseId !== n.nurseId
+                                ? "not-allowed"
+                                : "pointer",
+                            fontSize: 13,
+                            fontWeight: 800,
+                            minWidth: 88,
+                          }}
+                        >
+                          Засах
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => void saveNurseRow(n.nurseId)}
+                            disabled={savingNurseId === n.nurseId}
+                            style={{
+                              padding: "8px 12px",
+                              borderRadius: 10,
+                              border: "1px solid #16a34a",
+                              background: "#f0fdf4",
+                              color: "#15803d",
+                              cursor: savingNurseId === n.nurseId ? "not-allowed" : "pointer",
+                              fontSize: 13,
+                              fontWeight: 900,
+                              minWidth: 96,
+                            }}
+                          >
+                            {savingNurseId === n.nurseId ? "..." : "Хадгалах"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => cancelEditNurse(n.nurseId)}
+                            disabled={savingNurseId === n.nurseId}
+                            style={{
+                              padding: "8px 12px",
+                              borderRadius: 10,
+                              border: "1px solid #d1d5db",
+                              background: "#ffffff",
+                              cursor: savingNurseId === n.nurseId ? "not-allowed" : "pointer",
+                              fontSize: 13,
+                              fontWeight: 800,
+                              minWidth: 80,
+                            }}
+                          >
+                            Болих
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {nurseRowsSorted.length === 0 ? (
+                <div style={{ marginTop: 10, fontSize: 13, color: "#6b7280" }}>
+                  Сувилагчийн жагсаалт олдсонгүй.
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 14, fontSize: 12, color: "#6b7280" }}>
+          Тайлбар: Зурагны урамшуулал — meta.assignedTo=NURSE байх зурагны мөрөнд тооцно.
         </div>
       </section>
     </main>

@@ -676,6 +676,7 @@ model User {
   generalPct  Float @default(0) // General treatment commission %
   monthlyGoalAmountMnt Float @default(0) // Monthly revenue goal in Mongolian Tugriks (MNT)
   commissionConfig DoctorCommissionConfig?
+  nurseCommissionConfig NurseCommissionConfig?
 }
 
 // ==========================================================
@@ -1244,6 +1245,9 @@ model InvoiceItem {
 
   source InvoiceItemSource @default(MANUAL)
 
+  // Imaging performer attribution: { assignedTo: "DOCTOR"|"NURSE", nurseId?: number }
+  meta Json?
+
   allocations PaymentAllocation[]
 
   @@index([invoiceId])
@@ -1630,10 +1634,26 @@ model DoctorCommissionConfig {
   defectPct  Float @default(0) // defect correction commission %
   surgeryPct Float @default(0) // surgery commission %
   generalPct Float @default(0) // general treatment commission %
+  imagingPct Float @default(0) // imaging commission % (when assignedTo=DOCTOR)
 
   monthlyGoalAmountMnt Float @default(0)
 
   updatedAt DateTime @updatedAt
 
   @@index([doctorId])
+}
+
+// ==========================================================
+// NURSE COMMISSION CONFIGURATION
+// ==========================================================
+model NurseCommissionConfig {
+  id      Int  @id @default(autoincrement())
+  nurseId Int  @unique
+  nurse   User @relation(fields: [nurseId], references: [id])
+
+  imagingPct Float @default(0) // imaging commission % for nurse
+
+  updatedAt DateTime @updatedAt
+
+  @@index([nurseId])
 }

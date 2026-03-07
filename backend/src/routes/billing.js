@@ -214,6 +214,7 @@ router.get("/encounters/:id/invoice", async (req, res) => {
           quantity: it.quantity,
           lineTotal: it.lineTotal,
           source: it.source,
+          meta: it.meta ?? null,
           alreadyAllocated: allocByItemId.get(it.id) ?? 0,
         })),
         patientTotalBilled: balanceData.totalBilled,
@@ -411,6 +412,9 @@ router.post("/encounters/:id/invoice", async (req, res) => {
       const name = String(row.name || "").trim();
       const lineTotal = qty * price;
 
+      // Persist imaging performer meta (assignedTo, nurseId) if provided
+      const meta = row.meta != null ? row.meta : null;
+
       normalizedItems.push({
         id: row.id ?? null,
         itemType,
@@ -421,6 +425,7 @@ router.post("/encounters/:id/invoice", async (req, res) => {
         quantity: qty,
         lineTotal,
         source,
+        meta,
       });
     }
 
@@ -464,6 +469,7 @@ router.post("/encounters/:id/invoice", async (req, res) => {
               quantity: it.quantity,
               lineTotal: it.lineTotal,
               source: it.source,
+              meta: it.meta ?? undefined,
             })),
           },
         },
@@ -490,6 +496,7 @@ router.post("/encounters/:id/invoice", async (req, res) => {
               quantity: it.quantity,
               lineTotal: it.lineTotal,
               source: it.source,
+              meta: it.meta ?? undefined,
             })),
           },
         },
@@ -519,6 +526,7 @@ router.post("/encounters/:id/invoice", async (req, res) => {
         quantity: it.quantity,
         lineTotal: it.lineTotal,
         source: it.source,
+        meta: it.meta ?? null,
       })),
     });
   } catch (err) {
@@ -870,6 +878,7 @@ router.post("/encounters/:id/batch-settlement", async (req, res) => {
         quantity: it.quantity,
         lineTotal: it.lineTotal,
         source: it.source,
+        meta: it.meta ?? null,
       })),
       payments: updatedInvoice.payments.map((p) => ({
         id: p.id,
