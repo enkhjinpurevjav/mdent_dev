@@ -2629,11 +2629,11 @@ const handleCancelDraft = (appointmentId: number) => {
 
               {/* Last 3 completed visits */}
               <div style={{ marginBottom: 6 }}>
-                <div style={{ color: "#6b7280", marginBottom: 3, fontSize: 11 }}>Сүүлийн дууссан үзлэгүүд:</div>
+                <div style={{ color: "#6b7280", marginBottom: 3, fontSize: 11 }}>Сүүлийн үзлэгүүд:</div>
                 {filterPatientHistoryLoading ? (
                   <div style={{ color: "#9ca3af", fontSize: 11 }}>Уншиж байна...</div>
                 ) : filterPatientHistory.length === 0 ? (
-                  <div style={{ color: "#9ca3af", fontSize: 11 }}>Өмнөх дууссан үзлэг байхгүй</div>
+                  <div style={{ color: "#9ca3af", fontSize: 11 }}>Өмнөх үзлэг байхгүй</div>
                 ) : (
                   filterPatientHistory.map((h) => (
                     <div key={h.id} style={{ color: "#374151", fontSize: 11, padding: "1px 0" }}>
