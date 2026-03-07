@@ -343,51 +343,18 @@ useEffect(() => {
     });
 
     return (
-      <div
-        style={{
-          overflowX: "auto",
-          marginTop: 12,
-          border: "1px solid #e5e7eb",
-          borderRadius: 8,
-        }}
-      >
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "separate",
-            borderSpacing: 0,
-            fontSize: 12,
-            background: "white",
-          }}
-        >
+      <div className="overflow-x-auto mt-3 border border-gray-200 rounded-lg">
+        <table className="w-full border-separate border-spacing-0 text-xs bg-white">
           <thead>
             <tr>
-              <th
-                style={{
-                  textAlign: "center",
-                  background: "#f9fafb",
-                  padding: 8,
-                  borderBottom: "2px solid #d1d5db",
-                  borderRight: "1px solid #e5e7eb",
-                  fontWeight: "bold",
-                  minWidth: 100,
-                }}
-              >
+              <th className="text-center bg-gray-50 p-2 border-b-2 border-b-gray-300 border-r border-r-gray-200 font-bold min-w-[100px]">
                 Огноо
               </th>
               {timeLabels.map((timeLabel) => (
                 <th
                   key={timeLabel}
-                  style={{
-                    textAlign: "center",
-                    background: "#f9fafb",
-                    borderBottom: "2px solid #d1d5db",
-                    borderRight: "1px solid #e5e7eb",
-                    padding: 8,
-                    fontWeight: "bold",
-                    width: COL_WIDTH,
-                    maxWidth: COL_WIDTH,
-                  }}
+                  className="text-center bg-gray-50 border-b-2 border-b-gray-300 border-r border-r-gray-200 p-2 font-bold"
+                  style={{ width: COL_WIDTH, maxWidth: COL_WIDTH }}
                 >
                   {timeLabel}
                 </th>
@@ -415,19 +382,11 @@ useEffect(() => {
                 <tr key={day.date}>
                   {/* Date as the first column */}
                   <td
-                    style={{
-                      padding: 8,
-                      textAlign: "center",
-                      background: "#f9fafb",
-                      fontWeight: 500,
-                      borderBottom: "1px solid #e5e7eb",
-                      borderRight: "1px solid #e5e7eb",
-                      verticalAlign: "top",
-                      minHeight: MIN_ROW_HEIGHT,
-                    }}
+                    className="p-2 text-center bg-gray-50 font-medium border-b border-b-gray-200 border-r border-r-gray-200 align-top"
+                    style={{ minHeight: MIN_ROW_HEIGHT }}
                   >
                     <div>{day.dayLabel}</div>
-                    <div style={{ fontSize: 10, color: "#6b7280" }}>
+                    <div className="text-[10px] text-gray-500">
                       {new Date(day.date).toLocaleDateString("mn-MN", {
                         year: "numeric",
                         month: "2-digit",
@@ -439,18 +398,14 @@ useEffect(() => {
                   {/* Time slots container with duration-spanning appointment blocks */}
                   <td
                     colSpan={timeLabels.length}
-                    style={{
-                      padding: 0,
-                      borderBottom: "1px solid #e5e7eb",
-                      position: "relative",
-                    }}
+                    className="p-0 border-b border-b-gray-200 relative"
                   >
                     {/* Base grid layer for cell backgrounds and click handlers */}
-                    <div 
-                      style={{ 
-                        display: "grid",
+                    <div
+                      className="grid"
+                      style={{
                         gridTemplateColumns: `repeat(${timeLabels.length}, ${COL_WIDTH}px)`,
-                        gridTemplateRows: "repeat(2, 40px)", // 2 lanes
+                        gridTemplateRows: "repeat(2, 40px)",
                         minHeight: MIN_ROW_HEIGHT,
                       }}
                     >
@@ -461,15 +416,11 @@ useEffect(() => {
                           return (
                             <div
                               key={`${day.date}-${timeLabel}-lane0`}
+                              className="p-2 text-center flex items-center justify-center"
                               style={{
                                 gridRow: "1 / 3",
-                                padding: 8,
                                 background: "rgba(249, 250, 251, 0.6)",
-                                textAlign: "center",
                                 borderRight: colIndex < timeLabels.length - 1 ? "1px solid #e5e7eb" : "none",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
                               }}
                             >
                               –
@@ -481,16 +432,11 @@ useEffect(() => {
                           return (
                             <div
                               key={`${day.date}-${timeLabel}-lane0`}
+                              className="p-2 text-center text-gray-400 flex items-center justify-center"
                               style={{
                                 gridRow: "1 / 3",
-                                padding: 8,
                                 background: "rgba(243, 244, 246, 0.7)",
-                                color: "#9ca3af",
-                                textAlign: "center",
                                 borderRight: colIndex < timeLabels.length - 1 ? "1px solid #e5e7eb" : "none",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
                               }}
                             >
                               -
@@ -502,14 +448,13 @@ useEffect(() => {
                         return (
                           <React.Fragment key={`${day.date}-${timeLabel}`}>
                             <div
+                              className="p-1 border-b border-b-gray-200"
                               style={{
                                 gridRow: "1",
-                                padding: 4,
                                 background: slot.status === "booked"
                                   ? "rgba(254, 242, 242, 0.7)"
                                   : "rgba(236, 253, 243, 0.7)",
                                 borderRight: colIndex < timeLabels.length - 1 ? "1px solid #e5e7eb" : "none",
-                                borderBottom: "1px solid #e5e7eb",
                                 cursor: followUpBooking ? "not-allowed" : "pointer",
                               }}
                               onClick={() => {
@@ -521,9 +466,9 @@ useEffect(() => {
                               }}
                             />
                             <div
+                              className="p-1"
                               style={{
                                 gridRow: "2",
-                                padding: 4,
                                 background: slot.status === "booked"
                                   ? "rgba(254, 242, 242, 0.7)"
                                   : "rgba(236, 253, 243, 0.7)",
@@ -545,16 +490,10 @@ useEffect(() => {
 
                     {/* Appointment blocks layer (absolute positioned) */}
                     <div
+                      className="absolute inset-0 grid pointer-events-none"
                       style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        display: "grid",
                         gridTemplateColumns: `repeat(${timeLabels.length}, ${COL_WIDTH}px)`,
                         gridTemplateRows: "repeat(2, 40px)",
-                        pointerEvents: "none",
                       }}
                     >
                       {appointments.map((apt) => {
@@ -568,24 +507,13 @@ useEffect(() => {
                         return (
                           <div
                             key={apt.id}
+                            className="m-0.5 px-2 py-1 text-[11px] font-semibold text-red-800 overflow-hidden text-ellipsis whitespace-nowrap cursor-pointer pointer-events-auto flex items-center"
                             style={{
                               gridColumn: `${startCol + 1} / span ${colSpan}`,
                               gridRow: gridRow,
-                              margin: "2px",
-                              padding: "4px 8px",
                               background: "rgba(254, 202, 202, 0.95)",
                               border: "1px solid #fca5a5",
                               borderRadius: BLOCK_BORDER_RADIUS,
-                              fontSize: 11,
-                              fontWeight: 600,
-                              color: "#991b1b",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                              cursor: "pointer",
-                              pointerEvents: "auto",
-                              display: "flex",
-                              alignItems: "center",
                             }}
                             title={`${nameOnly(formatGridShortLabel(apt)) || "Захиалга"} (${getHmFromIso(apt.scheduledAt)} - ${apt.endAt ? getHmFromIso(apt.endAt) : "—"})`}
                             onClick={(e) => {
@@ -609,26 +537,12 @@ useEffect(() => {
   };
 
   return (
-    <div
-      style={{
-        marginTop: 16,
-        padding: 12,
-        borderRadius: 8,
-        border: "1px solid #e5e7eb",
-        background: "#f9fafb",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 6,
-        }}
-      >
-        <label>
+    <div className="mt-4 p-3 rounded-lg border border-gray-200 bg-gray-50">
+      <div className="flex items-center gap-2 mb-1.5">
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-900">
           <input
             type="checkbox"
+            className="h-4 w-4"
             checked={showFollowUpScheduler}
             disabled={followUpLoading}
             onChange={(e) => onToggleScheduler(e.target.checked)}
@@ -637,19 +551,19 @@ useEffect(() => {
         </label>
 
         {followUpLoading && (
-          <span style={{ fontSize: 12, color: "#6b7280" }}>
+          <span className="text-xs text-gray-500">
             (ачаалж байна...)
           </span>
         )}
 
         {followUpError && (
-          <span style={{ fontSize: 12, color: "#b91c1c" }}>
+          <span className="text-xs text-red-700">
             {followUpError}
           </span>
         )}
 
         {followUpSuccess && (
-          <span style={{ fontSize: 12, color: "#16a34a" }}>
+          <span className="text-xs text-green-600">
             {followUpSuccess}
           </span>
         )}
@@ -657,57 +571,33 @@ useEffect(() => {
 
       {showFollowUpScheduler && (
         <>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 12,
-              marginBottom: 12,
-              fontSize: 13,
-              alignItems: "center",
-            }}
-          >
-            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          <div className="flex flex-wrap gap-3 mb-3 text-[13px] items-center">
+            <div className="flex gap-1 items-center">
               <label>Эхлэх:</label>
               <input
                 type="date"
                 value={followUpDateFrom}
                 onChange={(e) => onDateFromChange(e.target.value)}
-                style={{
-                  padding: "4px 6px",
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  fontSize: 12,
-                }}
+                className="px-1.5 py-1 rounded-md border border-gray-300 text-xs"
               />
             </div>
 
-            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <div className="flex gap-1 items-center">
               <label>Дуусах:</label>
               <input
                 type="date"
                 value={followUpDateTo}
                 onChange={(e) => onDateToChange(e.target.value)}
-                style={{
-                  padding: "4px 6px",
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  fontSize: 12,
-                }}
+                className="px-1.5 py-1 rounded-md border border-gray-300 text-xs"
               />
             </div>
 
-            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <div className="flex gap-1 items-center">
               <label>Нэг цагийн үргэлжлэх хугацаа:</label>
               <select
                 value={followUpSlotMinutes}
                 onChange={(e) => onSlotMinutesChange(Number(e.target.value))}
-                style={{
-                  padding: "4px 6px",
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  fontSize: 12,
-                }}
+                className="px-1.5 py-1 rounded-md border border-gray-300 text-xs"
               >
                 <option value={30}>30 минут</option>
                 <option value={60}>60 минут</option>
@@ -718,54 +608,30 @@ useEffect(() => {
           </div>
 
           {followUpNoSchedule && (
-            <div
-              style={{
-                padding: 12,
-                borderRadius: 8,
-                border: "1px solid #fde68a",
-                background: "#fffbeb",
-                color: "#92400e",
-                fontSize: 13,
-                marginBottom: 12,
-              }}
-            >
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>
+            <div className="p-3 rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-800 text-[13px] mb-3">
+              <div className="font-bold mb-1.5">
                 Эмчийн цагийн хуваарь тохируулаагүй байна
               </div>
-              <div style={{ fontSize: 12 }}>Давтан үзлэгийн цагийг гарын авлагаар оруулна уу.</div>
+              <div className="text-xs">Давтан үзлэгийн цагийг гарын авлагаар оруулна уу.</div>
 
               {/* Quick Create */}
-              <div
-                style={{ display: "flex", gap: 10, marginTop: 10, justifyContent: "space-between" }}
-              >
+              <div className="flex gap-2.5 mt-2.5 justify-between">
                 <input
                   type="date"
                   value={quickDate}
                   onChange={(e) => setQuickDate(e.target.value)}
-                  style={{
-                    padding: "8px",
-                    border: "1px solid #ccc",
-                    borderRadius: 6,
-                  }}
+                  className="p-2 border border-gray-300 rounded-md"
                 />
                 <input
                   type="time"
                   value={quickTime}
                   onChange={(e) => setQuickTime(e.target.value)}
-                  style={{
-                    padding: "8px",
-                    border: "1px solid #ccc",
-                    borderRadius: 6,
-                  }}
+                  className="p-2 border border-gray-300 rounded-md"
                 />
                 <select
                   value={quickDuration}
                   onChange={(e) => setQuickDuration(Number(e.target.value))}
-                  style={{
-                    padding: "8px",
-                    border: "1px solid #ccc",
-                    borderRadius: 6,
-                  }}
+                  className="p-2 border border-gray-300 rounded-md"
                 >
                   <option value={30}>30 минут</option>
                   <option value={60}>60 минут</option>
@@ -778,15 +644,7 @@ useEffect(() => {
                   onClick={() =>
                     onQuickCreate?.({ date: quickDate, time: quickTime, durationMinutes: quickDuration })
                   }
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 6,
-                    background: "#2563eb",
-                    border: "1px solid #2563eb",
-                    color: "white",
-                    cursor: followUpBooking ? "not-allowed" : "pointer",
-                    fontWeight: 500,
-                  }}
+                  className={`px-3 py-2 rounded-md bg-blue-600 border border-blue-600 text-white font-medium ${followUpBooking ? "cursor-not-allowed" : "cursor-pointer"}`}
                 >
                   Гараар цаг үүсгэх
                 </button>
@@ -800,71 +658,36 @@ useEffect(() => {
       {/* Render Details Modal */}
       {detailsOpen && (
   <div
-    style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,0.5)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      zIndex: 1000,
-    }}
+    className="fixed inset-0 bg-black/50 flex justify-center items-center z-[1000]"
     onClick={() => setDetailsOpen(false)}
   >
     <div
-      style={{
-        minWidth: "450px",
-        maxWidth: "600px",
-        padding: 24,
-        background: "white",
-        borderRadius: 12,
-        boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-      }}
+      className="min-w-[450px] max-w-[600px] p-6 bg-white rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.2)]"
       onClick={(e) => e.stopPropagation()}
     >
-      <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 18, fontWeight: 600 }}>
+      <h3 className="mt-0 mb-3 text-lg font-semibold">
         Захиалсан цаг - {detailsDate} {detailsTime}
       </h3>
 
       {/* Occupancy indicator */}
-      <div style={{ 
-        padding: "8px 12px", 
-        background: detailsAppointments.length >= 2 ? "#fee2e2" : "#ecfdf3",
-        borderRadius: 8,
-        marginBottom: 16,
-        fontSize: 14,
-        fontWeight: 500,
-        color: detailsAppointments.length >= 2 ? "#991b1b" : "#166534",
-      }}>
+      <div className={`px-3 py-2 rounded-lg mb-4 text-sm font-medium ${detailsAppointments.length >= 2 ? "bg-red-100 text-red-800" : "bg-green-50 text-green-800"}`}>
         Дүүргэлт: {detailsAppointments.length}/2
       </div>
 
       {/* List existing appointments */}
-      <div style={{ marginBottom: 16 }}>
+      <div className="mb-4">
         {detailsAppointments.length === 0 ? (
-          <div style={{ 
-            padding: 12, 
-            background: "#f9fafb", 
-            borderRadius: 8,
-            color: "#6b7280",
-            fontSize: 14,
-          }}>
+          <div className="p-3 bg-gray-50 rounded-lg text-gray-500 text-sm">
             Энэ цагт захиалга байхгүй байна
           </div>
         ) : (
           detailsAppointments.map((a, idx) => (
-            <div 
-              key={a.id} 
-              style={{ 
-                marginBottom: 12,
-                padding: 12,
-                background: "#f9fafb",
-                borderRadius: 8,
-                border: "1px solid #e5e7eb",
-              }}
+            <div
+              key={a.id}
+              className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <div style={{ fontWeight: 600 }}>
+              <div className="flex justify-between items-center mb-1">
+                <div className="font-semibold">
                   Захиалга #{idx + 1}
                 </div>
                 {canDeleteAppointment(a) && (
@@ -872,29 +695,19 @@ useEffect(() => {
                     type="button"
                     disabled={deletingAppointmentId === a.id}
                     onClick={() => handleDeleteAppointment(a.id)}
-                    style={{
-                      padding: "4px 12px",
-                      borderRadius: 4,
-                      background: "#ef4444",
-                      border: "1px solid #dc2626",
-                      color: "white",
-                      cursor: deletingAppointmentId === a.id ? "not-allowed" : "pointer",
-                      fontWeight: 500,
-                      fontSize: 12,
-                      opacity: deletingAppointmentId === a.id ? 0.6 : 1,
-                    }}
+                    className={`px-3 py-1 rounded text-xs font-medium text-white bg-red-500 border border-red-600 ${deletingAppointmentId === a.id ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                   >
                     {deletingAppointmentId === a.id ? "Устгаж байна..." : "Устгах"}
                   </button>
                 )}
               </div>
-              <p style={{ margin: "4px 0", fontSize: 14 }}>
+              <p className="my-1 text-sm">
                 Үйлчлүүлэгч: <strong>{formatGridShortLabel(a) || "-"}</strong>
               </p>
-              <p style={{ margin: "4px 0", fontSize: 14, color: "#6b7280" }}>
+              <p className="my-1 text-sm text-gray-500">
                 Салбар: <strong>{a.branch?.name || "-"}</strong>
               </p>
-              <p style={{ margin: "4px 0", fontSize: 14, color: "#6b7280" }}>
+              <p className="my-1 text-sm text-gray-500">
                 Хугацаа: {getHmFromIso(a.scheduledAt)} - {a.endAt ? getHmFromIso(a.endAt) : "—"}
               </p>
             </div>
@@ -903,7 +716,7 @@ useEffect(() => {
       </div>
 
       {/* Action buttons */}
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+      <div className="flex gap-2 justify-end">
         {canAddAppointment && (
           <button
             type="button"
@@ -913,31 +726,13 @@ useEffect(() => {
               setSlotModalOpen(true);
               setSelectedSlot(detailsSlotStart);
             }}
-            style={{
-              padding: "10px 16px",
-              borderRadius: 6,
-              background: "#16a34a",
-              border: "1px solid #16a34a",
-              color: "white",
-              cursor: followUpBooking ? "not-allowed" : "pointer",
-              fontWeight: 500,
-              fontSize: 14,
-            }}
+            className={`px-4 py-2.5 rounded-md bg-green-600 border border-green-600 text-white font-medium text-sm ${followUpBooking ? "cursor-not-allowed" : "cursor-pointer"}`}
           >
             + Шинэ цаг оруулах
           </button>
         )}
         <button
-          style={{
-            padding: "10px 16px",
-            borderRadius: 6,
-            background: "#e5e7eb",
-            color: "#374151",
-            border: "1px solid #d1d5db",
-            cursor: "pointer",
-            fontWeight: 500,
-            fontSize: 14,
-          }}
+          className="px-4 py-2.5 rounded-md bg-gray-200 text-gray-700 border border-gray-300 cursor-pointer font-medium text-sm"
           onClick={() => setDetailsOpen(false)}
         >
           Хаах
@@ -950,15 +745,7 @@ useEffect(() => {
       {/* Duration Selection Modal */}
       {slotModalOpen && (
   <div
-    style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,0.5)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 1000,
-    }}
+    className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]"
     onClick={() => {
       setSlotModalOpen(false);
       setSelectedSlot("");
@@ -966,49 +753,26 @@ useEffect(() => {
   >
     <div
       onClick={(e) => e.stopPropagation()}
-      style={{
-        minWidth: "400px",
-        padding: "24px",
-        background: "white",
-        borderRadius: "12px",
-        boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-      }}
+      className="min-w-[400px] p-6 bg-white rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.2)]"
     >
-      <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: 18, fontWeight: 600 }}>
+      <h3 className="mt-0 mb-4 text-lg font-semibold">
         Цагийн үргэлжлэх хугацаа сонгох
       </h3>
-      <p style={{ fontSize: 14 }}>Цаг: {selectedSlot ? getHmFromIso(selectedSlot) : ""}</p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "16px 0" }}>
+      <p className="text-sm">Цаг: {selectedSlot ? getHmFromIso(selectedSlot) : ""}</p>
+      <div className="grid grid-cols-2 gap-2 my-4">
         {[30, 60, 90, 120].map((duration) => (
           <button
             key={duration}
             onClick={() => handleDurationSelect(duration)}
             disabled={followUpBooking}
-            style={{
-              padding: "12px",
-              borderRadius: 6,
-              background: "#ecfdf3",
-              border: "1px solid #16a34a",
-              color: "#166534",
-              cursor: followUpBooking ? "not-allowed" : "pointer",
-              fontSize: 14,
-              fontWeight: 500,
-            }}
+            className={`p-3 rounded-md bg-green-50 border border-green-600 text-green-700 font-medium text-sm ${followUpBooking ? "cursor-not-allowed" : "cursor-pointer"}`}
           >
             {duration} минут
           </button>
         ))}
       </div>
       <button
-        style={{
-          padding: "8px 16px",
-          borderRadius: 6,
-          background: "#e5e7eb",
-          color: "#374151",
-          border: "1px solid #d1d5db",
-          cursor: "pointer",
-          fontWeight: 500,
-        }}
+        className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 border border-gray-300 cursor-pointer font-medium"
         onClick={() => {
           setSlotModalOpen(false);
           setSelectedSlot("");
