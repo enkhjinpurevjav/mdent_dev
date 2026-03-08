@@ -413,6 +413,16 @@ export default function XrayPage() {
         throw new Error(data.error || "Төлбөрт шилжүүлэхэд алдаа гарлаа");
       }
 
+      const data = await res.json().catch((parseErr) => {
+        console.warn("[xray] transition-to-ready: failed to parse response JSON", parseErr);
+        return {};
+      });
+      if (data.encounterId) {
+        console.log(
+          `[xray] transition-to-ready: appointmentId=${selectedAppt.id} encounterId=${data.encounterId}`
+        );
+      }
+
       setSuccessMsg("Төлбөрт амжилттай шилжүүллээ");
 
       // Remove the appointment from the list after a short delay
