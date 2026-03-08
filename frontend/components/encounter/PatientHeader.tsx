@@ -91,9 +91,11 @@ export default function PatientHeader({
         <nav
           style={{
             display: "flex",
-            flexDirection: "column",
-            gap: 2,
-            marginTop: 4,
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 0,
+            marginTop: 8,
+            borderBottom: "2px solid #e5e7eb",
           }}
         >
           {navItems.map((item) => (
@@ -101,25 +103,23 @@ export default function PatientHeader({
               key={item.href}
               href={item.href}
               style={{
-                display: "block",
-                padding: "5px 10px",
-                borderRadius: 6,
-                border: "1px solid #e5e7eb",
-                background: "#f9fafb",
+                display: "inline-block",
+                padding: "6px 12px",
                 fontSize: 12,
-                color: "#374151",
+                color: "#6b7280",
                 textDecoration: "none",
                 cursor: "pointer",
+                borderBottom: "2px solid transparent",
+                marginBottom: -2,
+                whiteSpace: "nowrap",
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.background = "#eff6ff";
                 (e.currentTarget as HTMLAnchorElement).style.color = "#1d4ed8";
-                (e.currentTarget as HTMLAnchorElement).style.borderColor = "#bfdbfe";
+                (e.currentTarget as HTMLAnchorElement).style.borderBottomColor = "#3b82f6";
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.background = "#f9fafb";
-                (e.currentTarget as HTMLAnchorElement).style.color = "#374151";
-                (e.currentTarget as HTMLAnchorElement).style.borderColor = "#e5e7eb";
+                (e.currentTarget as HTMLAnchorElement).style.color = "#6b7280";
+                (e.currentTarget as HTMLAnchorElement).style.borderBottomColor = "transparent";
               }}
             >
               {item.label}
