@@ -543,6 +543,41 @@ router.get("/profile/by-book/:bookNumber", async (req, res) => {
       },
     });
 
+    // For follow-up appointments, also fetch source encounter materials so the
+    // "Хавсралтууд" button can show XRAY uploads from the originating encounter
+    // when the follow-up has no own encounter (or its own encounter has no materials).
+    const followUpSourceIds = rawAppointments
+      .filter((a) => a.source === "FOLLOW_UP_ENCOUNTER" && a.sourceEncounterId)
+      .map((a) => a.sourceEncounterId);
+
+    let sourceEncounterMap = new Map();
+    if (followUpSourceIds.length > 0) {
+      const sourceEncounters = await prisma.encounter.findMany({
+        where: { id: { in: followUpSourceIds } },
+        select: {
+          id: true,
+          _count: {
+            select: {
+              media: { where: { type: "XRAY" } },
+              consents: true,
+            },
+          },
+          prescription: {
+            select: {
+              id: true,
+              _count: { select: { items: true } },
+            },
+          },
+          invoice: {
+            select: {
+              eBarimtReceipt: { select: { id: true } },
+            },
+          },
+        },
+      });
+      sourceEncounterMap = new Map(sourceEncounters.map((e) => [e.id, e]));
+    }
+
     // Enrich each appointment with encounterId and materialsCount
     const appointments = rawAppointments.map((a) => {
       const enc = a.encounters?.[0] ?? null;
@@ -556,6 +591,25 @@ router.get("/profile/by-book/:bookNumber", async (req, res) => {
         const ebarimtPresent = enc.invoice?.eBarimtReceipt ? 1 : 0;
         materialsCount = xrayCount + consentCount + prescriptionHasItems + ebarimtPresent;
       }
+
+      // For follow-up appointments: fall back to source encounter when the
+      // follow-up has no encounter or its encounter has no materials.
+      if (a.source === "FOLLOW_UP_ENCOUNTER" && a.sourceEncounterId && materialsCount === 0) {
+        const sourceEnc = sourceEncounterMap.get(a.sourceEncounterId);
+        if (sourceEnc) {
+          const xrayCount = sourceEnc._count?.media ?? 0;
+          const consentCount = sourceEnc._count?.consents ?? 0;
+          const prescriptionHasItems = (sourceEnc.prescription?._count?.items ?? 0) > 0 ? 1 : 0;
+          const ebarimtPresent = sourceEnc.invoice?.eBarimtReceipt ? 1 : 0;
+          const sourceMaterialsCount = xrayCount + consentCount + prescriptionHasItems + ebarimtPresent;
+          if (sourceMaterialsCount > 0) {
+            materialsCount = sourceMaterialsCount;
+            // Always point to the source encounter so the modal loads the correct media
+            encounterId = sourceEnc.id;
+          }
+        }
+      }
+
       const { encounters, ...apptWithoutEncounters } = a;
       return { ...apptWithoutEncounters, encounterId, materialsCount };
     });
