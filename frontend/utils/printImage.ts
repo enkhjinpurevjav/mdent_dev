@@ -17,7 +17,7 @@ function toAbsoluteUrl(url: string): string {
 export function printImage(imageUrl: string): void {
   const absoluteUrl = toAbsoluteUrl(imageUrl);
   const origin = window.location.origin;
-  const win = window.open("", "_blank", "width=900,height=700,noopener,noreferrer");
+  const win = window.open("", "_blank", "width=900,height=700,noopener");
   if (!win) return;
 
   const html = `<!DOCTYPE html>
@@ -101,6 +101,11 @@ export function printImage(imageUrl: string): void {
 </body>
 </html>`;
 
-  win.document.write(html);
-  win.document.close();
+  try {
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+  } catch (err) {
+    console.error("[printImage] Failed to write to print popup:", err);
+  }
 }
