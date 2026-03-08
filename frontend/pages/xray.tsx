@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import MediaGallery from "../components/encounter/MediaGallery";
+import { StatusBadge } from "../components/xray/StatusBadge";
+import { AppointmentListItem } from "../components/xray/AppointmentListItem";
 import type { AppointmentRow } from "../types/appointments";
 import type { EncounterMedia, Service, Nurse } from "../types/encounter-admin";
 
@@ -21,6 +23,9 @@ type ImagingConfig = {
 
 /** How often (ms) to poll for new appointments when the nurse is idle. */
 const APPOINTMENT_POLL_INTERVAL_MS = 60_000;
+
+const inputCls =
+  "w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
 export default function XrayPage() {
   const today = new Date().toISOString().slice(0, 10);
@@ -431,452 +436,307 @@ export default function XrayPage() {
     );
   };
 
-  // ─── Status badge ─────────────────────────────────────────────────────────
-
-  const getStatusBadge = (status: string) => {
-    if (status === "ongoing") {
-      return (
-        <span
-          style={{
-            padding: "4px 8px",
-            borderRadius: 4,
-            fontSize: 12,
-            background: "#fef3c7",
-            color: "#92400e",
-          }}
-        >
-          Явагдаж байна
-        </span>
-      );
-    }
-    if (status === "imaging") {
-      return (
-        <span
-          style={{
-            padding: "4px 8px",
-            borderRadius: 4,
-            fontSize: 12,
-            background: "#dbeafe",
-            color: "#1e40af",
-          }}
-        >
-          Зураг
-        </span>
-      );
-    }
-    return null;
-  };
-
-  /** Format a scheduled time string for display. */
   /** Format a scheduled date+time string for display: YYYY.MM.DD HH:MM */
-const formatDateTime = (appt: XrayAppointment) => {
-  const iso = appt.scheduledAt ?? appt.startTime ?? null;
-  if (!iso) return "—";
+  const formatDateTime = (appt: XrayAppointment) => {
+    const iso = appt.scheduledAt ?? appt.startTime ?? null;
+    if (!iso) return "—";
 
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
 
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
 
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
 
-  return `${y}.${m}.${day} ${hh}:${mm}`;
-};
+    return `${y}.${m}.${day} ${hh}:${mm}`;
+  };
 
   /** Return the patient registration number from either API field. */
   const getRegNo = (appt: XrayAppointment) => appt.patientRegNo ?? appt.regNo ?? "—";
 
+  // ─── Billing button disabled state ───────────────────────────────────────
+
+  const billingDisabled =
+    transitioning ||
+    selectedServiceIds.length === 0 ||
+    (performerType === "NURSE" && !selectedNurseId);
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <div style={{ padding: 16, borderBottom: "1px solid #e5e7eb" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>XRAY ажлын өрөө</h1>
+    <div className="flex flex-col h-screen">
+      {/* Page header */}
+      <div className="px-4 py-3 border-b border-gray-200 bg-white">
+        <h1 className="text-xl font-semibold text-gray-900">XRAY ажлын өрөө</h1>
       </div>
 
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+      <div className="flex flex-1 overflow-hidden">
         {/* ─ Left panel: appointment list ─ */}
-        <div
-          style={{
-            width: 400,
-            borderRight: "1px solid #e5e7eb",
-            display: "flex",
-            flexDirection: "column",
-            background: "#f9fafb",
-          }}
-        >
-          <div style={{ padding: 12 }}>
+        <aside className="w-80 border-r border-gray-200 flex flex-col bg-gray-50 shrink-0">
+          {/* Search & date filters */}
+          <div className="p-3 border-b border-gray-200 bg-gray-50">
             <input
               type="text"
               placeholder="Өвчтөний нэр, РД хайх..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                border: "1px solid #d1d5db",
-                borderRadius: 6,
-                fontSize: 14,
-                marginBottom: 8,
-                boxSizing: "border-box",
-              }}
+              className={`${inputCls} mb-2`}
             />
-            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <div className="flex gap-2">
               <input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                style={{
-                  flex: 1,
-                  padding: "6px 8px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: 6,
-                  fontSize: 13,
-                }}
+                className="flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                style={{
-                  flex: 1,
-                  padding: "6px 8px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: 6,
-                  fontSize: 13,
-                }}
+                className="flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            {loading && <div style={{ fontSize: 13 }}>Уншиж байна...</div>}
+            {loading && (
+              <p className="mt-2 text-xs text-gray-500">Уншиж байна...</p>
+            )}
             {error && !selectedAppt && (
-              <div style={{ color: "red", fontSize: 13, marginTop: 8 }}>{error}</div>
+              <p className="mt-2 text-xs text-red-600">{error}</p>
             )}
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto" }}>
+          {/* Appointment list */}
+          <div className="flex-1 overflow-y-auto">
             {filteredAppointments.length === 0 ? (
-              <div style={{ padding: 16, fontSize: 13, color: "#6b7280" }}>Цаг олдсонгүй</div>
+              <p className="p-4 text-sm text-gray-500">Цаг олдсонгүй</p>
             ) : (
               filteredAppointments.map((appt) => (
-                <div
+                <AppointmentListItem
                   key={appt.id}
-                  onClick={() => setSelectedAppt(appt)}
-                  style={{
-                    padding: 12,
-                    borderBottom: "1px solid #e5e7eb",
-                    cursor: "pointer",
-                    background: selectedAppt?.id === appt.id ? "#eff6ff" : "white",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: 4,
-                    }}
-                  >
-                    <span style={{ fontSize: 14, fontWeight: 500 }}>{appt.patientName}</span>
-                    {getStatusBadge(appt.status)}
-                  </div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>РД: {getRegNo(appt)}</div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>
-                    Эмч: {appt.doctorName || "—"}
-                  </div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>
-  Огноо: {formatDateTime(appt)}
-</div>
-                </div>
+                  appt={appt}
+                  selected={selectedAppt?.id === appt.id}
+                  formatDateTime={formatDateTime}
+                  getRegNo={getRegNo}
+                  onClick={setSelectedAppt}
+                />
               ))
             )}
           </div>
-        </div>
+        </aside>
 
         {/* ─ Right panel: appointment details ─ */}
-        <div
-          style={{ flex: 1, padding: 16, overflowY: "auto", background: "white" }}
-        >
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-4">
           {!selectedAppt ? (
-            <div
-              style={{ fontSize: 14, color: "#6b7280", textAlign: "center", marginTop: 100 }}
-            >
-              Цаг сонгоно уу
+            <div className="flex items-center justify-center h-full">
+              <p className="text-sm text-gray-400">Цаг сонгоно уу</p>
             </div>
           ) : (
-            <div>
-              {/* Header */}
-              <div style={{ marginBottom: 16 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    marginBottom: 8,
-                  }}
-                >
-                  <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>
+            <div className="max-w-3xl mx-auto space-y-4">
+              {/* ── Patient / appointment header card ── */}
+              <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+                  <h2 className="text-base font-semibold text-gray-900">
                     {selectedAppt.patientName}
                   </h2>
-                  {getStatusBadge(selectedAppt.status)}
+                  <StatusBadge status={selectedAppt.status} />
                 </div>
-                <div style={{ fontSize: 13, color: "#6b7280" }}>
-                  РД: {getRegNo(selectedAppt)}
-                </div>
-                <div style={{ fontSize: 13, color: "#6b7280" }}>
-                  Эмч: {selectedAppt.doctorName || "—"}
-                </div>
-                <div style={{ fontSize: 13, color: "#6b7280" }}>
-                  Салбар: {selectedAppt.branchName || "—"}
+                <div className="px-4 py-3 grid grid-cols-1 sm:grid-cols-3 gap-y-1 gap-x-4 text-sm text-gray-600">
+                  <div>
+                    <span className="font-medium text-gray-700">РД: </span>
+                    {getRegNo(selectedAppt)}
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Эмч: </span>
+                    {selectedAppt.doctorName || "—"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-700">Салбар: </span>
+                    {selectedAppt.branchName || "—"}
+                  </div>
                 </div>
               </div>
 
+              {/* ── Alerts ── */}
               {successMsg && (
-                <div
-                  style={{
-                    padding: 12,
-                    background: "#d1fae5",
-                    color: "#065f46",
-                    borderRadius: 6,
-                    marginBottom: 16,
-                    fontSize: 13,
-                  }}
-                >
+                <div className="rounded-md bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800">
                   {successMsg}
                 </div>
               )}
-
               {error && (
-                <div
-                  style={{
-                    padding: 12,
-                    background: "#fee2e2",
-                    color: "#991b1b",
-                    borderRadius: 6,
-                    marginBottom: 16,
-                    fontSize: 13,
-                  }}
-                >
+                <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
                   {error}
                 </div>
               )}
 
-              {/* Media gallery — shown for ALL statuses */}
-              <MediaGallery
-                media={media}
-                mediaLoading={mediaLoading}
-                mediaError={mediaError}
-                uploadingMedia={uploadingMedia}
-                onUpload={handleMediaUpload}
-                onDelete={handleMediaDelete}
-                onRefresh={handleMediaRefresh}
-              />
+              {/* ── Media gallery card ── */}
+              <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
+                  <h3 className="text-sm font-semibold text-gray-800">Зурагнууд</h3>
+                </div>
+                <div className="p-4">
+                  <MediaGallery
+                    media={media}
+                    mediaLoading={mediaLoading}
+                    mediaError={mediaError}
+                    uploadingMedia={uploadingMedia}
+                    onUpload={handleMediaUpload}
+                    onDelete={handleMediaDelete}
+                    onRefresh={handleMediaRefresh}
+                  />
+                </div>
+              </div>
 
               {/* ─ Imaging-only section ─ */}
               {selectedAppt.status === "imaging" && (
-                <div style={{ marginTop: 24 }}>
-                  <div
-                    style={{
-                      borderTop: "1px dashed #e5e7eb",
-                      paddingTop: 16,
-                      marginBottom: 16,
-                    }}
-                  >
-                    {/* Single performer selection for the whole encounter */}
-                    <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-                      Гүйцэтгэгч
-                    </h3>
-
-                    {configLoading ? (
-                      <div style={{ fontSize: 13, color: "#6b7280" }}>
-                        Тохиргоо уншиж байна...
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                          <label
-                            style={{
-                              display: "inline-flex",
-                              gap: 6,
-                              alignItems: "center",
-                              fontSize: 13,
-                              cursor: "pointer",
-                            }}
-                          >
-                            <input
-                              type="radio"
-                              name="xray-performerType"
-                              checked={performerType === "DOCTOR"}
-                              onChange={() => {
-                                setPerformerType("DOCTOR");
-                                setSelectedNurseId(null);
-                              }}
-                            />
-                            Эмч: {selectedAppt.doctorName || "—"}
-                          </label>
-
-                          <label
-                            style={{
-                              display: "inline-flex",
-                              gap: 6,
-                              alignItems: "center",
-                              fontSize: 13,
-                              cursor: "pointer",
-                            }}
-                          >
-                            <input
-                              type="radio"
-                              name="xray-performerType"
-                              checked={performerType === "NURSE"}
-                              onChange={() => setPerformerType("NURSE")}
-                            />
-                            Сувилагч
-                          </label>
-                        </div>
-
-                        {performerType === "NURSE" && (
-                          <div style={{ paddingLeft: 4 }}>
-                            {loadingNurses ? (
-                              <span style={{ fontSize: 13, color: "#6b7280" }}>
-                                Уншиж байна...
-                              </span>
-                            ) : (
-                              <>
-                                <select
-                                  value={selectedNurseId ?? ""}
-                                  onChange={(e) =>
-                                    setSelectedNurseId(
-                                      e.target.value ? Number(e.target.value) : null
-                                    )
-                                  }
-                                  style={{
-                                    padding: "6px 8px",
-                                    border:
-                                      selectedNurseId === null
-                                        ? "1.5px solid #ef4444"
-                                        : "1px solid #d1d5db",
-                                    borderRadius: 4,
-                                    fontSize: 13,
-                                    minWidth: 200,
-                                  }}
-                                >
-                                  <option value="">— Сувилагч сонгох —</option>
-                                  {nurses.map((n) => (
-                                    <option key={n.id} value={n.id}>
-                                      {n.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                {selectedNurseId === null && (
-                                  <div
-                                    style={{ fontSize: 12, color: "#ef4444", marginTop: 4 }}
-                                  >
-                                    Сувилагч сонгоно уу
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Service checkbox list */}
-                    <h3
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        marginTop: 20,
-                        marginBottom: 12,
-                      }}
-                    >
-                      Үйлчилгээ сонгох
-                    </h3>
-
-                    {loadingServices ? (
-                      <div style={{ fontSize: 13, color: "#6b7280" }}>Уншиж байна...</div>
-                    ) : services.length === 0 ? (
-                      <div style={{ fontSize: 13, color: "#6b7280" }}>
-                        IMAGING үйлчилгээ олдсонгүй
-                      </div>
-                    ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        {services.map((s) => {
-                          const isChecked = selectedServiceIds.includes(s.id);
-                          return (
-                            <label
-                              key={s.id}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                padding: "8px 12px",
-                                border: "1px solid #e5e7eb",
-                                borderRadius: 6,
-                                background: isChecked ? "#f0f9ff" : "white",
-                                cursor: "pointer",
-                                fontSize: 13,
-                              }}
-                            >
+                <>
+                  {/* ── Performer selection card ── */}
+                  <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+                    <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
+                      <h3 className="text-sm font-semibold text-gray-800">Гүйцэтгэгч</h3>
+                    </div>
+                    <div className="p-4">
+                      {configLoading ? (
+                        <p className="text-sm text-gray-500">Тохиргоо уншиж байна...</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {/* Radio: Doctor / Nurse */}
+                          <div className="flex gap-6">
+                            <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
                               <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={(e) => toggleService(s.id, e.target.checked)}
+                                type="radio"
+                                name="xray-performerType"
+                                checked={performerType === "DOCTOR"}
+                                onChange={() => {
+                                  setPerformerType("DOCTOR");
+                                  setSelectedNurseId(null);
+                                }}
                               />
-                              <span>
-                                {s.code ? `${s.code}: ` : ""}
-                                {s.name}{" "}
-                                <span style={{ color: "#6b7280" }}>
-                                  ({s.price.toLocaleString("mn-MN")}₮)
-                                </span>
-                              </span>
+                              <span>Эмч: {selectedAppt.doctorName || "—"}</span>
                             </label>
-                          );
-                        })}
-                      </div>
-                    )}
+                            <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                              <input
+                                type="radio"
+                                name="xray-performerType"
+                                checked={performerType === "NURSE"}
+                                onChange={() => setPerformerType("NURSE")}
+                              />
+                              <span>Сувилагч</span>
+                            </label>
+                          </div>
+
+                          {/* Nurse select */}
+                          {performerType === "NURSE" && (
+                            <div>
+                              {loadingNurses ? (
+                                <p className="text-sm text-gray-500">Уншиж байна...</p>
+                              ) : (
+                                <>
+                                  <select
+                                    value={selectedNurseId ?? ""}
+                                    onChange={(e) =>
+                                      setSelectedNurseId(
+                                        e.target.value ? Number(e.target.value) : null
+                                      )
+                                    }
+                                    className={`rounded-md border px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px] ${
+                                      selectedNurseId === null
+                                        ? "border-red-400"
+                                        : "border-gray-300"
+                                    }`}
+                                  >
+                                    <option value="">— Сувилагч сонгох —</option>
+                                    {nurses.map((n) => (
+                                      <option key={n.id} value={n.id}>
+                                        {n.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {selectedNurseId === null && (
+                                    <p className="mt-1 text-xs text-red-500">
+                                      Сувилагч сонгоно уу
+                                    </p>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Transfer to billing button */}
-                  <button
-                    onClick={handleTransitionToReady}
-                    disabled={
-                      transitioning ||
-                      selectedServiceIds.length === 0 ||
-                      (performerType === "NURSE" && !selectedNurseId)
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "10px 16px",
-                      background: "#16a34a",
-                      color: "white",
-                      border: "none",
-                      borderRadius: 6,
-                      fontSize: 14,
-                      fontWeight: 500,
-                      cursor:
-                        transitioning ||
-                        selectedServiceIds.length === 0 ||
-                        (performerType === "NURSE" && !selectedNurseId)
-                          ? "default"
-                          : "pointer",
-                      opacity:
-                        transitioning ||
-                        selectedServiceIds.length === 0 ||
-                        (performerType === "NURSE" && !selectedNurseId)
-                          ? 0.6
-                          : 1,
-                    }}
-                  >
-                    {transitioning ? "Шилжүүлж байна..." : "Төлбөрт шилжүүлэх"}
-                  </button>
-                </div>
+                  {/* ── Service selection card ── */}
+                  <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+                    <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
+                      <h3 className="text-sm font-semibold text-gray-800">Үйлчилгээ сонгох</h3>
+                    </div>
+                    <div className="p-4">
+                      {loadingServices ? (
+                        <p className="text-sm text-gray-500">Уншиж байна...</p>
+                      ) : services.length === 0 ? (
+                        <p className="text-sm text-gray-500">IMAGING үйлчилгээ олдсонгүй</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {services.map((s) => {
+                            const isChecked = selectedServiceIds.includes(s.id);
+                            return (
+                              <label
+                                key={s.id}
+                                className={`flex items-center gap-3 px-3 py-2.5 rounded-md border cursor-pointer text-sm transition-colors ${
+                                  isChecked
+                                    ? "border-blue-300 bg-blue-50 text-gray-900"
+                                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => toggleService(s.id, e.target.checked)}
+                                  className="shrink-0"
+                                />
+                                <span>
+                                  {s.code ? `${s.code}: ` : ""}
+                                  {s.name}{" "}
+                                  <span className="text-gray-500">
+                                    ({s.price.toLocaleString("mn-MN")}₮)
+                                  </span>
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ── Transfer to billing ── */}
+                  <div className="rounded-lg border border-gray-200 bg-white shadow-sm p-4">
+                    {selectedServiceIds.length === 0 && (
+                      <p className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                        Төлбөрт шилжүүлэхийн тулд дор хаяж нэг үйлчилгээ сонгоно уу.
+                      </p>
+                    )}
+                    {performerType === "NURSE" && !selectedNurseId && (
+                      <p className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                        Сувилагч сонгоно уу.
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleTransitionToReady}
+                      disabled={billingDisabled}
+                      className="w-full rounded-md bg-green-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {transitioning ? "Шилжүүлж байна..." : "Төлбөрт шилжүүлэх"}
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           )}
-        </div>
+        </main>
       </div>
     </div>
   );
