@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import { QRCodeSVG } from "qrcode.react";
+import { printImage } from "../../utils/printImage";
 
 type Branch = { id: number; name: string };
 
@@ -3004,9 +3005,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
 
           <button
             type="button"
-            onClick={() =>
-              window.alert(`XRAY хэвлэх: ${m.filePath} (дараа нь template)`)
-            }
+            onClick={() => printImage(m.filePath)}
             className="py-1 px-2 rounded-md border border-blue-600 bg-blue-50 text-blue-600 cursor-pointer text-xs whitespace-nowrap"
           >
             Хэвлэх

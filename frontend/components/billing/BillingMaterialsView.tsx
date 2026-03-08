@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { printImage } from "../../utils/printImage";
 
 type PrescriptionItem = {
   id: number;
@@ -294,14 +295,23 @@ export default function BillingMaterialsView({ encounterId }: Props) {
               {xrays.map((m) => (
                 <div
                   key={m.id}
-                  className="flex items-center gap-2 py-[6px] px-2 border border-gray-200 rounded-lg bg-gray-50 text-xs"
+                  className="flex items-center justify-between gap-2 py-[6px] px-2 border border-gray-200 rounded-lg bg-gray-50 text-xs"
                 >
-                  <a href={m.filePath} target="_blank" rel="noreferrer">
-                    {m.filePath}
-                  </a>
-                  {m.toothCode ? (
-                    <span className="text-gray-500"> • Шүд: {m.toothCode}</span>
-                  ) : null}
+                  <div className="overflow-hidden">
+                    <a href={m.filePath} target="_blank" rel="noreferrer">
+                      {m.filePath}
+                    </a>
+                    {m.toothCode ? (
+                      <span className="text-gray-500"> • Шүд: {m.toothCode}</span>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => printImage(m.filePath)}
+                    className="py-1 px-2 rounded-md border border-blue-600 bg-blue-50 text-blue-600 cursor-pointer text-xs whitespace-nowrap"
+                  >
+                    Хэвлэх
+                  </button>
                 </div>
               ))}
             </div>
