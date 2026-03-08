@@ -206,7 +206,7 @@ export default function SterilizationToolLineSelector({
             }}
           />
 
-          {isOpen && (
+          {isOpen && searchText.trim().length >= 1 && (
             <div
               style={{
                 position: "absolute",
