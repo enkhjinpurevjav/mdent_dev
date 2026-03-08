@@ -1,5 +1,6 @@
 import express from "express";
 import prisma from "../db.js";
+import { copyXrayMediaToCanonical } from "../utils/imagingMediaCopy.js";
 
 
 const router = express.Router();
@@ -1693,13 +1694,14 @@ router.post("/:id/imaging/transition-to-ready", async (req, res) => {
 
     const { serviceIds, serviceLines } = req.body || {};
 
-    // Validate appointment exists and is in imaging status
+    // Validate appointment exists and is in imaging status.
+    // Fetch ALL encounters (ordered desc) so we can copy XRAY media from
+    // any older encounter into the canonical (latest) one.
     const appt = await prisma.appointment.findUnique({
       where: { id: apptId },
       include: {
         encounters: {
           orderBy: { id: "desc" },
-          take: 1,
           include: {
             encounterServices: {
               include: { service: true },
@@ -1829,6 +1831,24 @@ router.post("/:id/imaging/transition-to-ready", async (req, res) => {
       where: { id: apptId },
       data: { status: "ready_to_pay" },
     });
+
+    // Copy XRAY media from any other encounter(s) linked to this appointment
+    // into the canonical encounter so Billing can print all images.
+    // Only runs when there are multiple encounters (imaging-only workflow).
+    const otherEncounterIds = (appt.encounters || [])
+      .slice(1)
+      .map((e) => e.id);
+    if (otherEncounterIds.length > 0) {
+      try {
+        await copyXrayMediaToCanonical(encounter.id, otherEncounterIds, prisma);
+      } catch (copyErr) {
+        // Non-fatal: log but do not block the transition
+        console.error(
+          "copyXrayMediaToCanonical failed (non-fatal):",
+          copyErr
+        );
+      }
+    }
 
     return res.json({
       success: true,
