@@ -161,9 +161,14 @@ export default function DiagnosesEditor({
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {rows.map((row, index) => {
+        {rows.reduce<[number[], number[]]>(
+          (acc, r, i) => { acc[r.locked ? 1 : 0].push(i); return acc; },
+          [[], []]
+        ).flat().map((index) => {
+          const row = rows[index];
           const problems = problemsByDiagnosis[row.diagnosisId ?? 0] || [];
           const isLocked = row.locked ?? false;
+          const hasSearchText = (row.searchText || "").trim().length > 0;
           const selectedService = row.serviceId
             ? services.find((s) => s.id === row.serviceId)
             : null;
@@ -607,7 +612,7 @@ export default function DiagnosesEditor({
                       }
                     }}
                     onFocus={() => {
-                      if (!isLocked) onSetOpenDxIndex(index);
+                      if (!isLocked && hasSearchText) onSetOpenDxIndex(index);
                     }}
                     onBlur={() => {
                       setTimeout(() => onSetOpenDxIndex(null), 150);
@@ -625,7 +630,7 @@ export default function DiagnosesEditor({
                     }}
                   />
 
-                  {openDxIndex === index && diagnoses.length > 0 && (
+                  {openDxIndex === index && diagnoses.length > 0 && hasSearchText && (
                     <div
                       style={{
                         position: "absolute",
