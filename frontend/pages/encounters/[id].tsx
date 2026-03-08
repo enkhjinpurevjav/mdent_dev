@@ -796,19 +796,20 @@ useEffect(() => {
     void reloadMedia();
   }, [id, mediaTypeFilter]);
 
-  // Initialize follow-up date range when checkbox is toggled on (14 days)
-  useEffect(() => {
-    if (showFollowUpScheduler && !followUpDateFrom) {
-      const today = new Date();
-      const todayStr = ymdLocal(today);
-      const plusFourteen = new Date(today);
-      plusFourteen.setDate(plusFourteen.getDate() + 14);
-      const plusFourteenStr = ymdLocal(plusFourteen);
+  // Initialize follow-up date range when checkbox is toggled on (7 days)
+useEffect(() => {
+  if (showFollowUpScheduler && !followUpDateFrom) {
+    const today = new Date();
+    const todayStr = ymdLocal(today);
 
-      setFollowUpDateFrom(todayStr);
-      setFollowUpDateTo(plusFourteenStr);
-    }
-  }, [showFollowUpScheduler]);
+    const plusSeven = new Date(today);
+    plusSeven.setDate(plusSeven.getDate() + 7);
+    const plusSevenStr = ymdLocal(plusSeven);
+
+    setFollowUpDateFrom(todayStr);
+    setFollowUpDateTo(plusSevenStr);
+  }
+}, [showFollowUpScheduler]);
 
   // Load availability when dates/filters change
   useEffect(() => {
