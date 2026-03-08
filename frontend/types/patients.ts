@@ -57,6 +57,8 @@ export type Appointment = {
   scheduledAt: string;
   status: string;
   notes?: string | null;
+  source?: string | null;
+  sourceEncounterId?: number | null;
   encounterId?: number | null;
   materialsCount?: number;
   branch?: {
