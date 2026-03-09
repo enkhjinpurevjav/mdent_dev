@@ -1479,7 +1479,6 @@ model DoctorSchedule {
   doctorId  Int
   branchId  Int
   date      DateTime
-  shiftType String   @default("AM")
   startTime String
   endTime   String
   note      String?
@@ -1487,7 +1486,7 @@ model DoctorSchedule {
   doctor User   @relation(fields: [doctorId], references: [id])
   branch Branch @relation(fields: [branchId], references: [id])
 
-  @@unique([doctorId, branchId, date, shiftType])
+  @@unique([doctorId, branchId, date])
   @@index([doctorId, date])
   @@index([branchId, date])
 }
