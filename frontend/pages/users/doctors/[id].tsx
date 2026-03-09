@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
+import StaffAvatar from "../../../components/StaffAvatar";
 
 type Branch = {
   id: number;
@@ -173,8 +174,9 @@ export default function DoctorProfilePage() {
   // ✅ NEW: patient-like edit toggle for the profile info card
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
+  // URL validation error for idPhotoPath
+  const [idPhotoPathError, setIdPhotoPathError] = useState<string | null>(null);
 
-  
   const [form, setForm] = useState({
     name: "",
     ovog: "",
@@ -186,6 +188,7 @@ export default function DoctorProfilePage() {
     phone: "",
     signatureImagePath: "",
     stampImagePath: "",
+    idPhotoPath: "",
   });
 
   // selected multiple branches
@@ -276,7 +279,9 @@ export default function DoctorProfilePage() {
       phone: doctor.phone || "",
       signatureImagePath: doctor.signatureImagePath || "",
       stampImagePath: doctor.stampImagePath || "",
+      idPhotoPath: doctor.idPhotoPath || "",
     });
+    setIdPhotoPathError(null);
   };
 
   const handleChange = (
@@ -396,6 +401,7 @@ export default function DoctorProfilePage() {
           phone: doc.phone || "",
           signatureImagePath: doc.signatureImagePath || "",
           stampImagePath: doc.stampImagePath || "",
+          idPhotoPath: doc.idPhotoPath || "",
         });
 
         // initialize multi-branch selection from doctor.branches
@@ -563,6 +569,14 @@ export default function DoctorProfilePage() {
     e.preventDefault();
     if (!id) return;
 
+    // Validate idPhotoPath URL
+    const photoUrl = form.idPhotoPath.trim();
+    if (photoUrl && !photoUrl.startsWith("http://") && !photoUrl.startsWith("https://")) {
+      setIdPhotoPathError("URL нь http:// эсвэл https:// -ээр эхлэх ёстой");
+      return;
+    }
+    setIdPhotoPathError(null);
+
     setSaving(true);
     setError(null);
 
@@ -578,6 +592,7 @@ export default function DoctorProfilePage() {
         phone: form.phone || null,
         signatureImagePath: form.signatureImagePath || null,
         stampImagePath: form.stampImagePath || null,
+        idPhotoPath: photoUrl || null,
       };
 
       const res = await fetch(`/api/users/${id}`, {
@@ -975,17 +990,16 @@ export default function DoctorProfilePage() {
 </div>
 
           <div
-            className="w-full h-[190px] rounded-[10px] border-2 border-dashed border-gray-400 bg-gray-50 text-gray-500 text-xs overflow-hidden flex items-center justify-center mb-2.5"
+            className="w-full h-[190px] rounded-[10px] overflow-hidden flex items-center justify-center mb-2.5"
           >
-            {doctor.idPhotoPath ? (
-              <img
-                src={doctor.idPhotoPath}
-                alt="Эмчийн зураг"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span>Зураг байрлах хэсэг</span>
-            )}
+            <StaffAvatar
+              name={doctor.name}
+              ovog={doctor.ovog}
+              email={doctor.email}
+              idPhotoPath={doctor.idPhotoPath}
+              variant="sidebar"
+              className="w-full h-full"
+            />
           </div>
 
           <div className="text-[13px] text-gray-500">
@@ -1253,79 +1267,170 @@ export default function DoctorProfilePage() {
       ) : (
         <form
           onSubmit={handleSave}
-          className="flex flex-col gap-3 max-w-[600px]"
         >
-          {(
-            [
-              { label: "Овог", name: "ovog", type: "text" },
-              { label: "Нэр", name: "name", type: "text" },
-              { label: "И-мэйл", name: "email", type: "email" },
-            ] as const
-          ).map((f) => (
-            <div key={f.name}>
+          {/* Photo block */}
+          <div className="mb-4 p-3 rounded-xl border border-gray-200 bg-gray-50 flex items-start gap-4">
+            <StaffAvatar
+              name={form.name}
+              ovog={form.ovog}
+              email={form.email}
+              idPhotoPath={form.idPhotoPath}
+              variant="compact"
+              sizeClassName="w-16 h-16"
+            />
+            <div className="flex-1 min-w-0">
               <div className="text-gray-500 mb-0.5 text-[13px]">
-                {f.label}
+                Зургийн URL
               </div>
-              <input
-                name={f.name}
-                type={f.type}
-                value={(form as any)[f.name]}
-                onChange={handleChange}
-                className="w-full rounded-md border border-gray-300 px-1.5 py-1"
-              />
+              <div className="flex gap-2 items-center">
+                <input
+                  name="idPhotoPath"
+                  type="text"
+                  value={form.idPhotoPath}
+                  onChange={(e) => {
+                    handleChange(e);
+                    setIdPhotoPathError(null);
+                  }}
+                  placeholder="https://..."
+                  className="flex-1 rounded-md border border-gray-300 px-1.5 py-1 text-[13px]"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((f) => ({ ...f, idPhotoPath: "" }));
+                    setIdPhotoPathError(null);
+                  }}
+                  className="px-2 py-1 rounded-md border border-gray-300 bg-white text-[13px] cursor-pointer whitespace-nowrap"
+                >
+                  Хуулах
+                </button>
+              </div>
+              {idPhotoPathError && (
+                <div className="text-red-600 text-xs mt-1">
+                  {idPhotoPathError}
+                </div>
+              )}
             </div>
-          ))}
-
-          <div>
-            <div className="text-gray-500 mb-0.5 text-[13px]">
-              Үндсэн салбар
-            </div>
-            <select
-              name="branchId"
-              value={form.branchId}
-              onChange={handleChange}
-              className="w-full rounded-md border border-gray-300 px-1.5 py-1 bg-white"
-            >
-              <option value="">Сонгохгүй</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
           </div>
 
-          {(
-            [
-              { label: "РД", name: "regNo", type: "text" },
-              { label: "Утас", name: "phone", type: "text" },
-              { label: "Лицензийн дугаар", name: "licenseNumber", type: "text" },
-              {
-                label: "Лиценз дуусах хугацаа",
-                name: "licenseExpiryDate",
-                type: "date",
-              },
-              {
-                label: "Гарын үсгийн зураг (URL)",
-                name: "signatureImagePath",
-                type: "text",
-              },
-              { label: "Тамганы зураг (URL)", name: "stampImagePath", type: "text" },
-            ] as const
-          ).map((f) => (
-            <div key={f.name}>
-              <div className="text-gray-500 mb-0.5 text-[13px]">
-                {f.label}
-              </div>
+          {/* Fields grid */}
+          <div className="grid [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))] gap-3 text-[13px]">
+            <div>
+              <div className="text-gray-500 mb-0.5">Овог</div>
               <input
-                name={f.name}
-                type={f.type}
-                value={(form as any)[f.name]}
+                name="ovog"
+                type="text"
+                value={form.ovog}
                 onChange={handleChange}
                 className="w-full rounded-md border border-gray-300 px-1.5 py-1"
               />
             </div>
-          ))}
+
+            <div>
+              <div className="text-gray-500 mb-0.5">Нэр</div>
+              <input
+                name="name"
+                type="text"
+                value={form.name}
+                onChange={handleChange}
+                className="w-full rounded-md border border-gray-300 px-1.5 py-1"
+              />
+            </div>
+
+            <div>
+              <div className="text-gray-500 mb-0.5">И-мэйл</div>
+              <input
+                name="email"
+                type="email"
+                value={form.email}
+                onChange={handleChange}
+                className="w-full rounded-md border border-gray-300 px-1.5 py-1"
+              />
+            </div>
+
+            <div>
+              <div className="text-gray-500 mb-0.5">Утас</div>
+              <input
+                name="phone"
+                type="text"
+                value={form.phone}
+                onChange={handleChange}
+                className="w-full rounded-md border border-gray-300 px-1.5 py-1"
+              />
+            </div>
+
+            <div>
+              <div className="text-gray-500 mb-0.5">РД</div>
+              <input
+                name="regNo"
+                type="text"
+                value={form.regNo}
+                onChange={handleChange}
+                className="w-full rounded-md border border-gray-300 px-1.5 py-1"
+              />
+            </div>
+
+            <div>
+              <div className="text-gray-500 mb-0.5">Үндсэн салбар</div>
+              <select
+                name="branchId"
+                value={form.branchId}
+                onChange={handleChange}
+                className="w-full rounded-md border border-gray-300 px-1.5 py-1 bg-white"
+              >
+                <option value="">Сонгохгүй</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <div className="text-gray-500 mb-0.5">Лицензийн дугаар</div>
+              <input
+                name="licenseNumber"
+                type="text"
+                value={form.licenseNumber}
+                onChange={handleChange}
+                className="w-full rounded-md border border-gray-300 px-1.5 py-1"
+              />
+            </div>
+
+            <div>
+              <div className="text-gray-500 mb-0.5">Лиценз дуусах хугацаа</div>
+              <input
+                name="licenseExpiryDate"
+                type="date"
+                value={form.licenseExpiryDate}
+                onChange={handleChange}
+                className="w-full rounded-md border border-gray-300 px-1.5 py-1"
+              />
+            </div>
+
+            <div className="col-span-full">
+              <div className="text-gray-500 mb-0.5">Гарын үсгийн зураг (URL)</div>
+              <input
+                name="signatureImagePath"
+                type="text"
+                value={form.signatureImagePath}
+                onChange={handleChange}
+                className="w-full rounded-md border border-gray-300 px-1.5 py-1"
+              />
+            </div>
+
+            <div className="col-span-full">
+              <div className="text-gray-500 mb-0.5">Тамганы зураг (URL)</div>
+              <input
+                name="stampImagePath"
+                type="text"
+                value={form.stampImagePath}
+                onChange={handleChange}
+                className="w-full rounded-md border border-gray-300 px-1.5 py-1"
+              />
+            </div>
+          </div>
 
           <div
             className="mt-4 flex gap-2 justify-end"

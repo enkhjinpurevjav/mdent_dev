@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
+import StaffAvatar from "../../../components/StaffAvatar";
 
 type Branch = {
   id: number;
@@ -15,6 +16,7 @@ type Reception = {
   branchId?: number | null;
   regNo?: string | null;
   phone?: string | null;
+  idPhotoPath?: string | null;
   branch?: Branch | null;
 };
 
@@ -697,10 +699,15 @@ export default function ReceptionProfilePage() {
             {headerName}
           </div>
 
-          {/* Portrait placeholder */}
-          <div className="w-full h-[190px] rounded-xl border-2 border-dashed border-gray-400 bg-gray-50 text-gray-500 text-xs overflow-hidden flex items-center justify-center mb-2.5">
-            <span>Зураг байрлах хэсэг</span>
-          </div>
+          {/* Portrait */}
+          <StaffAvatar
+            name={reception.name}
+            ovog={reception.ovog}
+            email={reception.email}
+            idPhotoPath={reception.idPhotoPath}
+            variant="sidebar"
+            className="mb-2.5"
+          />
 
           <div className="text-[13px] text-gray-500">
             <div>Утас: {reception.phone || "-"}</div>
