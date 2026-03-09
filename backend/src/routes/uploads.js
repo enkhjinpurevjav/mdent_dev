@@ -6,8 +6,6 @@ import fs from "fs";
 import crypto from "crypto";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const UPLOAD_DIR = path.resolve(__dirname, "../../uploads/staff-photos");
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
@@ -24,61 +22,89 @@ const MIME_TO_EXT = {
   "image/webp": ".webp",
 };
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const ext = MIME_TO_EXT[file.mimetype] || ".jpg";
-    const rawUserId = req.query.userId;
-    const userId = rawUserId && /^\d+$/.test(String(rawUserId)) ? String(rawUserId) : null;
-    const ts = Date.now();
-    const rand = crypto.randomBytes(6).toString("hex");
-    const prefix = userId ? `${userId}-` : "";
-    cb(null, `${prefix}${ts}-${rand}${ext}`);
-  },
-});
+function makeUploader(subDir) {
+  const dir = path.resolve(__dirname, "../../uploads", subDir);
+  fs.mkdirSync(dir, { recursive: true });
 
-const upload = multer({
-  storage,
-  limits: { fileSize: MAX_SIZE },
-  fileFilter: (_req, file, cb) => {
-    if (ALLOWED_TYPES.has(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error("INVALID_TYPE"));
-    }
-  },
-});
+  const storage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, dir),
+    filename: (req, file, cb) => {
+      const ext = MIME_TO_EXT[file.mimetype] || ".jpg";
+      const rawUserId = req.query.userId;
+      const userId =
+        rawUserId && /^\d+$/.test(String(rawUserId))
+          ? String(rawUserId)
+          : null;
+      const ts = Date.now();
+      const rand = crypto.randomBytes(6).toString("hex");
+      const prefix = userId ? `${userId}-` : "";
+      cb(null, `${prefix}${ts}-${rand}${ext}`);
+    },
+  });
+
+  return multer({
+    storage,
+    limits: { fileSize: MAX_SIZE },
+    fileFilter: (_req, file, cb) => {
+      if (ALLOWED_TYPES.has(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error("INVALID_TYPE"));
+      }
+    },
+  });
+}
+
+function uploadHandler(uploader, urlPrefix) {
+  return [
+    (req, res, next) => {
+      uploader.single("file")(req, res, (err) => {
+        if (err) {
+          if (err.code === "LIMIT_FILE_SIZE") {
+            return res
+              .status(400)
+              .json({ error: "File too large. Maximum size is 2 MB." });
+          }
+          if (err.message === "INVALID_TYPE") {
+            return res.status(400).json({
+              error:
+                "Invalid file type. Only JPEG, PNG, and WebP images are allowed.",
+            });
+          }
+          return next(err);
+        }
+        next();
+      });
+    },
+    (req, res) => {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded." });
+      }
+      const filePath = `${urlPrefix}/${req.file.filename}`;
+      return res.json({ filePath });
+    },
+  ];
+}
+
+const staffPhotoUploader = makeUploader("staff-photos");
+const stampUploader = makeUploader("stamps");
+const signatureUploader = makeUploader("signatures");
 
 const router = Router();
 
 router.post(
   "/staff-photo",
-  (req, res, next) => {
-    upload.single("file")(req, res, (err) => {
-      if (err) {
-        if (err.code === "LIMIT_FILE_SIZE") {
-          return res
-            .status(400)
-            .json({ error: "File too large. Maximum size is 2 MB." });
-        }
-        if (err.message === "INVALID_TYPE") {
-          return res.status(400).json({
-            error:
-              "Invalid file type. Only JPEG, PNG, and WebP images are allowed.",
-          });
-        }
-        return next(err);
-      }
-      next();
-    });
-  },
-  (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded." });
-    }
-    const filePath = `/uploads/staff-photos/${req.file.filename}`;
-    return res.json({ filePath });
-  }
+  ...uploadHandler(staffPhotoUploader, "/uploads/staff-photos")
+);
+
+router.post(
+  "/stamp",
+  ...uploadHandler(stampUploader, "/uploads/stamps")
+);
+
+router.post(
+  "/signature",
+  ...uploadHandler(signatureUploader, "/uploads/signatures")
 );
 
 export default router;

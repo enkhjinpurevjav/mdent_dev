@@ -41,3 +41,5 @@ coverage/
 # Uploaded files (keep folder structure via .gitkeep)
 backend/uploads/**
 !backend/uploads/staff-photos/.gitkeep
+!backend/uploads/stamps/.gitkeep
+!backend/uploads/signatures/.gitkeep
