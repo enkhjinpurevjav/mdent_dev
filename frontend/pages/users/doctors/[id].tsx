@@ -176,6 +176,8 @@ export default function DoctorProfilePage() {
 
   // URL validation error for idPhotoPath
   const [idPhotoPathError, setIdPhotoPathError] = useState<string | null>(null);
+  // Photo upload state
+  const [uploading, setUploading] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -571,7 +573,12 @@ export default function DoctorProfilePage() {
 
     // Validate idPhotoPath URL
     const photoUrl = form.idPhotoPath.trim();
-    if (photoUrl && !photoUrl.startsWith("http://") && !photoUrl.startsWith("https://")) {
+    if (
+      photoUrl &&
+      !photoUrl.startsWith("http://") &&
+      !photoUrl.startsWith("https://") &&
+      !photoUrl.startsWith("/uploads/")
+    ) {
       setIdPhotoPathError("URL нь http:// эсвэл https:// -ээр эхлэх ёстой");
       return;
     }
@@ -1302,8 +1309,59 @@ export default function DoctorProfilePage() {
                   }}
                   className="px-2 py-1 rounded-md border border-gray-300 bg-white text-[13px] cursor-pointer whitespace-nowrap"
                 >
-                  Хуулах
+                  Цэвэрлэх
                 </button>
+              </div>
+              <div className="mt-2">
+                <label className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-gray-300 bg-white text-[13px] cursor-pointer whitespace-nowrap hover:bg-gray-50">
+                  {uploading ? (
+                    <>
+                      <svg className="animate-spin h-3.5 w-3.5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      Байршуулж байна…
+                    </>
+                  ) : (
+                    "Зураг сонгох"
+                  )}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploading(true);
+                      setIdPhotoPathError(null);
+                      try {
+                        const token = typeof window !== "undefined"
+                          ? localStorage.getItem("token") ?? sessionStorage.getItem("token")
+                          : null;
+                        const fd = new FormData();
+                        fd.append("file", file);
+                        const res = await fetch("/api/uploads/staff-photo", {
+                          method: "POST",
+                          headers: token ? { Authorization: `Bearer ${token}` } : {},
+                          body: fd,
+                        });
+                        const data = await res.json();
+                        if (!res.ok) {
+                          setIdPhotoPathError(data?.error || "Зураг байршуулахад алдаа гарлаа");
+                        } else {
+                          setForm((f) => ({ ...f, idPhotoPath: data.filePath }));
+                        }
+                      } catch {
+                        setIdPhotoPathError("Зураг байршуулахад алдаа гарлаа");
+                      } finally {
+                        setUploading(false);
+                        // reset so same file can be re-selected
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                </label>
               </div>
               {idPhotoPathError && (
                 <div className="text-red-600 text-xs mt-1">
@@ -1442,16 +1500,16 @@ export default function DoctorProfilePage() {
                 resetFormFromDoctor();
                 setIsEditingProfile(false);
               }}
-              disabled={saving}
-              className={`px-3 py-1.5 rounded-md border border-gray-300 bg-gray-50 text-[13px] ${saving ? "cursor-default" : "cursor-pointer"}`}
+              disabled={saving || uploading}
+              className={`px-3 py-1.5 rounded-md border border-gray-300 bg-gray-50 text-[13px] ${saving || uploading ? "cursor-default" : "cursor-pointer"}`}
             >
               Болих
             </button>
 
             <button
               type="submit"
-              disabled={saving}
-              className={`px-3 py-1.5 rounded-md border-0 ${saving ? "bg-gray-400" : "bg-blue-600"} text-white text-[13px] ${saving ? "cursor-default" : "cursor-pointer"}`}
+              disabled={saving || uploading}
+              className={`px-3 py-1.5 rounded-md border-0 ${saving || uploading ? "bg-gray-400" : "bg-blue-600"} text-white text-[13px] ${saving || uploading ? "cursor-default" : "cursor-pointer"}`}
             >
               {saving ? "Хадгалж байна..." : "Хадгалах"}
             </button>

@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import pino from "pino";
 import path from "path"; // NEW
+import { fileURLToPath } from "url";
 import prisma from "./db.js";
 import incomeRoutes from "./routes/admin/income.js"; // NEW
 
@@ -44,8 +45,10 @@ import encounterDiagnosisProblemTextsRouter from "./routes/encounterDiagnosisPro
 import encounterServiceTextsRouter from "./routes/encounterServiceTexts.js";
 import publicRouter from "./routes/public.js";
 import ebarimtRouter from "./routes/ebarimt.js";
+import uploadsRouter from "./routes/uploads.js";
 
 const log = pino({ level: process.env.LOG_LEVEL || "info" });
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 app.use(helmet());
@@ -62,6 +65,10 @@ app.use(
 // NEW: serve uploaded media files
 const mediaDir = process.env.MEDIA_UPLOAD_DIR || "/data/media";
 app.use("/media", express.static(mediaDir));
+
+// Serve staff photo uploads
+const uploadsDir = path.resolve(__dirname, "../uploads");
+app.use("/uploads", express.static(uploadsDir));
 
 // Health (non-API path)
 app.get("/health", async (_req, res) => {
@@ -130,6 +137,9 @@ app.use("/api/public", publicRouter);
 
 // eBarimt POSAPI 3.0 routes
 app.use("/api/ebarimt", ebarimtRouter);
+
+// File upload routes
+app.use("/api/uploads", uploadsRouter);
 
 // Optional central error handler
 app.use((err, _req, res, _next) => {
