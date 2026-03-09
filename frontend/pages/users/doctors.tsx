@@ -154,16 +154,9 @@ function DoctorForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: 24 }}>
+    <form onSubmit={handleSubmit} className="mb-6">
       <h2>Шинэ эмч бүртгэх</h2>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 8,
-          marginBottom: 8,
-        }}
-      >
+      <div className="grid [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))] gap-2 mb-2">
         <input
           name="ovog"
           placeholder="Овог"
@@ -208,27 +201,13 @@ function DoctorForm({
         />
       </div>
 
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ marginBottom: 4, fontWeight: 500 }}>Салбар сонгох</div>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 8,
-          }}
-        >
+      <div className="mb-2">
+        <div className="mb-1 font-medium">Салбар сонгох</div>
+        <div className="flex flex-wrap gap-2">
           {branches.map((b) => (
             <label
               key={b.id}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                border: "1px solid #ddd",
-                borderRadius: 4,
-                padding: "4px 8px",
-                fontSize: 13,
-              }}
+              className="inline-flex items-center gap-1 border border-gray-200 rounded px-2 py-1 text-[13px]"
             >
               <input
                 type="checkbox"
@@ -245,7 +224,7 @@ function DoctorForm({
         {submitting ? "Бүртгэж байна..." : "Бүртгэх"}
       </button>
 
-      {error && <div style={{ color: "red", marginTop: 8 }}>{error}</div>}
+      {error && <div className="text-red-600 mt-2">{error}</div>}
     </form>
   );
 }
@@ -380,96 +359,36 @@ export default function DoctorsPage() {
   };
 
   return (
-    <main
-      style={{
-        padding: 24,
-        fontFamily: "sans-serif",
-      }}
-    >
+    <main className="p-6 font-sans">
       <h1>Эмч нар</h1>
-      <p style={{ color: "#555", marginBottom: 16 }}>
+      <p className="text-gray-500 mb-4">
         Эмч нарыг бүртгэх, салбарт хуваарьлах, профайлыг харах.
       </p>
 
       <UsersTabs />
 
       {/* summary cards */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
-        <div
-          style={{
-            background: "linear-gradient(90deg,#eff6ff,#ffffff)",
-            borderRadius: 12,
-            border: "1px solid #dbeafe",
-            padding: 12,
-            boxShadow: "0 4px 10px rgba(15,23,42,0.08)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 11,
-              textTransform: "uppercase",
-              color: "#1d4ed8",
-              fontWeight: 700,
-              letterSpacing: 0.5,
-              marginBottom: 4,
-            }}
-          >
+      <section className="grid [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))] gap-3 mb-4">
+        <div className="bg-gradient-to-r from-blue-50 to-white rounded-xl border border-blue-100 p-3 shadow">
+          <div className="text-xs uppercase text-blue-700 font-bold tracking-wide mb-1">
             Нийт эмч
           </div>
-          <div
-            style={{
-              fontSize: 26,
-              fontWeight: 700,
-              color: "#111827",
-              marginBottom: 4,
-            }}
-          >
+          <div className="text-[26px] font-bold text-gray-900 mb-1">
             {summary ? summary.total : "—"}
           </div>
-          <div style={{ fontSize: 11, color: "#6b7280" }}>
+          <div className="text-xs text-gray-500">
             Системд бүртгэлтэй нийт эмчийн тоо.
           </div>
         </div>
 
-        <div
-          style={{
-            background: "linear-gradient(90deg,#dcfce7,#ffffff)",
-            borderRadius: 12,
-            border: "1px solid #bbf7d0",
-            padding: 12,
-            boxShadow: "0 4px 10px rgba(15,23,42,0.08)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 11,
-              textTransform: "uppercase",
-              color: "#15803d",
-              fontWeight: 700,
-              letterSpacing: 0.5,
-              marginBottom: 4,
-            }}
-          >
+        <div className="bg-gradient-to-r from-green-100 to-white rounded-xl border border-green-200 p-3 shadow">
+          <div className="text-xs uppercase text-green-700 font-bold tracking-wide mb-1">
             Өнөөдөр ажиллаж буй эмч
           </div>
-          <div
-            style={{
-              fontSize: 26,
-              fontWeight: 700,
-              color: "#111827",
-              marginBottom: 4,
-            }}
-          >
+          <div className="text-[26px] font-bold text-gray-900 mb-1">
             {summary ? summary.workingToday : "—"}
           </div>
-          <div style={{ fontSize: 11, color: "#6b7280" }}>
+          <div className="text-xs text-gray-500">
             Өнөөдрийн ажлын хуваарьт орсон эмч нарын тоо.
           </div>
         </div>
@@ -492,86 +411,48 @@ export default function DoctorsPage() {
       />
 
       {loading && <div>Ачааллаж байна...</div>}
-      {!loading && error && <div style={{ color: "red" }}>{error}</div>}
+      {!loading && error && <div className="text-red-600">{error}</div>}
 
       {!loading && !error && (
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            marginTop: 20,
-            fontSize: 14,
-          }}
-        >
+        <table className="w-full border-collapse mt-5 text-sm">
           <thead>
             <tr>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
-                #
-              </th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
-                Овог
-              </th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
-                Нэр
-              </th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
-                РД
-              </th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
-                Утас
-              </th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
-                Салбар
-              </th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
-                Дараалал
-              </th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
-                Дэлгэрэнгүй
-              </th>
+              <th className="text-left border-b border-gray-200 p-2">#</th>
+              <th className="text-left border-b border-gray-200 p-2">Овог</th>
+              <th className="text-left border-b border-gray-200 p-2">Нэр</th>
+              <th className="text-left border-b border-gray-200 p-2">РД</th>
+              <th className="text-left border-b border-gray-200 p-2">Утас</th>
+              <th className="text-left border-b border-gray-200 p-2">Салбар</th>
+              <th className="text-left border-b border-gray-200 p-2">Дараалал</th>
+              <th className="text-left border-b border-gray-200 p-2">Дэлгэрэнгүй</th>
             </tr>
           </thead>
           <tbody>
             {doctors.map((d, index) => (
               <tr key={d.id}>
-                <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
-                  {index + 1}
-                </td>
-                <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
-                  {d.ovog || "-"}
-                </td>
-                <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
-                  {d.name || "-"}
-                </td>
-                <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
-                  {d.regNo || "-"}
-                </td>
-                <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
-                  {d.phone || "-"}
-                </td>
-                <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
+                <td className="border-b border-gray-100 p-2">{index + 1}</td>
+                <td className="border-b border-gray-100 p-2">{d.ovog || "-"}</td>
+                <td className="border-b border-gray-100 p-2">{d.name || "-"}</td>
+                <td className="border-b border-gray-100 p-2">{d.regNo || "-"}</td>
+                <td className="border-b border-gray-100 p-2">{d.phone || "-"}</td>
+                <td className="border-b border-gray-100 p-2">
                   {Array.isArray(d.branches) && d.branches.length > 0
                     ? d.branches.map((b) => b.name).join(", ")
                     : d.branch
                     ? d.branch.name
                     : "-"}
                 </td>
-                <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
+                <td className="border-b border-gray-100 p-2">
                   {(() => {
                     const isUpDisabled = index === 0 || reorderSaving;
                     const isDownDisabled = index === doctors.length - 1 || reorderSaving;
                     return (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      <div className="flex flex-col gap-0.5">
                         <button
                           type="button"
                           onClick={() => moveDoctor(d.id, "up")}
                           disabled={isUpDisabled}
-                          style={{
-                            fontSize: 11,
-                            padding: "1px 6px",
-                            cursor: isUpDisabled ? "default" : "pointer",
-                            opacity: isUpDisabled ? 0.3 : 1,
-                          }}
+                          className={`text-[11px] px-1.5 py-0 ${isUpDisabled ? "opacity-30 cursor-default" : "cursor-pointer"}`}
                         >
                           ▲
                         </button>
@@ -579,12 +460,7 @@ export default function DoctorsPage() {
                           type="button"
                           onClick={() => moveDoctor(d.id, "down")}
                           disabled={isDownDisabled}
-                          style={{
-                            fontSize: 11,
-                            padding: "1px 6px",
-                            cursor: isDownDisabled ? "default" : "pointer",
-                            opacity: isDownDisabled ? 0.3 : 1,
-                          }}
+                          className={`text-[11px] px-1.5 py-0 ${isDownDisabled ? "opacity-30 cursor-default" : "cursor-pointer"}`}
                         >
                           ▼
                         </button>
@@ -592,24 +468,10 @@ export default function DoctorsPage() {
                     );
                   })()}
                 </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <td className="border-b border-gray-100 p-2 whitespace-nowrap">
                   <a
                     href={`/users/doctors/${d.id}`}
-                    style={{
-                      display: "inline-block",
-                      padding: "4px 8px",
-                      borderRadius: 4,
-                      border: "1px solid #2563eb",
-                      color: "#2563eb",
-                      textDecoration: "none",
-                      fontSize: 12,
-                    }}
+                    className="inline-block px-2 py-1 rounded border border-blue-600 text-blue-600 no-underline text-xs"
                   >
                     Профайл
                   </a>
@@ -618,14 +480,7 @@ export default function DoctorsPage() {
             ))}
             {doctors.length === 0 && (
               <tr>
-                <td
-                  colSpan={8}
-                  style={{
-                    textAlign: "center",
-                    color: "#888",
-                    padding: 12,
-                  }}
-                >
+                <td colSpan={8} className="text-center text-gray-400 p-3">
                   Өгөгдөл алга
                 </td>
               </tr>

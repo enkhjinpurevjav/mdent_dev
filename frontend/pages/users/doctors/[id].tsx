@@ -87,26 +87,15 @@ function Card({
 }) {
   return (
     <section
-      style={{
-        background: "white",
-        border: "1px solid #e5e7eb",
-        borderRadius: 16,
-        padding: 18,
-      }}
+      className="bg-white border border-gray-200 rounded-2xl p-[18px]"
     >
       {(title || right) && (
         <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: 12,
-            marginBottom: 10,
-          }}
+          className="flex justify-between items-start gap-3 mb-2.5"
         >
           <div>
             {title && (
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#111827" }}>
+              <div className="text-[22px] font-extrabold text-gray-900">
                 {title}
               </div>
             )}
@@ -126,18 +115,14 @@ function InfoGrid({
 }) {
   return (
     <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, minmax(200px, 1fr))",
-        gap: "26px 46px",
-      }}
+      className="grid grid-cols-3 gap-x-12 gap-y-6"
     >
       {items.map((it, idx) => (
         <div key={idx}>
-          <div style={{ color: "#6b7280", fontSize: 18, fontWeight: 600 }}>
+          <div className="text-gray-500 text-lg font-semibold">
             {it.label}
           </div>
-          <div style={{ color: "#111827", fontSize: 20, fontWeight: 800 }}>
+          <div className="text-gray-900 text-xl font-extrabold">
             {it.value}
           </div>
         </div>
@@ -157,21 +142,16 @@ function StatCard({
 }) {
   return (
     <div
-      style={{
-        background: "white",
-        border: "1px solid #e5e7eb",
-        borderRadius: 16,
-        padding: 16,
-      }}
+      className="bg-white border border-gray-200 rounded-2xl p-4"
     >
-      <div style={{ color: "#6b7280", fontSize: 16, fontWeight: 700 }}>
+      <div className="text-gray-500 text-base font-bold">
         {title.toUpperCase()}
       </div>
-      <div style={{ fontSize: 34, fontWeight: 900, color: "#111827" }}>
+      <div className="text-[34px] font-black text-gray-900">
         {value}
       </div>
       {subtitle ? (
-        <div style={{ color: "#6b7280", fontSize: 16 }}>{subtitle}</div>
+        <div className="text-gray-500 text-base">{subtitle}</div>
       ) : null}
     </div>
   );
@@ -193,40 +173,7 @@ export default function DoctorProfilePage() {
   // ✅ NEW: patient-like edit toggle for the profile info card
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
-  // Put these inside DoctorProfilePage(), near other consts (before return)
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  borderRadius: 6,
-  border: "1px solid #d1d5db",
-  padding: "4px 6px",
-  fontSize: 13,
-  background: "white",
-};
 
-const labelStyle: React.CSSProperties = {
-  color: "#6b7280",
-  marginBottom: 2,
-  fontSize: 13,
-};
-
-const smallButtonStyle: React.CSSProperties = {
-  padding: "6px 12px",
-  borderRadius: 6,
-  border: "1px solid #d1d5db",
-  background: "#f9fafb",
-  fontSize: 13,
-  cursor: "pointer",
-};
-
-const primaryButtonStyle: React.CSSProperties = {
-  padding: "6px 12px",
-  borderRadius: 6,
-  border: "none",
-  background: "#2563eb",
-  color: "white",
-  fontSize: 13,
-  cursor: "pointer",
-};
   
   const [form, setForm] = useState({
     name: "",
@@ -979,7 +926,7 @@ const primaryButtonStyle: React.CSSProperties = {
 
   if (loading) {
     return (
-      <div style={{ padding: 24 }}>
+      <div className="p-6">
         <div>Ачааллаж байна...</div>
       </div>
     );
@@ -987,16 +934,16 @@ const primaryButtonStyle: React.CSSProperties = {
 
   if (error && !doctor) {
     return (
-      <div style={{ padding: 24 }}>
+      <div className="p-6">
         <h1>Эмчийн мэдээлэл</h1>
-        <div style={{ color: "red", marginTop: 8 }}>{error}</div>
+        <div className="text-red-500 mt-2">{error}</div>
       </div>
     );
   }
 
   if (!doctor) {
     return (
-      <div style={{ padding: 24 }}>
+      <div className="p-6">
         <h1>Эмч олдсонгүй</h1>
       </div>
     );
@@ -1006,79 +953,42 @@ const primaryButtonStyle: React.CSSProperties = {
 
   return (
    <main
-  style={{
-    maxWidth: 1100,
-    margin: "40px auto",
-    padding: 24,
-    fontFamily: "sans-serif",
-  }}
+  className="max-w-[1100px] mx-auto my-10 p-6 font-sans"
 >
       <button
   type="button"
   onClick={() => router.push("/users/doctors")}
-  style={{
-    marginBottom: 16,
-    padding: "4px 8px",
-    borderRadius: 4,
-    border: "1px solid #d1d5db",
-    background: "#f9fafb",
-    cursor: "pointer",
-    fontSize: 13,
-  }}
+  className="mb-4 px-2 py-1 rounded border border-gray-300 bg-gray-50 cursor-pointer text-[13px]"
 >
   ← Буцах
 </button>
 
      <section
-  style={{
-    display: "grid",
-    gridTemplateColumns: "260px 1fr",
-    gap: 16,
-    alignItems: "stretch",
-    marginBottom: 24,
-  }}
+  className="grid grid-cols-[260px_1fr] gap-4 items-stretch mb-6"
 >
         {/* LEFT SIDEBAR */}
         <div
-  style={{
-    border: "1px solid #e5e7eb",
-    borderRadius: 12,
-    padding: 16,
-    background: "white",
-  }}
+  className="border border-gray-200 rounded-xl p-4 bg-white"
 >
-          <div style={{ marginBottom: 4, fontSize: 18, fontWeight: 600 }}>
+          <div className="mb-1 text-lg font-semibold">
   {headerName}
 </div>
 
           <div
-            style={{
-              width: "100%",
-              height: 190,
-              borderRadius: 10,
-              border: "2px dashed #9ca3af",
-              background: "#f9fafb",
-              color: "#6b7280",
-              fontSize: 12,
-              overflow: "hidden",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 10,
-            }}
+            className="w-full h-[190px] rounded-[10px] border-2 border-dashed border-gray-400 bg-gray-50 text-gray-500 text-xs overflow-hidden flex items-center justify-center mb-2.5"
           >
             {doctor.idPhotoPath ? (
               <img
                 src={doctor.idPhotoPath}
                 alt="Эмчийн зураг"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                className="w-full h-full object-cover"
               />
             ) : (
               <span>Зураг байрлах хэсэг</span>
             )}
           </div>
 
-          <div style={{ fontSize: 13, color: "#6b7280" }}>
+          <div className="text-[13px] text-gray-500">
   <div>Утас: {doctor.phone || "-"}</div>
   <div>И-мэйл: {doctor.email || "-"}</div>
   <div>Үндсэн салбар: {mainBranchName || "-"}</div>
@@ -1089,25 +999,15 @@ const primaryButtonStyle: React.CSSProperties = {
           
 
          {/* Side menu */}
-<div style={{ marginTop: 16 }}>
+<div className="mt-4">
   <div
-    style={{
-      fontSize: 12,
-      textTransform: "uppercase",
-      color: "#9ca3af",
-      marginBottom: 4,
-    }}
+    className="text-xs uppercase text-gray-400 mb-1"
   >
     Цэс
   </div>
 
   <div
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: 4,
-      fontSize: 13,
-    }}
+    className="flex flex-col gap-1 text-[13px]"
   >
     <button
       type="button"
@@ -1116,16 +1016,7 @@ const primaryButtonStyle: React.CSSProperties = {
         setIsEditingProfile(false);
         setError(null);
       }}
-      style={{
-        textAlign: "left",
-        padding: "6px 10px",
-        borderRadius: 6,
-        border: "none",
-        background: activeTab === "profile" ? "#eff6ff" : "transparent",
-        color: activeTab === "profile" ? "#1d4ed8" : "#6b7280",
-        fontWeight: activeTab === "profile" ? 500 : 400,
-        cursor: "pointer",
-      }}
+      className={`text-left px-2.5 py-1.5 rounded-md border-0 ${activeTab === "profile" ? "bg-blue-50" : "bg-transparent"} ${activeTab === "profile" ? "text-blue-700" : "text-gray-500"} ${activeTab === "profile" ? "font-medium" : "font-normal"} cursor-pointer`}
     >
       Профайл
     </button>
@@ -1137,16 +1028,7 @@ const primaryButtonStyle: React.CSSProperties = {
         setIsEditingProfile(false);
         setError(null);
       }}
-      style={{
-        textAlign: "left",
-        padding: "6px 10px",
-        borderRadius: 6,
-        border: "none",
-        background: activeTab === "schedule" ? "#eff6ff" : "transparent",
-        color: activeTab === "schedule" ? "#1d4ed8" : "#6b7280",
-        fontWeight: activeTab === "schedule" ? 500 : 400,
-        cursor: "pointer",
-      }}
+      className={`text-left px-2.5 py-1.5 rounded-md border-0 ${activeTab === "schedule" ? "bg-blue-50" : "bg-transparent"} ${activeTab === "schedule" ? "text-blue-700" : "text-gray-500"} ${activeTab === "schedule" ? "font-medium" : "font-normal"} cursor-pointer`}
     >
       Ажлын хуваарь
     </button>
@@ -1158,16 +1040,7 @@ const primaryButtonStyle: React.CSSProperties = {
         setIsEditingProfile(false);
         setError(null);
       }}
-      style={{
-        textAlign: "left",
-        padding: "6px 10px",
-        borderRadius: 6,
-        border: "none",
-        background: activeTab === "appointments" ? "#eff6ff" : "transparent",
-        color: activeTab === "appointments" ? "#1d4ed8" : "#6b7280",
-        fontWeight: activeTab === "appointments" ? 500 : 400,
-        cursor: "pointer",
-      }}
+      className={`text-left px-2.5 py-1.5 rounded-md border-0 ${activeTab === "appointments" ? "bg-blue-50" : "bg-transparent"} ${activeTab === "appointments" ? "text-blue-700" : "text-gray-500"} ${activeTab === "appointments" ? "font-medium" : "font-normal"} cursor-pointer`}
     >
       Цагууд
     </button>
@@ -1179,16 +1052,7 @@ const primaryButtonStyle: React.CSSProperties = {
         setIsEditingProfile(false);
         setError(null);
       }}
-      style={{
-        textAlign: "left",
-        padding: "6px 10px",
-        borderRadius: 6,
-        border: "none",
-        background: activeTab === "test1" ? "#eff6ff" : "transparent",
-        color: activeTab === "test1" ? "#1d4ed8" : "#6b7280",
-        fontWeight: activeTab === "test1" ? 500 : 400,
-        cursor: "pointer",
-      }}
+      className={`text-left px-2.5 py-1.5 rounded-md border-0 ${activeTab === "test1" ? "bg-blue-50" : "bg-transparent"} ${activeTab === "test1" ? "text-blue-700" : "text-gray-500"} ${activeTab === "test1" ? "font-medium" : "font-normal"} cursor-pointer`}
     >
       Борлуулалт
     </button>
@@ -1200,16 +1064,7 @@ const primaryButtonStyle: React.CSSProperties = {
         setIsEditingProfile(false);
         setError(null);
       }}
-      style={{
-        textAlign: "left",
-        padding: "6px 10px",
-        borderRadius: 6,
-        border: "none",
-        background: activeTab === "test2" ? "#eff6ff" : "transparent",
-        color: activeTab === "test2" ? "#1d4ed8" : "#6b7280",
-        fontWeight: activeTab === "test2" ? 500 : 400,
-        cursor: "pointer",
-      }}
+      className={`text-left px-2.5 py-1.5 rounded-md border-0 ${activeTab === "test2" ? "bg-blue-50" : "bg-transparent"} ${activeTab === "test2" ? "text-blue-700" : "text-gray-500"} ${activeTab === "test2" ? "font-medium" : "font-normal"} cursor-pointer`}
     >
       Үзлэгийн түүх
     </button>
@@ -1219,77 +1074,42 @@ const primaryButtonStyle: React.CSSProperties = {
           <button
             type="button"
             onClick={handleDeleteUser}
-            style={{
-              marginTop: 16,
-              width: "100%",
-              padding: "10px 12px",
-              borderRadius: 8,
-              border: "1px solid #fecaca",
-              background: "#fee2e2",
-              color: "#b91c1c",
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 700,
-            }}
+            className="mt-4 w-full px-3 py-2.5 rounded-lg border border-red-200 bg-red-100 text-red-700 cursor-pointer text-[13px] font-bold"
           >
             Ажилтныг устгах
           </button>
         </div>
 
         {/* RIGHT CONTENT */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="flex flex-col gap-4">
           {/* Top stat cards (only on profile tab) */}
           {activeTab === "profile" && (
   <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-      gap: 12,
-    }}
+    className="grid [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))] gap-3"
   >
     <div
-      style={{
-        borderRadius: 12,
-        border: "1px solid #e5e7eb",
-        padding: 12,
-        background: "#f9fafb",
-      }}
+      className="rounded-xl border border-gray-200 p-3 bg-gray-50"
     >
       <div
-        style={{
-          fontSize: 12,
-          textTransform: "uppercase",
-          color: "#6b7280",
-          marginBottom: 4,
-        }}
+        className="text-xs uppercase text-gray-500 mb-1"
       >
         Өнөөдрийн цаг захиалга
       </div>
-      <div style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
+      <div className="text-2xl font-semibold mb-1">
         {todayAppointmentsCount}
       </div>
-      <div style={{ fontSize: 12, color: "#6b7280" }}>Нийт бүртгэлтэй цаг</div>
+      <div className="text-xs text-gray-500">Нийт бүртгэлтэй цаг</div>
     </div>
 
     <div
-      style={{
-        borderRadius: 12,
-        border: "1px solid #e5e7eb",
-        padding: 12,
-        background: "#f9fafb",
-      }}
+      className="rounded-xl border border-gray-200 p-3 bg-gray-50"
     >
       <div
-        style={{
-          fontSize: 12,
-          textTransform: "uppercase",
-          color: "#6b7280",
-          marginBottom: 4,
-        }}
+        className="text-xs uppercase text-gray-500 mb-1"
       >
         Өнөөдрийн орлого
       </div>
-      <div style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
+      <div className="text-2xl font-semibold mb-1">
         {salesLoading
           ? "..."
           : salesError
@@ -1298,28 +1118,18 @@ const primaryButtonStyle: React.CSSProperties = {
           ? formatMNT(salesSummary.todayTotal)
           : "-"}
       </div>
-      <div style={{ fontSize: 12, color: "#6b7280" }}>Өнөөдөр төлсөн</div>
+      <div className="text-xs text-gray-500">Өнөөдөр төлсөн</div>
     </div>
 
     <div
-      style={{
-        borderRadius: 12,
-        border: "1px solid #e5e7eb",
-        padding: 12,
-        background: "#f9fafb",
-      }}
+      className="rounded-xl border border-gray-200 p-3 bg-gray-50"
     >
       <div
-        style={{
-          fontSize: 12,
-          textTransform: "uppercase",
-          color: "#6b7280",
-          marginBottom: 4,
-        }}
+        className="text-xs uppercase text-gray-500 mb-1"
       >
         Энэ сарын орлого
       </div>
-      <div style={{ fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
+      <div className="text-2xl font-semibold mb-1">
         {salesLoading
           ? "..."
           : salesError
@@ -1328,7 +1138,7 @@ const primaryButtonStyle: React.CSSProperties = {
           ? formatMNT(salesSummary.monthTotal)
           : "-"}
       </div>
-      <div style={{ fontSize: 12, color: "#6b7280" }}>Энэ сарын нийт</div>
+      <div className="text-xs text-gray-500">Энэ сарын нийт</div>
     </div>
   </div>
 )}
@@ -1338,22 +1148,12 @@ const primaryButtonStyle: React.CSSProperties = {
   <>
     {/* Basic information section (editable) - patient page style */}
     <div
-      style={{
-        borderRadius: 12,
-        border: "1px solid #e5e7eb",
-        padding: 16,
-        background: "white",
-      }}
+      className="rounded-xl border border-gray-200 p-4 bg-white"
     >
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 12,
-        }}
+        className="flex items-center justify-between mb-3"
       >
-        <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 0 }}>
+        <h2 className="text-base mt-0 mb-0">
           Үндсэн мэдээлэл
         </h2>
 
@@ -1364,14 +1164,7 @@ const primaryButtonStyle: React.CSSProperties = {
               setError(null);
               setIsEditingProfile(true);
             }}
-            style={{
-              fontSize: 12,
-              padding: "4px 8px",
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              background: "#f9fafb",
-              cursor: "pointer",
-            }}
+            className="text-xs px-2 py-1 rounded-md border border-gray-300 bg-gray-50 cursor-pointer"
           >
             Засах
           </button>
@@ -1379,66 +1172,61 @@ const primaryButtonStyle: React.CSSProperties = {
       </div>
 
       {error && (
-        <div style={{ color: "#b91c1c", fontSize: 12, marginBottom: 8 }}>
+        <div className="text-red-700 text-xs mb-2">
           {error}
         </div>
       )}
 
       {!isEditingProfile ? (
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: 12,
-            fontSize: 13,
-          }}
+          className="grid [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))] gap-3 text-[13px]"
         >
           <div>
-            <div style={{ color: "#6b7280", marginBottom: 2 }}>Овог</div>
+            <div className="text-gray-500 mb-0.5">Овог</div>
             <div>{doctor.ovog || "-"}</div>
           </div>
 
           <div>
-            <div style={{ color: "#6b7280", marginBottom: 2 }}>Нэр</div>
+            <div className="text-gray-500 mb-0.5">Нэр</div>
             <div>{doctor.name || "-"}</div>
           </div>
 
           <div>
-            <div style={{ color: "#6b7280", marginBottom: 2 }}>И-мэйл</div>
+            <div className="text-gray-500 mb-0.5">И-мэйл</div>
             <div>{doctor.email || "-"}</div>
           </div>
 
           <div>
-            <div style={{ color: "#6b7280", marginBottom: 2 }}>Утас</div>
+            <div className="text-gray-500 mb-0.5">Утас</div>
             <div>{doctor.phone || "-"}</div>
           </div>
 
           <div>
-            <div style={{ color: "#6b7280", marginBottom: 2 }}>РД</div>
+            <div className="text-gray-500 mb-0.5">РД</div>
             <div>{doctor.regNo || "-"}</div>
           </div>
 
           <div>
-            <div style={{ color: "#6b7280", marginBottom: 2 }}>Үндсэн салбар</div>
+            <div className="text-gray-500 mb-0.5">Үндсэн салбар</div>
             <div>{mainBranchName || "-"}</div>
           </div>
 
           <div>
-            <div style={{ color: "#6b7280", marginBottom: 2 }}>
+            <div className="text-gray-500 mb-0.5">
               Лицензийн дугаар
             </div>
             <div>{doctor.licenseNumber || "-"}</div>
           </div>
 
           <div>
-            <div style={{ color: "#6b7280", marginBottom: 2 }}>
+            <div className="text-gray-500 mb-0.5">
               Лиценз дуусах хугацаа
             </div>
             <div>{formatIsoDateOnly(doctor.licenseExpiryDate) || "-"}</div>
           </div>
 
           <div>
-            <div style={{ color: "#6b7280", marginBottom: 2 }}>
+            <div className="text-gray-500 mb-0.5">
               Ажиллах салбарууд
             </div>
             <div>
@@ -1448,15 +1236,15 @@ const primaryButtonStyle: React.CSSProperties = {
             </div>
           </div>
 
-          <div style={{ gridColumn: "1 / -1" }}>
-            <div style={{ color: "#6b7280", marginBottom: 2 }}>
+          <div className="col-span-full">
+            <div className="text-gray-500 mb-0.5">
               Гарын үсгийн зураг (URL)
             </div>
             <div>{doctor.signatureImagePath || "-"}</div>
           </div>
 
-          <div style={{ gridColumn: "1 / -1" }}>
-            <div style={{ color: "#6b7280", marginBottom: 2 }}>
+          <div className="col-span-full">
+            <div className="text-gray-500 mb-0.5">
               Тамганы зураг (URL)
             </div>
             <div>{doctor.stampImagePath || "-"}</div>
@@ -1465,12 +1253,7 @@ const primaryButtonStyle: React.CSSProperties = {
       ) : (
         <form
           onSubmit={handleSave}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-            maxWidth: 600,
-          }}
+          className="flex flex-col gap-3 max-w-[600px]"
         >
           {(
             [
@@ -1480,7 +1263,7 @@ const primaryButtonStyle: React.CSSProperties = {
             ] as const
           ).map((f) => (
             <div key={f.name}>
-              <div style={{ color: "#6b7280", marginBottom: 2, fontSize: 13 }}>
+              <div className="text-gray-500 mb-0.5 text-[13px]">
                 {f.label}
               </div>
               <input
@@ -1488,31 +1271,20 @@ const primaryButtonStyle: React.CSSProperties = {
                 type={f.type}
                 value={(form as any)[f.name]}
                 onChange={handleChange}
-                style={{
-                  width: "100%",
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  padding: "4px 6px",
-                }}
+                className="w-full rounded-md border border-gray-300 px-1.5 py-1"
               />
             </div>
           ))}
 
           <div>
-            <div style={{ color: "#6b7280", marginBottom: 2, fontSize: 13 }}>
+            <div className="text-gray-500 mb-0.5 text-[13px]">
               Үндсэн салбар
             </div>
             <select
               name="branchId"
               value={form.branchId}
               onChange={handleChange}
-              style={{
-                width: "100%",
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                padding: "4px 6px",
-                background: "white",
-              }}
+              className="w-full rounded-md border border-gray-300 px-1.5 py-1 bg-white"
             >
               <option value="">Сонгохгүй</option>
               {branches.map((b) => (
@@ -1542,7 +1314,7 @@ const primaryButtonStyle: React.CSSProperties = {
             ] as const
           ).map((f) => (
             <div key={f.name}>
-              <div style={{ color: "#6b7280", marginBottom: 2, fontSize: 13 }}>
+              <div className="text-gray-500 mb-0.5 text-[13px]">
                 {f.label}
               </div>
               <input
@@ -1550,23 +1322,13 @@ const primaryButtonStyle: React.CSSProperties = {
                 type={f.type}
                 value={(form as any)[f.name]}
                 onChange={handleChange}
-                style={{
-                  width: "100%",
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  padding: "4px 6px",
-                }}
+                className="w-full rounded-md border border-gray-300 px-1.5 py-1"
               />
             </div>
           ))}
 
           <div
-            style={{
-              marginTop: 16,
-              display: "flex",
-              gap: 8,
-              justifyContent: "flex-end",
-            }}
+            className="mt-4 flex gap-2 justify-end"
           >
             <button
               type="button"
@@ -1576,14 +1338,7 @@ const primaryButtonStyle: React.CSSProperties = {
                 setIsEditingProfile(false);
               }}
               disabled={saving}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                background: "#f9fafb",
-                fontSize: 13,
-                cursor: saving ? "default" : "pointer",
-              }}
+              className={`px-3 py-1.5 rounded-md border border-gray-300 bg-gray-50 text-[13px] ${saving ? "cursor-default" : "cursor-pointer"}`}
             >
               Болих
             </button>
@@ -1591,15 +1346,7 @@ const primaryButtonStyle: React.CSSProperties = {
             <button
               type="submit"
               disabled={saving}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 6,
-                border: "none",
-                background: saving ? "#9ca3af" : "#2563eb",
-                color: "white",
-                fontSize: 13,
-                cursor: saving ? "default" : "pointer",
-              }}
+              className={`px-3 py-1.5 rounded-md border-0 ${saving ? "bg-gray-400" : "bg-blue-600"} text-white text-[13px] ${saving ? "cursor-default" : "cursor-pointer"}`}
             >
               {saving ? "Хадгалж байна..." : "Хадгалах"}
             </button>
@@ -1610,23 +1357,12 @@ const primaryButtonStyle: React.CSSProperties = {
 
     {/* Branch assignment - render in patient-card style */}
     <div
-      style={{
-        marginTop: 16,
-        borderRadius: 12,
-        border: "1px solid #e5e7eb",
-        padding: 16,
-        background: "white",
-      }}
+      className="mt-4 rounded-xl border border-gray-200 p-4 bg-white"
     >
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 12,
-        }}
+        className="flex items-center justify-between mb-3"
       >
-        <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 0 }}>
+        <h2 className="text-base mt-0 mb-0">
           Салбарын тохиргоо
         </h2>
 
@@ -1634,37 +1370,21 @@ const primaryButtonStyle: React.CSSProperties = {
           type="button"
           onClick={handleSaveBranches}
           disabled={savingBranches}
-          style={{
-            padding: "6px 12px",
-            borderRadius: 6,
-            border: "none",
-            background: savingBranches ? "#9ca3af" : "#059669",
-            color: "white",
-            fontSize: 13,
-            cursor: savingBranches ? "default" : "pointer",
-          }}
+          className={`px-3 py-1.5 rounded-md border-0 ${savingBranches ? "bg-gray-400" : "bg-emerald-600"} text-white text-[13px] ${savingBranches ? "cursor-default" : "cursor-pointer"}`}
         >
           {savingBranches ? "Салбар хадгалж байна..." : "Салбар хадгалах"}
         </button>
       </div>
 
-      <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 10 }}>
+      <div className="text-gray-500 text-[13px] mb-2.5">
         Энэ эмч аль салбаруудад ажиллахыг доороос сонгоно уу.
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      <div className="flex flex-wrap gap-2">
         {branches.map((b) => (
           <label
             key={b.id}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              border: "1px solid #ddd",
-              borderRadius: 4,
-              padding: "4px 8px",
-              fontSize: 13,
-            }}
+            className="inline-flex items-center gap-1.5 border border-gray-300 rounded px-2 py-1 text-[13px]"
           >
             <input
               type="checkbox"
@@ -1681,25 +1401,20 @@ const primaryButtonStyle: React.CSSProperties = {
 
           {/* SCHEDULE TAB */}
           {activeTab === "schedule" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="flex flex-col gap-4">
               <Card title="Ажлын хуваарь шинээр нэмэх">
-                <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 10 }}>
+                <div className="text-gray-500 text-[13px] mb-2.5">
                   Сонгосон өдөр, салбар, ээлжийн дагуу шинэ ажлын хуваарь үүсгэнэ.
                 </div>
 
                 <form
                   onSubmit={handleSaveSchedule}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
-                    maxWidth: 600,
-                  }}
+                  className="flex flex-col gap-2.5 max-w-[600px]"
                 >
                  <div>
-                    <div style={labelStyle}>Огноо</div>
+                    <div className="text-gray-500 mb-0.5 text-[13px]">Огноо</div>
                   <input
-                    style={inputStyle}
+                    className="w-full rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
                       type="date"
                       name="date"
                       value={scheduleForm.date}
@@ -1707,7 +1422,7 @@ const primaryButtonStyle: React.CSSProperties = {
                     />
                 </div>
 
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label className="flex flex-col gap-1">
                     Салбар
                     <select
                       name="branchId"
@@ -1723,7 +1438,7 @@ const primaryButtonStyle: React.CSSProperties = {
                     </select>
                   </label>
 
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label className="flex flex-col gap-1">
                     Ээлж
                     <select
                       name="shiftType"
@@ -1736,8 +1451,8 @@ const primaryButtonStyle: React.CSSProperties = {
                     </select>
                   </label>
 
-                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div className="flex gap-3 flex-wrap">
+                    <label className="flex flex-col gap-1">
                       Эхлэх цаг
                       <input
                         type="time"
@@ -1746,7 +1461,7 @@ const primaryButtonStyle: React.CSSProperties = {
                         onChange={handleScheduleFormChange}
                       />
                     </label>
-                    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <label className="flex flex-col gap-1">
                       Дуусах цаг
                       <input
                         type="time"
@@ -1760,9 +1475,9 @@ const primaryButtonStyle: React.CSSProperties = {
 
                   
                   <div>
-  <div style={labelStyle}>Тэмдэглэл</div>
+  <div className="text-gray-500 mb-0.5 text-[13px]">Тэмдэглэл</div>
                     <textarea
-                      style={inputStyle}
+                      className="w-full rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
                       name="note"
                       rows={2}
                       value={scheduleForm.note}
@@ -1774,28 +1489,18 @@ const primaryButtonStyle: React.CSSProperties = {
                   <button
                     type="submit"
                     disabled={scheduleSaving || !isCreatingSchedule}
-                    style={{
-                      marginTop: 4,
-                      padding: "8px 16px",
-                      borderRadius: 8,
-                      border: "none",
-                      background: "#7c3aed",
-                      color: "white",
-                      cursor: "pointer",
-                      alignSelf: "flex-start",
-                      fontWeight: 700,
-                    }}
+                    className="mt-1 px-4 py-2 rounded-lg border-0 bg-violet-600 text-white cursor-pointer self-start font-bold"
                   >
                     {scheduleSaving ? "Хуваарь хадгалж байна..." : "Хуваарь хадгалах"}
                   </button>
 
                   {scheduleSaveError && (
-                    <div style={{ color: "red", marginTop: 4 }}>
+                    <div className="text-red-500 mt-1">
                       {scheduleSaveError}
                     </div>
                   )}
                   {scheduleSaveSuccess && (
-                    <div style={{ color: "green", marginTop: 4 }}>
+                    <div className="text-green-600 mt-1">
                       {scheduleSaveSuccess}
                     </div>
                   )}
@@ -1803,44 +1508,39 @@ const primaryButtonStyle: React.CSSProperties = {
               </Card>
 
               <Card title="Дараагийн 1 сарын ажлын хуваарь">
-                <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 10 }}>
+                <div className="text-gray-500 text-[13px] mb-2.5">
                   Нийт төлөвлөгдсөн хуваарь
                 </div>
 
                 {scheduleLoading && <div>Ажлын хуваарь ачааллаж байна...</div>}
 
                 {!scheduleLoading && scheduleError && (
-                  <div style={{ color: "red" }}>{scheduleError}</div>
+                  <div className="text-red-500">{scheduleError}</div>
                 )}
 
                 {!scheduleLoading && !scheduleError && schedule.length === 0 && (
-                  <div style={{ color: "#888" }}>Төлөвлөсөн ажлын хуваарь алга.</div>
+                  <div className="text-gray-400">Төлөвлөсөн ажлын хуваарь алга.</div>
                 )}
 
                 {!scheduleLoading && !scheduleError && schedule.length > 0 && (
                   <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      marginTop: 8,
-                      fontSize: 14,
-                    }}
+                    className="w-full border-collapse mt-2 text-sm"
                   >
                     <thead>
-                      <tr style={{ background: "#f9fafb" }}>
-                        <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
+                      <tr className="bg-gray-50">
+                        <th className="text-left border-b border-gray-300 p-2">
                           Огноо
                         </th>
-                        <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
+                        <th className="text-left border-b border-gray-300 p-2">
                           Салбар
                         </th>
-                        <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
+                        <th className="text-left border-b border-gray-300 p-2">
                           Цаг
                         </th>
-                        <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
+                        <th className="text-left border-b border-gray-300 p-2">
                           Тэмдэглэл
                         </th>
-                        <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
+                        <th className="text-left border-b border-gray-300 p-2">
                           Үйлдэл
                         </th>
                       </tr>
@@ -1851,14 +1551,14 @@ const primaryButtonStyle: React.CSSProperties = {
 
                         return (
                           <tr key={s.id}>
-                            <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
+                            <td className="border-b border-gray-100 p-2">
                               {isRowEditing ? (
                                 <input
                                   type="date"
                                   name="date"
                                   value={inlineForm.date}
                                   onChange={handleInlineChange}
-                                  style={{ fontSize: 12, padding: 4 }}
+                                  className="text-xs p-1"
                                 />
                               ) : (
                                 new Date(s.date).toLocaleDateString("mn-MN", {
@@ -1870,13 +1570,13 @@ const primaryButtonStyle: React.CSSProperties = {
                               )}
                             </td>
 
-                            <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
+                            <td className="border-b border-gray-100 p-2">
                               {isRowEditing ? (
                                 <select
                                   name="branchId"
                                   value={inlineForm.branchId}
                                   onChange={handleInlineChange}
-                                  style={{ fontSize: 12, padding: 4 }}
+                                  className="text-xs p-1"
                                 >
                                   <option value="">Сонгох</option>
                                   {doctorAssignedBranches.map((b) => (
@@ -1890,15 +1590,15 @@ const primaryButtonStyle: React.CSSProperties = {
                               )}
                             </td>
 
-                            <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
+                            <td className="border-b border-gray-100 p-2">
                               {isRowEditing ? (
-                                <div style={{ display: "flex", gap: 4 }}>
+                                <div className="flex gap-1">
                                   <input
                                     type="time"
                                     name="startTime"
                                     value={inlineForm.startTime}
                                     onChange={handleInlineChange}
-                                    style={{ fontSize: 12, padding: 4 }}
+                                    className="text-xs p-1"
                                   />
                                   <span>-</span>
                                   <input
@@ -1906,7 +1606,7 @@ const primaryButtonStyle: React.CSSProperties = {
                                     name="endTime"
                                     value={inlineForm.endTime}
                                     onChange={handleInlineChange}
-                                    style={{ fontSize: 12, padding: 4 }}
+                                    className="text-xs p-1"
                                   />
                                 </div>
                               ) : (
@@ -1916,83 +1616,52 @@ const primaryButtonStyle: React.CSSProperties = {
                               )}
                             </td>
 
-                            <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
+                            <td className="border-b border-gray-100 p-2">
                               {isRowEditing ? (
                                 <textarea
                                   name="note"
                                   rows={1}
                                   value={inlineForm.note}
                                   onChange={handleInlineChange}
-                                  style={{ fontSize: 12, padding: 4, width: "100%" }}
+                                  className="text-xs p-1 w-full"
                                 />
                               ) : (
                                 s.note || "-"
                               )}
                             </td>
 
-                            <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
+                            <td className="border-b border-gray-100 p-2">
                               {isRowEditing ? (
-                                <div style={{ display: "flex", gap: 6 }}>
+                                <div className="flex gap-[6px]">
                                   <button
                                     type="button"
                                     onClick={handleInlineSaveSchedule}
                                     disabled={scheduleSaving}
-                                    style={{
-                                      padding: "4px 10px",
-                                      borderRadius: 8,
-                                      border: "1px solid #4ade80",
-                                      background: "#dcfce7",
-                                      cursor: "pointer",
-                                      fontSize: 12,
-                                      fontWeight: 700,
-                                    }}
+                                    className="px-[10px] py-1 rounded-lg border border-[#4ade80] bg-[#dcfce7] cursor-pointer text-xs font-bold"
                                   >
                                     {scheduleSaving ? "Хадгалж..." : "Хадгалах"}
                                   </button>
                                   <button
                                     type="button"
                                     onClick={cancelEditRow}
-                                    style={{
-                                     border: "1px solid #d1d5db",
-background: "#f9fafb",
-padding: "6px 12px",
-borderRadius: 6,
-fontSize: 13
-                                    }}
+                                    className="border border-gray-300 bg-gray-50 px-3 py-1.5 rounded-md text-[13px]"
                                   >
                                     Цуцлах
                                   </button>
                                 </div>
                               ) : (
-                                <div style={{ display: "flex", gap: 6 }}>
+                                <div className="flex gap-[6px]">
                                   <button
                                     type="button"
                                     onClick={() => startEditRow(s)}
-                                    style={{
-                                      padding: "4px 10px",
-                                      borderRadius: 8,
-                                      border: "1px solid #d1d5db",
-                                      background: "#fff",
-                                      cursor: "pointer",
-                                      fontSize: 12,
-                                      fontWeight: 700,
-                                    }}
+                                    className="px-[10px] py-1 rounded-lg border border-gray-300 bg-white cursor-pointer text-xs font-bold"
                                   >
                                     Засах
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteSchedule(s.id)}
-                                    style={{
-                                      padding: "4px 10px",
-                                      borderRadius: 8,
-                                      border: "1px solid #fecaca",
-                                      background: "#fee2e2",
-                                      color: "#b91c1c",
-                                      cursor: "pointer",
-                                      fontSize: 12,
-                                      fontWeight: 700,
-                                    }}
+                                    className="px-[10px] py-1 rounded-lg border border-red-200 bg-red-100 text-red-700 cursor-pointer text-xs font-bold"
                                   >
                                     Устгах
                                   </button>
@@ -2008,20 +1677,14 @@ fontSize: 13
               </Card>
 
               <Card title="Хуваарийн түүх">
-                <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 10 }}>
+                <div className="text-gray-500 text-[13px] mb-2.5">
                   Өнгөрсөн (эсвэл ирээдүйн) тодорхой хугацааны ажлын хуваарийг харах.
                 </div>
 
                 <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 12,
-                    alignItems: "flex-end",
-                    marginBottom: 12,
-                  }}
+                  className="flex flex-wrap gap-3 items-end mb-3"
                 >
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label className="flex flex-col gap-1">
                     Эхлэх огноо
                     <input
                       type="date"
@@ -2030,7 +1693,7 @@ fontSize: 13
                     />
                   </label>
 
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label className="flex flex-col gap-1">
                     Дуусах огноо
                     <input
                       type="date"
@@ -2043,52 +1706,38 @@ fontSize: 13
                     type="button"
                     onClick={loadHistory}
                     disabled={historyLoading}
-                    style={{
-                      padding: "8px 16px",
-                      borderRadius: 8,
-                      border: "none",
-                      background: "#0f766e",
-                      color: "white",
-                      cursor: "pointer",
-                      height: 38,
-                      fontWeight: 700,
-                    }}
+                    className="px-4 py-2 rounded-lg border-0 bg-teal-700 text-white cursor-pointer h-[38px] font-bold"
                   >
                     {historyLoading ? "Ачааллаж байна..." : "Харах"}
                   </button>
                 </div>
 
                 {historyError && (
-                  <div style={{ color: "red", marginBottom: 8 }}>{historyError}</div>
+                  <div className="text-red-500 mb-2">{historyError}</div>
                 )}
 
                 {!historyLoading && historyItems.length === 0 && !historyError && (
-                  <div style={{ color: "#888" }}>
+                  <div className="text-gray-400">
                     Хуваарийн түүх хараахан ачаалаагүй эсвэл өгөгдөл олдсонгүй.
                   </div>
                 )}
 
                 {historyItems.length > 0 && (
                   <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      marginTop: 8,
-                      fontSize: 14,
-                    }}
+                    className="w-full border-collapse mt-2 text-sm"
                   >
                     <thead>
-                      <tr style={{ background: "#f9fafb" }}>
-                        <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
+                      <tr className="bg-gray-50">
+                        <th className="text-left border-b border-gray-300 p-2">
                           Огноо
                         </th>
-                        <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
+                        <th className="text-left border-b border-gray-300 p-2">
                           Салбар
                         </th>
-                        <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
+                        <th className="text-left border-b border-gray-300 p-2">
                           Цаг
                         </th>
-                        <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>
+                        <th className="text-left border-b border-gray-300 p-2">
                           Тэмдэглэл
                         </th>
                       </tr>
@@ -2096,7 +1745,7 @@ fontSize: 13
                     <tbody>
                       {historyItems.map((s) => (
                         <tr key={s.id}>
-                          <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
+                          <td className="border-b border-gray-100 p-2">
                             {new Date(s.date).toLocaleDateString("mn-MN", {
                               year: "numeric",
                               month: "2-digit",
@@ -2104,13 +1753,13 @@ fontSize: 13
                               weekday: "short",
                             })}
                           </td>
-                          <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
+                          <td className="border-b border-gray-100 p-2">
                             {s.branch?.name || "-"}
                           </td>
-                          <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
+                          <td className="border-b border-gray-100 p-2">
                             {s.startTime} - {s.endTime}
                           </td>
-                          <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
+                          <td className="border-b border-gray-100 p-2">
                             {s.note || "-"}
                           </td>
                         </tr>
@@ -2126,23 +1775,11 @@ fontSize: 13
             <Card title="Цагууд">
               {/* Date Range Filter */}
               <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  marginBottom: 16,
-                  alignItems: "flex-end",
-                  flexWrap: "wrap",
-                }}
+                className="flex gap-3 mb-4 items-end flex-wrap"
               >
-                <div style={{ flex: "0 0 auto" }}>
+                <div className="shrink-0">
                   <label
-                    style={{
-                      display: "block",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      marginBottom: 4,
-                      color: "#374151",
-                    }}
+                    className="block text-[13px] font-medium mb-1 text-gray-700"
                   >
                     Эхлэх өдөр:
                   </label>
@@ -2150,23 +1787,12 @@ fontSize: 13
                     type="date"
                     value={appointmentsFrom}
                     onChange={(e) => setAppointmentsFrom(e.target.value)}
-                    style={{
-                      padding: "8px 10px",
-                      border: "1px solid #d1d5db",
-                      borderRadius: 6,
-                      fontSize: 14,
-                    }}
+                    className="px-2.5 py-2 border border-gray-300 rounded-md text-sm"
                   />
                 </div>
-                <div style={{ flex: "0 0 auto" }}>
+                <div className="shrink-0">
                   <label
-                    style={{
-                      display: "block",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      marginBottom: 4,
-                      color: "#374151",
-                    }}
+                    className="block text-[13px] font-medium mb-1 text-gray-700"
                   >
                     Дуусах өдөр:
                   </label>
@@ -2174,27 +1800,13 @@ fontSize: 13
                     type="date"
                     value={appointmentsTo}
                     onChange={(e) => setAppointmentsTo(e.target.value)}
-                    style={{
-                      padding: "8px 10px",
-                      border: "1px solid #d1d5db",
-                      borderRadius: 6,
-                      fontSize: 14,
-                    }}
+                    className="px-2.5 py-2 border border-gray-300 rounded-md text-sm"
                   />
                 </div>
                 <button
                   onClick={loadAppointments}
                   disabled={appointmentsLoading || !appointmentsFrom || !appointmentsTo}
-                  style={{
-                    padding: "8px 16px",
-                    background: appointmentsLoading ? "#9ca3af" : "#3b82f6",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 6,
-                    fontSize: 14,
-                    fontWeight: 500,
-                    cursor: appointmentsLoading ? "not-allowed" : "pointer",
-                  }}
+                  className={`px-4 py-2 ${appointmentsLoading ? "bg-gray-400" : "bg-blue-500"} text-white border-0 rounded-md text-sm font-medium ${appointmentsLoading ? "cursor-not-allowed" : "cursor-pointer"}`}
                 >
                   {appointmentsLoading ? "Ачаалж байна..." : "Харах"}
                 </button>
@@ -2202,14 +1814,14 @@ fontSize: 13
 
               {/* Loading State */}
               {appointmentsLoading && (
-                <div style={{ color: "#6b7280", fontSize: 14, padding: "20px 0" }}>
+                <div className="text-gray-500 text-sm py-5">
                   Цагуудыг ачаалж байна...
                 </div>
               )}
 
               {/* Error State */}
               {appointmentsError && !appointmentsLoading && (
-                <div style={{ color: "#dc2626", fontSize: 14, padding: "12px 0" }}>
+                <div className="text-red-600 text-sm py-3">
                   {appointmentsError}
                 </div>
               )}
@@ -2218,7 +1830,7 @@ fontSize: 13
               {!appointmentsLoading &&
                 !appointmentsError &&
                 appointments.length === 0 && (
-                  <div style={{ color: "#6b7280", fontSize: 14, padding: "20px 0" }}>
+                  <div className="text-gray-500 text-sm py-5">
                     Тухайн хугацаанд цаг олдсонгүй.
                   </div>
                 )}
@@ -2227,78 +1839,41 @@ fontSize: 13
               {!appointmentsLoading &&
                 !appointmentsError &&
                 appointments.length > 0 && (
-                  <div style={{ overflowX: "auto" }}>
+                  <div className="overflow-x-auto">
                     <table
-                      style={{
-                        width: "100%",
-                        borderCollapse: "collapse",
-                        fontSize: 14,
-                      }}
+                      className="w-full border-collapse text-sm"
                     >
                       <thead>
                         <tr
-                          style={{
-                            borderBottom: "2px solid #e5e7eb",
-                            backgroundColor: "#f9fafb",
-                          }}
+                          className="border-b-2 border-gray-200 bg-gray-50"
                         >
                           <th
-                            style={{
-                              padding: "10px 8px",
-                              textAlign: "left",
-                              fontWeight: 600,
-                              color: "#374151",
-                            }}
+                            className="px-2 py-2.5 text-left font-semibold text-gray-700"
                           >
                             Огноо
                           </th>
                           <th
-                            style={{
-                              padding: "10px 8px",
-                              textAlign: "left",
-                              fontWeight: 600,
-                              color: "#374151",
-                            }}
+                            className="px-2 py-2.5 text-left font-semibold text-gray-700"
                           >
                             Цаг
                           </th>
                           <th
-                            style={{
-                              padding: "10px 8px",
-                              textAlign: "left",
-                              fontWeight: 600,
-                              color: "#374151",
-                            }}
+                            className="px-2 py-2.5 text-left font-semibold text-gray-700"
                           >
                             Өвчтөн
                           </th>
                           <th
-                            style={{
-                              padding: "10px 8px",
-                              textAlign: "left",
-                              fontWeight: 600,
-                              color: "#374151",
-                            }}
+                            className="px-2 py-2.5 text-left font-semibold text-gray-700"
                           >
                             Төлөв
                           </th>
                           <th
-                            style={{
-                              padding: "10px 8px",
-                              textAlign: "left",
-                              fontWeight: 600,
-                              color: "#374151",
-                            }}
+                            className="px-2 py-2.5 text-left font-semibold text-gray-700"
                           >
                             Салбар
                           </th>
                           <th
-                            style={{
-                              padding: "10px 8px",
-                              textAlign: "left",
-                              fontWeight: 600,
-                              color: "#374151",
-                            }}
+                            className="px-2 py-2.5 text-left font-semibold text-gray-700"
                           >
                             Үйлдэл
                           </th>
@@ -2322,46 +1897,27 @@ fontSize: 13
                           return (
                             <tr
                               key={appt.id}
-                              style={{
-                                borderBottom: "1px solid #e5e7eb",
-                              }}
+                              className="border-b border-gray-200"
                             >
-                              <td style={{ padding: "10px 8px" }}>{dateStr}</td>
-                              <td style={{ padding: "10px 8px" }}>
+                              <td className="px-2 py-2.5">{dateStr}</td>
+                              <td className="px-2 py-2.5">
                                 {timeStr}
                                 {endTimeStr && ` - ${endTimeStr}`}
                               </td>
-                              <td style={{ padding: "10px 8px" }}>
+                              <td className="px-2 py-2.5">
                                 {patientFullName || "—"}
                               </td>
-                              <td style={{ padding: "10px 8px" }}>
+                              <td className="px-2 py-2.5">
                                 <span
-                                  style={{
-                                    padding: "2px 8px",
-                                    borderRadius: 4,
-                                    fontSize: 12,
-                                    fontWeight: 500,
-                                    backgroundColor:
-                                      appt.status === "completed"
-                                        ? "#d1fae5"
-                                        : appt.status === "ongoing"
-                                        ? "#fef3c7"
-                                        : "#dbeafe",
-                                    color:
-                                      appt.status === "completed"
-                                        ? "#065f46"
-                                        : appt.status === "ongoing"
-                                        ? "#92400e"
-                                        : "#1e40af",
-                                  }}
+                                  className={`px-2 py-0.5 rounded text-xs font-medium ${appt.status === "completed" ? "bg-[#d1fae5] text-[#065f46]" : appt.status === "ongoing" ? "bg-[#fef3c7] text-[#92400e]" : "bg-[#dbeafe] text-[#1e40af]"}`}
                                 >
                                   {appt.status}
                                 </span>
                               </td>
-                              <td style={{ padding: "10px 8px" }}>
+                              <td className="px-2 py-2.5">
                                 {appt.branchName || `#${appt.branchId}`}
                               </td>
-                              <td style={{ padding: "10px 8px" }}>
+                              <td className="px-2 py-2.5">
                                 {appt.patientBookNumber ? (
                                   <button
                                     onClick={() =>
@@ -2369,21 +1925,12 @@ fontSize: 13
                                         `/patients/${appt.patientBookNumber}`
                                       )
                                     }
-                                    style={{
-                                      padding: "4px 12px",
-                                      backgroundColor: "#3b82f6",
-                                      color: "white",
-                                      border: "none",
-                                      borderRadius: 4,
-                                      fontSize: 13,
-                                      fontWeight: 500,
-                                      cursor: "pointer",
-                                    }}
+                                    className="px-3 py-1 bg-blue-500 text-white border-0 rounded text-[13px] font-medium cursor-pointer"
                                   >
                                     Харах
                                   </button>
                                 ) : (
-                                  <span style={{ color: "#9ca3af", fontSize: 12 }}>
+                                  <span className="text-gray-400 text-xs">
                                     —
                                   </span>
                                 )}
@@ -2400,13 +1947,13 @@ fontSize: 13
 
           {activeTab === "test1" && (
             <Card title="Test Page 1">
-              <div style={{ color: "#6b7280", fontSize: 13 }}>Placeholder page.</div>
+              <div className="text-gray-500 text-[13px]">Placeholder page.</div>
             </Card>
           )}
 
           {activeTab === "test2" && (
             <Card title="Test Page 2">
-              <div style={{ color: "#6b7280", fontSize: 13 }}>Placeholder page.</div>
+              <div className="text-gray-500 text-[13px]">Placeholder page.</div>
             </Card>
           )}
         </div>

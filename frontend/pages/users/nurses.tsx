@@ -148,17 +148,10 @@ function NurseForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: 24 }}>
+    <form onSubmit={handleSubmit} className="mb-6">
       <h2>Шинэ сувилагч бүртгэх</h2>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 8,
-          marginBottom: 8,
-        }}
-      >
+      <div className="grid [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))] gap-2 mb-2">
         <input
           name="ovog"
           placeholder="Овог"
@@ -203,27 +196,13 @@ function NurseForm({
         />
       </div>
 
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ marginBottom: 4, fontWeight: 500 }}>Салбар сонгох</div>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 8,
-          }}
-        >
+      <div className="mb-2">
+        <div className="mb-1 font-medium">Салбар сонгох</div>
+        <div className="flex flex-wrap gap-2">
           {branches.map((b) => (
             <label
               key={b.id}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                border: "1px solid #ddd",
-                borderRadius: 4,
-                padding: "4px 8px",
-                fontSize: 13,
-              }}
+              className="inline-flex items-center gap-1 border border-gray-200 rounded px-2 py-1 text-[13px]"
             >
               <input
                 type="checkbox"
@@ -240,7 +219,7 @@ function NurseForm({
         {submitting ? "Бүртгэж байна..." : "Бүртгэх"}
       </button>
 
-      {error && <div style={{ color: "red", marginTop: 8 }}>{error}</div>}
+      {error && <div className="text-red-600 mt-2">{error}</div>}
     </form>
   );
 }
@@ -327,97 +306,35 @@ export default function NursesPage() {
   }, []);
 
   return (
-    <main
-      style={{
-        maxWidth: 900,
-        margin: "40px auto",
-        padding: 24,
-        fontFamily: "sans-serif",
-      }}
-    >
+    <main className="max-w-[900px] mx-auto my-10 p-6 font-sans">
       <h1>Сувилагч</h1>
-      <p style={{ color: "#555", marginBottom: 16 }}>
+      <p className="text-gray-500 mb-4">
         Сувилагч ажилчдыг бүртгэх, салбарт хуваарьлах, жагсаалтаар харах.
       </p>
 
       <UsersTabs />
 
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
-        <div
-          style={{
-            background: "linear-gradient(90deg,#eff6ff,#ffffff)",
-            borderRadius: 12,
-            border: "1px solid #dbeafe",
-            padding: 12,
-            boxShadow: "0 4px 10px rgba(15,23,42,0.08)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 11,
-              textTransform: "uppercase",
-              color: "#1d4ed8",
-              fontWeight: 700,
-              letterSpacing: 0.5,
-              marginBottom: 4,
-            }}
-          >
+      <section className="grid [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))] gap-3 mb-4">
+        <div className="bg-gradient-to-r from-blue-50 to-white rounded-xl border border-blue-100 p-3 shadow">
+          <div className="text-xs uppercase text-blue-700 font-bold tracking-wide mb-1">
             Нийт сувилагч
           </div>
-          <div
-            style={{
-              fontSize: 26,
-              fontWeight: 700,
-              color: "#111827",
-              marginBottom: 4,
-            }}
-          >
+          <div className="text-[26px] font-bold text-gray-900 mb-1">
             {summary ? summary.total : "—"}
           </div>
-          <div style={{ fontSize: 11, color: "#6b7280" }}>
+          <div className="text-xs text-gray-500">
             Системд бүртгэлтэй нийт сувилагч ажилчдын тоо.
           </div>
         </div>
 
-        <div
-          style={{
-            background: "linear-gradient(90deg,#dcfce7,#ffffff)",
-            borderRadius: 12,
-            border: "1px solid #bbf7d0",
-            padding: 12,
-            boxShadow: "0 4px 10px rgba(15,23,42,0.08)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 11,
-              textTransform: "uppercase",
-              color: "#15803d",
-              fontWeight: 700,
-              letterSpacing: 0.5,
-              marginBottom: 4,
-            }}
-          >
+        <div className="bg-gradient-to-r from-green-100 to-white rounded-xl border border-green-200 p-3 shadow">
+          <div className="text-xs uppercase text-green-700 font-bold tracking-wide mb-1">
             Өнөөдөр ажиллаж буй сувилагч
           </div>
-          <div
-            style={{
-              fontSize: 26,
-              fontWeight: 700,
-              color: "#111827",
-              marginBottom: 4,
-            }}
-          >
+          <div className="text-[26px] font-bold text-gray-900 mb-1">
             {summary ? summary.workingToday : "—"}
           </div>
-          <div style={{ fontSize: 11, color: "#6b7280" }}>
+          <div className="text-xs text-gray-500">
             Өнөөдрийн ажлын хуваарьт орсон сувилагчдын тоо.
           </div>
         </div>
@@ -432,173 +349,42 @@ export default function NursesPage() {
       />
 
       {loading && <div>Ачааллаж байна...</div>}
-      {!loading && error && <div style={{ color: "red" }}>{error}</div>}
+      {!loading && error && <div className="text-red-600">{error}</div>}
 
       {!loading && !error && (
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            marginTop: 8,
-            fontSize: 14,
-          }}
-        >
+        <table className="w-full border-collapse mt-2 text-sm">
           <thead>
             <tr>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                #
-              </th>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                Овог
-              </th>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                Нэр
-              </th>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                И-мэйл
-              </th>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                РД
-              </th>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                Утас
-              </th>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                Салбар
-              </th>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                Профайл
-              </th>
+              <th className="text-left border-b border-gray-200 p-2">#</th>
+              <th className="text-left border-b border-gray-200 p-2">Овог</th>
+              <th className="text-left border-b border-gray-200 p-2">Нэр</th>
+              <th className="text-left border-b border-gray-200 p-2">И-мэйл</th>
+              <th className="text-left border-b border-gray-200 p-2">РД</th>
+              <th className="text-left border-b border-gray-200 p-2">Утас</th>
+              <th className="text-left border-b border-gray-200 p-2">Салбар</th>
+              <th className="text-left border-b border-gray-200 p-2">Профайл</th>
             </tr>
           </thead>
           <tbody>
             {users.map((u, index) => (
               <tr key={u.id}>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
-                  {index + 1}
-                </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
-                  {u.ovog || "-"}
-                </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
-                  {u.name || "-"}
-                </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
-                  {u.email}
-                </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
-                  {u.regNo || "-"}
-                </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
-                  {u.phone || "-"}
-                </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                  }}
-                >
+                <td className="border-b border-gray-100 p-2">{index + 1}</td>
+                <td className="border-b border-gray-100 p-2">{u.ovog || "-"}</td>
+                <td className="border-b border-gray-100 p-2">{u.name || "-"}</td>
+                <td className="border-b border-gray-100 p-2">{u.email}</td>
+                <td className="border-b border-gray-100 p-2">{u.regNo || "-"}</td>
+                <td className="border-b border-gray-100 p-2">{u.phone || "-"}</td>
+                <td className="border-b border-gray-100 p-2">
                   {Array.isArray(u.branches) && u.branches.length > 0
                     ? u.branches.map((b) => b.name).join(", ")
                     : u.branch
                     ? u.branch.name
                     : "-"}
                 </td>
-                <td
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: 8,
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <td className="border-b border-gray-100 p-2 whitespace-nowrap">
                   <a
                     href={`/users/nurse/${u.id}`}
-                    style={{
-                      padding: "2px 6px",
-                      fontSize: 12,
-                      borderRadius: 4,
-                      border: "1px solid #2563eb",
-                      color: "#2563eb",
-                      textDecoration: "none",
-                    }}
+                    className="px-1.5 py-0.5 text-xs rounded border border-blue-600 text-blue-600 no-underline"
                   >
                     Профайл
                   </a>
@@ -607,14 +393,7 @@ export default function NursesPage() {
             ))}
             {users.length === 0 && (
               <tr>
-                <td
-                  colSpan={8}
-                  style={{
-                    textAlign: "center",
-                    color: "#888",
-                    padding: 12,
-                  }}
-                >
+                <td colSpan={8} className="text-center text-gray-400 p-3">
                   Өгөгдөл алга
                 </td>
               </tr>

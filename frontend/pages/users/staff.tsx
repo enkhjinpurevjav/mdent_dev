@@ -187,17 +187,10 @@ function OtherStaffForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: 24 }}>
+    <form onSubmit={handleSubmit} className="mb-6">
       <h2>Шинэ ажилтан бүртгэх</h2>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 8,
-          marginBottom: 8,
-        }}
-      >
+      <div className="grid [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))] gap-2 mb-2">
         <input
           name="ovog"
           placeholder="Овог"
@@ -244,7 +237,7 @@ function OtherStaffForm({
           name="role"
           value={form.role}
           onChange={handleChange}
-          style={{ minHeight: 32 }}
+          className="min-h-[32px]"
           required
         >
           <option value="">Үүрэг сонгох</option>
@@ -256,27 +249,13 @@ function OtherStaffForm({
         </select>
       </div>
 
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ marginBottom: 4, fontWeight: 500 }}>Салбар сонгох</div>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 8,
-          }}
-        >
+      <div className="mb-2">
+        <div className="mb-1 font-medium">Салбар сонгох</div>
+        <div className="flex flex-wrap gap-2">
           {branches.map((b) => (
             <label
               key={b.id}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                border: "1px solid #ddd",
-                borderRadius: 4,
-                padding: "4px 8px",
-                fontSize: 13,
-              }}
+              className="inline-flex items-center gap-1 border border-gray-200 rounded px-2 py-1 text-[13px]"
             >
               <input
                 type="checkbox"
@@ -293,7 +272,7 @@ function OtherStaffForm({
         {submitting ? "Бүртгэж байна..." : "Бүртгэх"}
       </button>
 
-      {error && <div style={{ color: "red", marginTop: 8 }}>{error}</div>}
+      {error && <div className="text-red-600 mt-2">{error}</div>}
     </form>
   );
 }
@@ -543,16 +522,9 @@ export default function OtherStaffPage() {
   };
 
   return (
-    <main
-      style={{
-        maxWidth: 900,
-        margin: "40px auto",
-        padding: 24,
-        fontFamily: "sans-serif",
-      }}
-    >
+    <main className="max-w-[900px] mx-auto my-10 p-6 font-sans">
       <h1>Бусад ажилтан</h1>
-      <p style={{ color: "#555", marginBottom: 16 }}>
+      <p className="text-gray-500 mb-4">
         Нягтлан, менежер, админ зэрэг бусад ажилчдыг бүртгэх, салбарт
         хуваарьлах, жагсаалтаар харах.
       </p>
@@ -567,102 +539,23 @@ export default function OtherStaffPage() {
       />
 
       {loading && <div>Ачааллаж байна...</div>}
-      {!loading && error && <div style={{ color: "red" }}>{error}</div>}
+      {!loading && error && <div className="text-red-600">{error}</div>}
 
       {!loading && !error && (
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            marginTop: 8,
-            fontSize: 14,
-          }}
-        >
+        <table className="w-full border-collapse mt-2 text-sm">
           <thead>
             <tr>
               {/* # constant number column */}
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                #
-              </th>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                Овог
-              </th>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                Нэр
-              </th>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                И-мэйл
-              </th>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                РД
-              </th>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                Утас
-              </th>
+              <th className="text-left border-b border-gray-200 p-2">#</th>
+              <th className="text-left border-b border-gray-200 p-2">Овог</th>
+              <th className="text-left border-b border-gray-200 p-2">Нэр</th>
+              <th className="text-left border-b border-gray-200 p-2">И-мэйл</th>
+              <th className="text-left border-b border-gray-200 p-2">РД</th>
+              <th className="text-left border-b border-gray-200 p-2">Утас</th>
               {/* New: Үүрэг column between Утас and Салбар */}
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                Үүрэг
-              </th>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                Салбар
-              </th>
-              <th
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #ddd",
-                  padding: 8,
-                }}
-              >
-                Үйлдэл
-              </th>
+              <th className="text-left border-b border-gray-200 p-2">Үүрэг</th>
+              <th className="text-left border-b border-gray-200 p-2">Салбар</th>
+              <th className="text-left border-b border-gray-200 p-2">Үйлдэл</th>
             </tr>
           </thead>
           <tbody>
@@ -673,108 +566,48 @@ export default function OtherStaffPage() {
                 return (
                   <tr key={u.id}>
                     {/* # */}
-                    <td
-                      style={{
-                        borderBottom: "1px solid #f0f0f0",
-                        padding: 8,
-                      }}
-                    >
-                      {index + 1}
-                    </td>
-                    <td
-                      style={{
-                        borderBottom: "1px solid #f0f0f0",
-                        padding: 8,
-                      }}
-                    >
+                    <td className="border-b border-gray-100 p-2">{index + 1}</td>
+                    <td className="border-b border-gray-100 p-2">
                       <input
                         name="ovog"
                         value={editForm.ovog}
                         onChange={handleEditChange}
-                        style={{ width: "100%" }}
+                        className="w-full"
                       />
                     </td>
-                    <td
-                      style={{
-                        borderBottom: "1px solid #f0f0f0",
-                        padding: 8,
-                      }}
-                    >
+                    <td className="border-b border-gray-100 p-2">
                       <input
                         name="name"
                         value={editForm.name}
                         onChange={handleEditChange}
-                        style={{ width: "100%" }}
+                        className="w-full"
                       />
                     </td>
-                    <td
-                      style={{
-                        borderBottom: "1px solid #f0f0f0",
-                        padding: 8,
-                      }}
-                    >
-                      {u.email}
-                    </td>
-                    <td
-                      style={{
-                        borderBottom: "1px solid #f0f0f0",
-                        padding: 8,
-                      }}
-                    >
+                    <td className="border-b border-gray-100 p-2">{u.email}</td>
+                    <td className="border-b border-gray-100 p-2">
                       <input
                         name="regNo"
                         value={editForm.regNo}
                         onChange={handleEditChange}
-                        style={{ width: "100%" }}
+                        className="w-full"
                       />
                     </td>
-                    <td
-                      style={{
-                        borderBottom: "1px solid #f0f0f0",
-                        padding: 8,
-                      }}
-                    >
+                    <td className="border-b border-gray-100 p-2">
                       <input
                         name="phone"
                         value={editForm.phone}
                         onChange={handleEditChange}
-                        style={{ width: "100%" }}
+                        className="w-full"
                       />
                     </td>
                     {/* Үүрэг: not editable here, shown as label */}
-                    <td
-                      style={{
-                        borderBottom: "1px solid #f0f0f0",
-                        padding: 8,
-                      }}
-                    >
-                      {getRoleLabel(u.role)}
-                    </td>
-                    <td
-                      style={{
-                        borderBottom: "1px solid #f0f0f0",
-                        padding: 8,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 4,
-                        }}
-                      >
+                    <td className="border-b border-gray-100 p-2">{getRoleLabel(u.role)}</td>
+                    <td className="border-b border-gray-100 p-2">
+                      <div className="flex flex-wrap gap-1">
                         {branches.map((b) => (
                           <label
                             key={b.id}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 4,
-                              border: "1px solid #ddd",
-                              borderRadius: 4,
-                              padding: "2px 6px",
-                              fontSize: 12,
-                            }}
+                            className="inline-flex items-center gap-1 border border-gray-200 rounded px-1.5 py-0.5 text-xs"
                           >
                             <input
                               type="checkbox"
@@ -786,28 +619,18 @@ export default function OtherStaffPage() {
                         ))}
                       </div>
                     </td>
-                    <td
-                      style={{
-                        borderBottom: "1px solid #f0f0f0",
-                        padding: 8,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <td className="border-b border-gray-100 p-2 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => saveEdit(u.id)}
-                        style={{
-                          marginRight: 8,
-                          padding: "2px 6px",
-                          fontSize: 12,
-                        }}
+                        className="mr-2 px-1.5 py-0.5 text-xs"
                       >
                         Хадгалах
                       </button>
                       <button
                         type="button"
                         onClick={cancelEdit}
-                        style={{ padding: "2px 6px", fontSize: 12 }}
+                        className="px-1.5 py-0.5 text-xs"
                       >
                         Цуцлах
                       </button>
@@ -819,101 +642,32 @@ export default function OtherStaffPage() {
               return (
                 <tr key={u.id}>
                   {/* # */}
-                  <td
-                    style={{
-                      borderBottom: "1px solid #f0f0f0",
-                      padding: 8,
-                    }}
-                  >
-                    {index + 1}
-                  </td>
-                  <td
-                    style={{
-                      borderBottom: "1px solid #f0f0f0",
-                      padding: 8,
-                    }}
-                  >
-                    {u.ovog || "-"}
-                  </td>
-                  <td
-                    style={{
-                      borderBottom: "1px solid #f0f0f0",
-                      padding: 8,
-                    }}
-                  >
-                    {u.name || "-"}
-                  </td>
-                  <td
-                    style={{
-                      borderBottom: "1px solid #f0f0f0",
-                      padding: 8,
-                    }}
-                  >
-                    {u.email}
-                  </td>
-                  <td
-                    style={{
-                      borderBottom: "1px solid #f0f0f0",
-                      padding: 8,
-                    }}
-                  >
-                    {u.regNo || "-"}
-                  </td>
-                  <td
-                    style={{
-                      borderBottom: "1px solid #f0f0f0",
-                      padding: 8,
-                    }}
-                  >
-                    {u.phone || "-"}
-                  </td>
-                  <td
-                    style={{
-                      borderBottom: "1px solid #f0f0f0",
-                      padding: 8,
-                    }}
-                  >
-                    {getRoleLabel(u.role)}
-                  </td>
-                  <td
-                    style={{
-                      borderBottom: "1px solid #f0f0f0",
-                      padding: 8,
-                    }}
-                  >
+                  <td className="border-b border-gray-100 p-2">{index + 1}</td>
+                  <td className="border-b border-gray-100 p-2">{u.ovog || "-"}</td>
+                  <td className="border-b border-gray-100 p-2">{u.name || "-"}</td>
+                  <td className="border-b border-gray-100 p-2">{u.email}</td>
+                  <td className="border-b border-gray-100 p-2">{u.regNo || "-"}</td>
+                  <td className="border-b border-gray-100 p-2">{u.phone || "-"}</td>
+                  <td className="border-b border-gray-100 p-2">{getRoleLabel(u.role)}</td>
+                  <td className="border-b border-gray-100 p-2">
                     {Array.isArray(u.branches) && u.branches.length > 0
                       ? u.branches.map((b) => b.name).join(", ")
                       : u.branch
                       ? u.branch.name
                       : "-"}
                   </td>
-                  <td
-                    style={{
-                      borderBottom: "1px solid #f0f0f0",
-                      padding: 8,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
+                  <td className="border-b border-gray-100 p-2 whitespace-nowrap">
                     <button
                       type="button"
                       onClick={() => startEdit(u)}
-                      style={{
-                        marginRight: 8,
-                        padding: "2px 6px",
-                        fontSize: 12,
-                      }}
+                      className="mr-2 px-1.5 py-0.5 text-xs"
                     >
                       Засах
                     </button>
                     <button
                       type="button"
                       onClick={() => deleteUser(u.id)}
-                      style={{
-                        padding: "2px 6px",
-                        fontSize: 12,
-                        color: "#b91c1c",
-                        borderColor: "#b91c1c",
-                      }}
+                      className="px-1.5 py-0.5 text-xs text-red-700 border-red-700"
                     >
                       Устгах
                     </button>
@@ -923,14 +677,7 @@ export default function OtherStaffPage() {
             })}
             {users.length === 0 && (
               <tr>
-                <td
-                  colSpan={9}
-                  style={{
-                    textAlign: "center",
-                    color: "#888",
-                    padding: 12,
-                  }}
-                >
+                <td colSpan={9} className="text-center text-gray-400 p-3">
                   Өгөгдөл алга
                 </td>
               </tr>
