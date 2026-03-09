@@ -46,6 +46,12 @@ router.post("/", async (req, res) => {
     return res.status(401).json({ error: "Invalid credentials." });
   }
 
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    console.error("JWT_SECRET is not configured");
+    return res.status(500).json({ error: "Internal server error." });
+  }
+
   // JWT payload and signing
   const token = jwt.sign(
     {
@@ -55,7 +61,7 @@ router.post("/", async (req, res) => {
       role: user.role,
       branchId: user.branchId,
     },
-    process.env.JWT_SECRET || "testsecret",
+    secret,
     { expiresIn: "8h" }
   );
 
