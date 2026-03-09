@@ -46,13 +46,10 @@ export default function StaffAvatar({
     variant === "sidebar" ? "w-full h-[190px]" : "w-16 h-16";
   const sizeClass = sizeClassName ?? defaultSize;
 
-  const roundingClass =
-    variant === "sidebar" ? "rounded-xl" : "rounded-xl";
-
   if (showPhoto) {
     return (
       <div
-        className={`${sizeClass} ${roundingClass} overflow-hidden flex-shrink-0 bg-gray-100 ${className}`}
+        className={`${sizeClass} rounded-xl overflow-hidden flex-shrink-0 bg-gray-100 ${className}`}
       >
         <img
           src={idPhotoPath!}
@@ -66,7 +63,7 @@ export default function StaffAvatar({
 
   return (
     <div
-      className={`${sizeClass} ${roundingClass} flex items-center justify-center flex-shrink-0 bg-blue-50 text-blue-600 font-bold select-none ${className}`}
+      className={`${sizeClass} rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-50 text-blue-600 font-bold select-none ${className}`}
     >
       <span className={variant === "sidebar" ? "text-4xl" : "text-lg"}>
         {initials}
