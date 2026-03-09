@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { setBranchLock, clearBranchLock } from "./appointments/storage";
 import { Drawer } from "./ui/Drawer";
+import { logout } from "../utils/auth";
 
 type Props = {
   children: React.ReactNode;
@@ -190,6 +191,11 @@ export default function AdminLayout({ children }: Props) {
   const [branchItems, setBranchItems] = useState<{ id: string; name: string }[]>(
     []
   );
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/login");
+  };
 
   // Handler for branch selection in appointments submenu
   const handleBranchSelection = (branchId: string | null) => {
@@ -676,6 +682,23 @@ export default function AdminLayout({ children }: Props) {
                 <div style={{ fontSize: 11, opacity: 0.9 }}>Админ</div>
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Гарах"
+              style={{
+                background: "rgba(15,23,42,0.4)",
+                border: "none",
+                color: "white",
+                cursor: "pointer",
+                borderRadius: 6,
+                padding: "4px 10px",
+                fontSize: 13,
+              }}
+            >
+              🚪 Гарах
+            </button>
           </div>
         </header>
 
