@@ -9,13 +9,22 @@ services:
       - RUN_SEED=false
       - DATABASE_URL=${DATABASE_URL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - POSAPI_BASE_URL=${POSAPI_BASE_URL}
       - DISABLE_AUTH=true
-       - POSAPI_BASE_URL=http://100.76.13.118:7080
+
+      # ✅ required for /api/auth/login cookie signing + /api/auth/me
+      - JWT_SECRET=${JWT_SECRET}
+
+      # ✅ recommended (your backend uses these)
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+
+      # POS API
+      - POSAPI_BASE_URL=${POSAPI_BASE_URL}
       - POSAPI_MERCHANT_TIN=37900846788
       - POSAPI_POS_NO=10013198
       - POSAPI_BRANCH_NO=001
       - POSAPI_DISTRICT_CODE=2501
+
     depends_on:
       - postgres
     networks:
