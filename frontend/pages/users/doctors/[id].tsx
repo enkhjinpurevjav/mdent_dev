@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import StaffAvatar from "../../../components/StaffAvatar";
+import SignaturePad, { SignaturePadRef } from "../../../components/SignaturePad";
 
 type Branch = {
   id: number;
@@ -182,6 +183,12 @@ export default function DoctorProfilePage() {
   const [signatureError, setSignatureError] = useState<string | null>(null);
   const [uploadingStamp, setUploadingStamp] = useState(false);
   const [stampError, setStampError] = useState<string | null>(null);
+
+  // Signature mode: "upload" | "draw"
+  const [signatureMode, setSignatureMode] = useState<"upload" | "draw">("upload");
+  const [savingPadSignature, setSavingPadSignature] = useState(false);
+  const [padSignatureError, setPadSignatureError] = useState<string | null>(null);
+  const signaturePadRef = useRef<SignaturePadRef>(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -1468,78 +1475,172 @@ export default function DoctorProfilePage() {
             </div>
 
             <div className="col-span-full">
-              <div className="text-gray-500 mb-0.5">Гарын үсгийн зураг</div>
-              <div className="flex gap-2 items-center">
-                <input
-                  name="signatureImagePath"
-                  type="text"
-                  value={form.signatureImagePath}
-                  onChange={(e) => {
-                    handleChange(e);
-                    setSignatureError(null);
-                  }}
-                  placeholder="/uploads/signatures/..."
-                  className="flex-1 rounded-md border border-gray-300 px-1.5 py-1 text-[13px]"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setForm((f) => ({ ...f, signatureImagePath: "" }));
-                    setSignatureError(null);
-                  }}
-                  className="px-2 py-1 rounded-md border border-gray-300 bg-white text-[13px] cursor-pointer whitespace-nowrap"
-                >
-                  Цэвэрлэх
-                </button>
-              </div>
-              <div className="mt-1">
-                <label className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-gray-300 bg-white text-[13px] cursor-pointer whitespace-nowrap hover:bg-gray-50">
-                  {uploadingSignature ? (
-                    <>
-                      <svg className="animate-spin h-3.5 w-3.5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                      </svg>
-                      Байршуулж байна…
-                    </>
-                  ) : (
-                    "Зураг сонгох"
-                  )}
+              <div className="text-gray-500 mb-1">Гарын үсэг</div>
+              {/* Radio toggle */}
+              <div className="flex gap-4 mb-2">
+                <label className="inline-flex items-center gap-1.5 text-[13px] cursor-pointer">
                   <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    disabled={uploadingSignature}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setUploadingSignature(true);
-                      setSignatureError(null);
-                      try {
-                        const fd = new FormData();
-                        fd.append("file", file);
-                        const res = await fetch(`/api/uploads/signature?userId=${id}`, {
-                          method: "POST",
-                          body: fd,
-                        });
-                        const data = await res.json();
-                        if (!res.ok) {
-                          setSignatureError(data?.error || "Зураг байршуулахад алдаа гарлаа");
-                        } else {
-                          setForm((f) => ({ ...f, signatureImagePath: data.filePath }));
-                        }
-                      } catch {
-                        setSignatureError("Зураг байршуулахад алдаа гарлаа");
-                      } finally {
-                        setUploadingSignature(false);
-                        e.target.value = "";
-                      }
+                    type="radio"
+                    name="signatureMode"
+                    value="upload"
+                    checked={signatureMode === "upload"}
+                    onChange={() => {
+                      setSignatureMode("upload");
+                      signaturePadRef.current?.clear();
+                      setPadSignatureError(null);
                     }}
                   />
+                  Зураг оруулах
+                </label>
+                <label className="inline-flex items-center gap-1.5 text-[13px] cursor-pointer">
+                  <input
+                    type="radio"
+                    name="signatureMode"
+                    value="draw"
+                    checked={signatureMode === "draw"}
+                    onChange={() => {
+                      setSignatureMode("draw");
+                      setForm((f) => ({ ...f, signatureImagePath: "" }));
+                      setSignatureError(null);
+                    }}
+                  />
+                  Гараар зурах
                 </label>
               </div>
-              {signatureError && (
-                <div className="text-red-600 text-xs mt-1">{signatureError}</div>
+
+              {signatureMode === "upload" ? (
+                <>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      name="signatureImagePath"
+                      type="text"
+                      value={form.signatureImagePath}
+                      onChange={(e) => {
+                        handleChange(e);
+                        setSignatureError(null);
+                      }}
+                      placeholder="/uploads/signatures/..."
+                      className="flex-1 rounded-md border border-gray-300 px-1.5 py-1 text-[13px]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm((f) => ({ ...f, signatureImagePath: "" }));
+                        setSignatureError(null);
+                      }}
+                      className="px-2 py-1 rounded-md border border-gray-300 bg-white text-[13px] cursor-pointer whitespace-nowrap"
+                    >
+                      Цэвэрлэх
+                    </button>
+                  </div>
+                  <div className="mt-1">
+                    <label className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-gray-300 bg-white text-[13px] cursor-pointer whitespace-nowrap hover:bg-gray-50">
+                      {uploadingSignature ? (
+                        <>
+                          <svg className="animate-spin h-3.5 w-3.5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                          </svg>
+                          Байршуулж байна…
+                        </>
+                      ) : (
+                        "Зураг сонгох"
+                      )}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        disabled={uploadingSignature}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setUploadingSignature(true);
+                          setSignatureError(null);
+                          try {
+                            const fd = new FormData();
+                            fd.append("file", file);
+                            const res = await fetch(`/api/uploads/signature?userId=${id}`, {
+                              method: "POST",
+                              body: fd,
+                            });
+                            const data = await res.json();
+                            if (!res.ok) {
+                              setSignatureError(data?.error || "Зураг байршуулахад алдаа гарлаа");
+                            } else {
+                              setForm((f) => ({ ...f, signatureImagePath: data.filePath }));
+                            }
+                          } catch {
+                            setSignatureError("Зураг байршуулахад алдаа гарлаа");
+                          } finally {
+                            setUploadingSignature(false);
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  {signatureError && (
+                    <div className="text-red-600 text-xs mt-1">{signatureError}</div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <SignaturePad ref={signaturePadRef} disabled={savingPadSignature} />
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      disabled={savingPadSignature}
+                      onClick={() => {
+                        signaturePadRef.current?.clear();
+                        setPadSignatureError(null);
+                      }}
+                      className="px-2 py-1 rounded-md border border-gray-300 bg-white text-[13px] cursor-pointer whitespace-nowrap"
+                    >
+                      Арилгах
+                    </button>
+                    <button
+                      type="button"
+                      disabled={savingPadSignature}
+                      onClick={async () => {
+                        if (!signaturePadRef.current?.hasDrawn()) {
+                          setPadSignatureError("Гарын үсэг зураагүй байна.");
+                          return;
+                        }
+                        setSavingPadSignature(true);
+                        setPadSignatureError(null);
+                        try {
+                          const blob = await signaturePadRef.current.getBlob();
+                          if (!blob) {
+                            setPadSignatureError("Зураг авахад алдаа гарлаа.");
+                            return;
+                          }
+                          const fd = new FormData();
+                          fd.append("file", blob, "signature.png");
+                          const res = await fetch(`/api/uploads/signature?userId=${id}`, {
+                            method: "POST",
+                            body: fd,
+                          });
+                          const data = await res.json();
+                          if (!res.ok) {
+                            setPadSignatureError(data?.error || "Зураг байршуулахад алдаа гарлаа");
+                          } else {
+                            setForm((f) => ({ ...f, signatureImagePath: data.filePath }));
+                          }
+                        } catch {
+                          setPadSignatureError("Зураг байршуулахад алдаа гарлаа");
+                        } finally {
+                          setSavingPadSignature(false);
+                        }
+                      }}
+                      className={`px-2 py-1 rounded-md border-0 text-white text-[13px] whitespace-nowrap ${savingPadSignature ? "bg-gray-400 cursor-default" : "bg-blue-600 cursor-pointer"}`}
+                    >
+                      {savingPadSignature ? "Байршуулж байна…" : "Гарын үсэг хадгалах"}
+                    </button>
+                  </div>
+                  {padSignatureError && (
+                    <div className="text-red-600 text-xs mt-1">{padSignatureError}</div>
+                  )}
+                </>
               )}
             </div>
 
@@ -1630,16 +1731,16 @@ export default function DoctorProfilePage() {
                 resetFormFromDoctor();
                 setIsEditingProfile(false);
               }}
-              disabled={saving || uploading || uploadingSignature || uploadingStamp}
-              className={`px-3 py-1.5 rounded-md border border-gray-300 bg-gray-50 text-[13px] ${saving || uploading || uploadingSignature || uploadingStamp ? "cursor-default" : "cursor-pointer"}`}
+              disabled={saving || uploading || uploadingSignature || uploadingStamp || savingPadSignature}
+              className={`px-3 py-1.5 rounded-md border border-gray-300 bg-gray-50 text-[13px] ${saving || uploading || uploadingSignature || uploadingStamp || savingPadSignature ? "cursor-default" : "cursor-pointer"}`}
             >
               Болих
             </button>
 
             <button
               type="submit"
-              disabled={saving || uploading || uploadingSignature || uploadingStamp}
-              className={`px-3 py-1.5 rounded-md border-0 ${saving || uploading || uploadingSignature || uploadingStamp ? "bg-gray-400" : "bg-blue-600"} text-white text-[13px] ${saving || uploading || uploadingSignature || uploadingStamp ? "cursor-default" : "cursor-pointer"}`}
+              disabled={saving || uploading || uploadingSignature || uploadingStamp || savingPadSignature}
+              className={`px-3 py-1.5 rounded-md border-0 ${saving || uploading || uploadingSignature || uploadingStamp || savingPadSignature ? "bg-gray-400" : "bg-blue-600"} text-white text-[13px] ${saving || uploading || uploadingSignature || uploadingStamp || savingPadSignature ? "cursor-default" : "cursor-pointer"}`}
             >
               {saving ? "Хадгалж байна..." : "Хадгалах"}
             </button>
