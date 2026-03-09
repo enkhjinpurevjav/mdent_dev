@@ -589,9 +589,10 @@ export default function DoctorProfilePage() {
       photoUrl &&
       !photoUrl.startsWith("http://") &&
       !photoUrl.startsWith("https://") &&
+      !photoUrl.startsWith("/media/") &&
       !photoUrl.startsWith("/uploads/")
     ) {
-      setIdPhotoPathError("URL нь http:// эсвэл https:// -ээр эхлэх ёстой");
+      setIdPhotoPathError("URL нь http://, https://, /media/ эсвэл /uploads/ -ээр эхлэх ёстой");
       return;
     }
     setIdPhotoPathError(null);
@@ -1310,7 +1311,7 @@ export default function DoctorProfilePage() {
                     handleChange(e);
                     setIdPhotoPathError(null);
                   }}
-                  placeholder="https://..."
+                  placeholder="https://... эсвэл /media/..."
                   className="flex-1 rounded-md border border-gray-300 px-1.5 py-1 text-[13px]"
                 />
                 <button
