@@ -11,6 +11,10 @@ const nextConfig = {
         source: "/uploads/:path*",
         destination: "https://api.mdent.cloud/uploads/:path*",
       },
+      {
+        source: "/media/:path*",
+        destination: "https://api.mdent.cloud/media/:path*",
+      },
     ];
   },
 };
