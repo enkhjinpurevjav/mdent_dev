@@ -743,6 +743,9 @@ router.put("/:id", async (req, res) => {
       licenseExpiryDate,
       phone,
       calendarOrder,
+      idPhotoPath,
+      signatureImagePath,
+      stampImagePath,
     } = req.body || {};
 
     const data = {};
@@ -771,6 +774,13 @@ router.put("/:id", async (req, res) => {
         data.calendarOrder = order;
       }
     }
+    const toImagePath = (v) =>
+      v === null || String(v).trim() === "" ? null : String(v).trim();
+    if (idPhotoPath !== undefined) data.idPhotoPath = toImagePath(idPhotoPath);
+    if (signatureImagePath !== undefined)
+      data.signatureImagePath = toImagePath(signatureImagePath);
+    if (stampImagePath !== undefined)
+      data.stampImagePath = toImagePath(stampImagePath);
 
     const updated = await prisma.user.update({
       where: { id },
