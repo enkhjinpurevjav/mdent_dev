@@ -657,7 +657,7 @@ export default function ReceptionProfilePage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 24 }}>
+      <div className="p-6">
         <div>Ачааллаж байна...</div>
       </div>
     );
@@ -665,114 +665,55 @@ export default function ReceptionProfilePage() {
 
   if (error && !reception) {
     return (
-      <div style={{ padding: 24 }}>
+      <div className="p-6">
         <h1>Ресепшний мэдээлэл</h1>
-        <div style={{ color: "red", marginTop: 8 }}>{error}</div>
+        <div className="text-red-500 mt-2">{error}</div>
       </div>
     );
   }
 
   if (!reception) {
     return (
-      <div style={{ padding: 24 }}>
+      <div className="p-6">
         <h1>Ресепшн олдсонгүй</h1>
       </div>
     );
   }
 
   return (
-    <main
-      style={{
-        maxWidth: 1100,
-        margin: "40px auto",
-        padding: 24,
-        fontFamily: "sans-serif",
-      }}
-    >
+    <main className="max-w-[1100px] mx-auto my-10 p-6 font-sans">
       <button
         type="button"
         onClick={() => router.push("/users/reception")}
-        style={{
-          marginBottom: 16,
-          padding: "4px 8px",
-          borderRadius: 4,
-          border: "1px solid #d1d5db",
-          background: "#f9fafb",
-          cursor: "pointer",
-          fontSize: 13,
-        }}
+        className="mb-4 px-2 py-1 rounded border border-gray-300 bg-gray-50 cursor-pointer text-[13px]"
       >
         ← Буцах
       </button>
 
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "260px 1fr",
-          gap: 16,
-          alignItems: "stretch",
-          marginBottom: 24,
-        }}
-      >
+      <section className="grid grid-cols-[260px_1fr] gap-4 items-stretch mb-6">
         {/* LEFT SIDEBAR */}
-        <div
-          style={{
-            border: "1px solid #e5e7eb",
-            borderRadius: 12,
-            padding: 16,
-            background: "white",
-          }}
-        >
-          <div style={{ marginBottom: 4, fontSize: 18, fontWeight: 600 }}>
+        <div className="border border-gray-200 rounded-xl p-4 bg-white">
+          <div className="mb-1 text-lg font-semibold">
             {headerName}
           </div>
 
           {/* Portrait placeholder */}
-          <div
-            style={{
-              width: "100%",
-              height: 190,
-              borderRadius: 10,
-              border: "2px dashed #9ca3af",
-              background: "#f9fafb",
-              color: "#6b7280",
-              fontSize: 12,
-              overflow: "hidden",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 10,
-            }}
-          >
+          <div className="w-full h-[190px] rounded-xl border-2 border-dashed border-gray-400 bg-gray-50 text-gray-500 text-xs overflow-hidden flex items-center justify-center mb-2.5">
             <span>Зураг байрлах хэсэг</span>
           </div>
 
-          <div style={{ fontSize: 13, color: "#6b7280" }}>
+          <div className="text-[13px] text-gray-500">
             <div>Утас: {reception.phone || "-"}</div>
             <div>И-мэйл: {reception.email || "-"}</div>
             <div>Үндсэн салбар: {mainBranchName || "-"}</div>
           </div>
 
           {/* Side menu (2 tabs) */}
-          <div style={{ marginTop: 16 }}>
-            <div
-              style={{
-                fontSize: 12,
-                textTransform: "uppercase",
-                color: "#9ca3af",
-                marginBottom: 4,
-              }}
-            >
+          <div className="mt-4">
+            <div className="text-xs uppercase text-gray-400 mb-1">
               Цэс
             </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-                fontSize: 13,
-              }}
-            >
+            <div className="flex flex-col gap-1 text-[13px]">
               <button
                 type="button"
                 onClick={() => {
@@ -780,17 +721,7 @@ export default function ReceptionProfilePage() {
                   setIsEditingProfile(false);
                   setError(null);
                 }}
-                style={{
-                  textAlign: "left",
-                  padding: "6px 10px",
-                  borderRadius: 6,
-                  border: "none",
-                  background:
-                    activeTab === "profile" ? "#eff6ff" : "transparent",
-                  color: activeTab === "profile" ? "#1d4ed8" : "#6b7280",
-                  fontWeight: activeTab === "profile" ? 500 : 400,
-                  cursor: "pointer",
-                }}
+                className={`text-left px-2.5 py-1.5 rounded-md border-0 cursor-pointer ${activeTab === "profile" ? "bg-blue-50" : "bg-transparent"} ${activeTab === "profile" ? "text-blue-700" : "text-gray-500"} ${activeTab === "profile" ? "font-medium" : "font-normal"}`}
               >
                 Профайл
               </button>
@@ -802,17 +733,7 @@ export default function ReceptionProfilePage() {
                   setIsEditingProfile(false);
                   setError(null);
                 }}
-                style={{
-                  textAlign: "left",
-                  padding: "6px 10px",
-                  borderRadius: 6,
-                  border: "none",
-                  background:
-                    activeTab === "schedule" ? "#eff6ff" : "transparent",
-                  color: activeTab === "schedule" ? "#1d4ed8" : "#6b7280",
-                  fontWeight: activeTab === "schedule" ? 500 : 400,
-                  cursor: "pointer",
-                }}
+                className={`text-left px-2.5 py-1.5 rounded-md border-0 cursor-pointer ${activeTab === "schedule" ? "bg-blue-50" : "bg-transparent"} ${activeTab === "schedule" ? "text-blue-700" : "text-gray-500"} ${activeTab === "schedule" ? "font-medium" : "font-normal"}`}
               >
                 Ажлын хуваарь
               </button>
@@ -822,46 +743,21 @@ export default function ReceptionProfilePage() {
           <button
             type="button"
             onClick={handleDeleteUser}
-            style={{
-              marginTop: 16,
-              width: "100%",
-              padding: "10px 12px",
-              borderRadius: 8,
-              border: "1px solid #fecaca",
-              background: "#fee2e2",
-              color: "#b91c1c",
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 700,
-            }}
+            className="mt-4 w-full px-3 py-2.5 rounded-lg border border-red-200 bg-red-100 text-red-700 cursor-pointer text-[13px] font-bold"
           >
             Ажилтныг устгах
           </button>
         </div>
 
         {/* RIGHT CONTENT */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="flex flex-col gap-4">
           {/* PROFILE TAB */}
           {activeTab === "profile" && (
             <>
               {/* Basic information (view/edit) */}
-              <div
-                style={{
-                  borderRadius: 12,
-                  border: "1px solid #e5e7eb",
-                  padding: 16,
-                  background: "white",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: 12,
-                  }}
-                >
-                  <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 0 }}>
+              <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base mt-0 mb-0">
                     Үндсэн мэдээлэл
                   </h2>
 
@@ -872,14 +768,7 @@ export default function ReceptionProfilePage() {
                         setError(null);
                         setIsEditingProfile(true);
                       }}
-                      style={{
-                        fontSize: 12,
-                        padding: "4px 8px",
-                        borderRadius: 6,
-                        border: "1px solid #d1d5db",
-                        background: "#f9fafb",
-                        cursor: "pointer",
-                      }}
+                      className="text-xs px-2 py-1 rounded-md border border-gray-300 bg-gray-50 cursor-pointer"
                     >
                       Засах
                     </button>
@@ -887,64 +776,50 @@ export default function ReceptionProfilePage() {
                 </div>
 
                 {error && (
-                  <div
-                    style={{
-                      color: "#b91c1c",
-                      fontSize: 12,
-                      marginBottom: 8,
-                    }}
-                  >
+                  <div className="text-red-700 text-xs mb-2">
                     {error}
                   </div>
                 )}
 
                 {!isEditingProfile ? (
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "repeat(auto-fit, minmax(220px, 1fr))",
-                      gap: 12,
-                      fontSize: 13,
-                    }}
-                  >
+                  <div className="grid [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))] gap-3 text-[13px]">
                     <div>
-                      <div style={{ color: "#6b7280", marginBottom: 2 }}>
+                      <div className="text-gray-500 mb-0.5">
                         Овог
                       </div>
                       <div>{reception.ovog || "-"}</div>
                     </div>
 
                     <div>
-                      <div style={{ color: "#6b7280", marginBottom: 2 }}>
+                      <div className="text-gray-500 mb-0.5">
                         Нэр
                       </div>
                       <div>{reception.name || "-"}</div>
                     </div>
 
                     <div>
-                      <div style={{ color: "#6b7280", marginBottom: 2 }}>
+                      <div className="text-gray-500 mb-0.5">
                         И-мэйл
                       </div>
                       <div>{reception.email || "-"}</div>
                     </div>
 
                     <div>
-                      <div style={{ color: "#6b7280", marginBottom: 2 }}>
+                      <div className="text-gray-500 mb-0.5">
                         Утас
                       </div>
                       <div>{reception.phone || "-"}</div>
                     </div>
 
                     <div>
-                      <div style={{ color: "#6b7280", marginBottom: 2 }}>
+                      <div className="text-gray-500 mb-0.5">
                         РД
                       </div>
                       <div>{reception.regNo || "-"}</div>
                     </div>
 
                     <div>
-                      <div style={{ color: "#6b7280", marginBottom: 2 }}>
+                      <div className="text-gray-500 mb-0.5">
                         Үндсэн салбар
                       </div>
                       <div>{mainBranchName || reception.branchId || "-"}</div>
@@ -953,12 +828,7 @@ export default function ReceptionProfilePage() {
                 ) : (
                   <form
                     onSubmit={handleSave}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 12,
-                      maxWidth: 600,
-                    }}
+                    className="flex flex-col gap-3 max-w-[600px]"
                   >
                     {(
                       [
@@ -970,13 +840,7 @@ export default function ReceptionProfilePage() {
                       ] as const
                     ).map((f) => (
                       <div key={f.name}>
-                        <div
-                          style={{
-                            color: "#6b7280",
-                            marginBottom: 2,
-                            fontSize: 13,
-                          }}
-                        >
+                        <div className="text-gray-500 mb-0.5 text-[13px]">
                           {f.label}
                         </div>
                         <input
@@ -984,37 +848,20 @@ export default function ReceptionProfilePage() {
                           type={f.type}
                           value={(form as any)[f.name]}
                           onChange={handleChange}
-                          style={{
-                            width: "100%",
-                            borderRadius: 6,
-                            border: "1px solid #d1d5db",
-                            padding: "4px 6px",
-                          }}
+                          className="w-full rounded-md border border-gray-300 px-1.5 py-1"
                         />
                       </div>
                     ))}
 
                     <div>
-                      <div
-                        style={{
-                          color: "#6b7280",
-                          marginBottom: 2,
-                          fontSize: 13,
-                        }}
-                      >
+                      <div className="text-gray-500 mb-0.5 text-[13px]">
                         Үндсэн салбар
                       </div>
                       <select
                         name="branchId"
                         value={form.branchId}
                         onChange={handleChange}
-                        style={{
-                          width: "100%",
-                          borderRadius: 6,
-                          border: "1px solid #d1d5db",
-                          padding: "4px 6px",
-                          background: "white",
-                        }}
+                        className="w-full rounded-md border border-gray-300 px-1.5 py-1 bg-white"
                       >
                         <option value="">Сонгохгүй</option>
                         {branches.map((b) => (
@@ -1025,14 +872,7 @@ export default function ReceptionProfilePage() {
                       </select>
                     </div>
 
-                    <div
-                      style={{
-                        marginTop: 16,
-                        display: "flex",
-                        gap: 8,
-                        justifyContent: "flex-end",
-                      }}
-                    >
+                    <div className="mt-4 flex gap-2 justify-end">
                       <button
                         type="button"
                         onClick={() => {
@@ -1041,14 +881,7 @@ export default function ReceptionProfilePage() {
                           setIsEditingProfile(false);
                         }}
                         disabled={saving}
-                        style={{
-                          padding: "6px 12px",
-                          borderRadius: 6,
-                          border: "1px solid #d1d5db",
-                          background: "#f9fafb",
-                          fontSize: 13,
-                          cursor: saving ? "default" : "pointer",
-                        }}
+                        className={`px-3 py-1.5 rounded-md border border-gray-300 bg-gray-50 text-[13px] ${saving ? "cursor-default" : "cursor-pointer"}`}
                       >
                         Болих
                       </button>
@@ -1056,15 +889,7 @@ export default function ReceptionProfilePage() {
                       <button
                         type="submit"
                         disabled={saving}
-                        style={{
-                          padding: "6px 12px",
-                          borderRadius: 6,
-                          border: "none",
-                          background: saving ? "#9ca3af" : "#2563eb",
-                          color: "white",
-                          fontSize: 13,
-                          cursor: saving ? "default" : "pointer",
-                        }}
+                        className={`px-3 py-1.5 rounded-md border-0 ${saving ? "bg-gray-400" : "bg-blue-600"} text-white text-[13px] ${saving ? "cursor-default" : "cursor-pointer"}`}
                       >
                         {saving ? "Хадгалж байна..." : "Хадгалах"}
                       </button>
@@ -1074,23 +899,9 @@ export default function ReceptionProfilePage() {
               </div>
 
               {/* Branch assignment */}
-              <div
-                style={{
-                  borderRadius: 12,
-                  border: "1px solid #e5e7eb",
-                  padding: 16,
-                  background: "white",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: 12,
-                  }}
-                >
-                  <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 0 }}>
+              <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base mt-0 mb-0">
                     Салбарын тохиргоо
                   </h2>
 
@@ -1098,15 +909,7 @@ export default function ReceptionProfilePage() {
                     type="button"
                     onClick={handleSaveBranches}
                     disabled={savingBranches}
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: 6,
-                      border: "none",
-                      background: savingBranches ? "#9ca3af" : "#059669",
-                      color: "white",
-                      fontSize: 13,
-                      cursor: savingBranches ? "default" : "pointer",
-                    }}
+                    className={`px-3 py-1.5 rounded-md border-0 ${savingBranches ? "bg-gray-400" : "bg-emerald-600"} text-white text-[13px] ${savingBranches ? "cursor-default" : "cursor-pointer"}`}
                   >
                     {savingBranches
                       ? "Салбар хадгалж байна..."
@@ -1114,23 +917,15 @@ export default function ReceptionProfilePage() {
                   </button>
                 </div>
 
-                <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 10 }}>
+                <div className="text-gray-500 text-[13px] mb-2.5">
                   Энэ ресепшн аль салбаруудад ажиллахыг доороос сонгоно уу.
                 </div>
 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                <div className="flex flex-wrap gap-2">
                   {branches.map((b) => (
                     <label
                       key={b.id}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        border: "1px solid #ddd",
-                        borderRadius: 4,
-                        padding: "4px 8px",
-                        fontSize: 13,
-                      }}
+                      className="inline-flex items-center gap-1.5 border border-gray-300 rounded px-2 py-1 text-[13px]"
                     >
                       <input
                         type="checkbox"
@@ -1147,33 +942,21 @@ export default function ReceptionProfilePage() {
 
           {/* SCHEDULE TAB */}
           {activeTab === "schedule" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="flex flex-col gap-4">
               {/* Schedule create form */}
-              <div
-                style={{
-                  borderRadius: 12,
-                  border: "1px solid #e5e7eb",
-                  padding: 16,
-                  background: "white",
-                }}
-              >
-                <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 8 }}>
+              <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                <h2 className="text-base mt-0 mb-2">
                   Ажлын хуваарь шинээр нэмэх
                 </h2>
-                <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 10 }}>
+                <div className="text-gray-500 text-[13px] mb-2.5">
                   Сонгосон өдөр, салбар, ээлжийн дагуу шинэ ажлын хуваарь үүсгэнэ.
                 </div>
 
                 <form
                   onSubmit={handleSaveSchedule}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
-                    maxWidth: 600,
-                  }}
+                  className="flex flex-col gap-[10px] max-w-[600px]"
                 >
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label className="flex flex-col gap-1">
                     Огноо
                     <input
                       type="date"
@@ -1183,7 +966,7 @@ export default function ReceptionProfilePage() {
                     />
                   </label>
 
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label className="flex flex-col gap-1">
                     Салбар
                     <select
                       name="branchId"
@@ -1199,7 +982,7 @@ export default function ReceptionProfilePage() {
                     </select>
                   </label>
 
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label className="flex flex-col gap-1">
                     Ээлж
                     <select
                       name="shiftType"
@@ -1212,8 +995,8 @@ export default function ReceptionProfilePage() {
                     </select>
                   </label>
 
-                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div className="flex gap-3 flex-wrap">
+                    <label className="flex flex-col gap-1">
                       Эхлэх цаг
                       <input
                         type="time"
@@ -1223,7 +1006,7 @@ export default function ReceptionProfilePage() {
                       />
                     </label>
 
-                    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <label className="flex flex-col gap-1">
                       Дуусах цаг
                       <input
                         type="time"
@@ -1234,7 +1017,7 @@ export default function ReceptionProfilePage() {
                     </label>
                   </div>
 
-                  <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label className="flex flex-col gap-1">
                     Тэмдэглэл
                     <textarea
                       name="note"
@@ -1248,29 +1031,18 @@ export default function ReceptionProfilePage() {
                   <button
                     type="submit"
                     disabled={scheduleSaving || !isCreatingSchedule}
-                    style={{
-                      marginTop: 4,
-                      padding: "8px 16px",
-                      borderRadius: 6,
-                      border: "none",
-                      background: "#7c3aed",
-                      color: "white",
-                      cursor: "pointer",
-                      alignSelf: "flex-start",
-                      fontWeight: 700,
-                      fontSize: 13,
-                    }}
+                    className="mt-1 px-4 py-2 rounded-md border-0 bg-violet-600 text-white cursor-pointer self-start font-bold text-[13px]"
                   >
                     {scheduleSaving ? "Хуваарь хадгалж байна..." : "Хуваарь хадгалах"}
                   </button>
 
                   {scheduleSaveError && (
-                    <div style={{ color: "red", marginTop: 4 }}>
+                    <div className="text-red-500 mt-1">
                       {scheduleSaveError}
                     </div>
                   )}
                   {scheduleSaveSuccess && (
-                    <div style={{ color: "green", marginTop: 4 }}>
+                    <div className="text-green-600 mt-1">
                       {scheduleSaveSuccess}
                     </div>
                   )}
@@ -1278,87 +1050,43 @@ export default function ReceptionProfilePage() {
               </div>
 
               {/* Upcoming schedule table */}
-              <div
-                style={{
-                  borderRadius: 12,
-                  border: "1px solid #e5e7eb",
-                  padding: 16,
-                  background: "white",
-                }}
-              >
-                <h2 style={{ fontSize: 16, marginTop: 0, marginBottom: 8 }}>
+              <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                <h2 className="text-base mt-0 mb-2">
                   Дараагийн 1 сарын ажлын хуваарь
                 </h2>
-                <div style={{ color: "#6b7280", fontSize: 13, marginBottom: 10 }}>
+                <div className="text-gray-500 text-[13px] mb-2.5">
                   Нийт төлөвлөгдсөн хуваарь
                 </div>
 
                 {scheduleLoading && <div>Ажлын хуваарь ачааллаж байна...</div>}
 
                 {!scheduleLoading && scheduleError && (
-                  <div style={{ color: "red" }}>{scheduleError}</div>
+                  <div className="text-red-500">{scheduleError}</div>
                 )}
 
                 {!scheduleLoading && !scheduleError && schedule.length === 0 && (
-                  <div style={{ color: "#888" }}>
+                  <div className="text-gray-400">
                     Төлөвлөсөн ажлын хуваарь алга.
                   </div>
                 )}
 
                 {!scheduleLoading && !scheduleError && schedule.length > 0 && (
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      marginTop: 8,
-                      fontSize: 14,
-                    }}
-                  >
+                  <table className="w-full border-collapse mt-2 text-sm">
                     <thead>
-                      <tr style={{ background: "#f9fafb" }}>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #ddd",
-                            padding: 8,
-                          }}
-                        >
+                      <tr className="bg-gray-50">
+                        <th className="text-left border-b border-gray-300 p-2">
                           Огноо
                         </th>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #ddd",
-                            padding: 8,
-                          }}
-                        >
+                        <th className="text-left border-b border-gray-300 p-2">
                           Салбар
                         </th>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #ddd",
-                            padding: 8,
-                          }}
-                        >
+                        <th className="text-left border-b border-gray-300 p-2">
                           Цаг
                         </th>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #ddd",
-                            padding: 8,
-                          }}
-                        >
+                        <th className="text-left border-b border-gray-300 p-2">
                           Тэмдэглэл
                         </th>
-                        <th
-                          style={{
-                            textAlign: "left",
-                            borderBottom: "1px solid #ddd",
-                            padding: 8,
-                          }}
-                        >
+                        <th className="text-left border-b border-gray-300 p-2">
                           Үйлдэл
                         </th>
                       </tr>
@@ -1369,19 +1097,14 @@ export default function ReceptionProfilePage() {
 
                         return (
                           <tr key={s.id}>
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f0f0f0",
-                                padding: 8,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 p-2">
                               {isRowEditing ? (
                                 <input
                                   type="date"
                                   name="date"
                                   value={inlineForm.date}
                                   onChange={handleInlineChange}
-                                  style={{ fontSize: 12, padding: 4 }}
+                                  className="text-xs p-1"
                                 />
                               ) : (
                                 new Date(s.date).toLocaleDateString("mn-MN", {
@@ -1393,18 +1116,13 @@ export default function ReceptionProfilePage() {
                               )}
                             </td>
 
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f0f0f0",
-                                padding: 8,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 p-2">
                               {isRowEditing ? (
                                 <select
                                   name="branchId"
                                   value={inlineForm.branchId}
                                   onChange={handleInlineChange}
-                                  style={{ fontSize: 12, padding: 4 }}
+                                  className="text-xs p-1"
                                 >
                                   <option value="">Сонгох</option>
                                   {receptionAssignedBranches.map((b) => (
@@ -1418,20 +1136,15 @@ export default function ReceptionProfilePage() {
                               )}
                             </td>
 
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f0f0f0",
-                                padding: 8,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 p-2">
                               {isRowEditing ? (
-                                <div style={{ display: "flex", gap: 4 }}>
+                                <div className="flex gap-1">
                                   <input
                                     type="time"
                                     name="startTime"
                                     value={inlineForm.startTime}
                                     onChange={handleInlineChange}
-                                    style={{ fontSize: 12, padding: 4 }}
+                                    className="text-xs p-1"
                                   />
                                   <span>-</span>
                                   <input
@@ -1439,7 +1152,7 @@ export default function ReceptionProfilePage() {
                                     name="endTime"
                                     value={inlineForm.endTime}
                                     onChange={handleInlineChange}
-                                    style={{ fontSize: 12, padding: 4 }}
+                                    className="text-xs p-1"
                                   />
                                 </div>
                               ) : (
@@ -1449,95 +1162,52 @@ export default function ReceptionProfilePage() {
                               )}
                             </td>
 
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f0f0f0",
-                                padding: 8,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 p-2">
                               {isRowEditing ? (
                                 <textarea
                                   name="note"
                                   rows={1}
                                   value={inlineForm.note}
                                   onChange={handleInlineChange}
-                                  style={{
-                                    fontSize: 12,
-                                    padding: 4,
-                                    width: "100%",
-                                  }}
+                                  className="text-xs p-1 w-full"
                                 />
                               ) : (
                                 s.note || "-"
                               )}
                             </td>
 
-                            <td
-                              style={{
-                                borderBottom: "1px solid #f0f0f0",
-                                padding: 8,
-                              }}
-                            >
+                            <td className="border-b border-gray-100 p-2">
                               {isRowEditing ? (
-                                <div style={{ display: "flex", gap: 4 }}>
+                                <div className="flex gap-1">
                                   <button
                                     type="button"
                                     onClick={handleInlineSaveSchedule}
                                     disabled={scheduleSaving}
-                                    style={{
-                                      padding: "4px 8px",
-                                      borderRadius: 4,
-                                      border: "1px solid #4ade80",
-                                      background: "#dcfce7",
-                                      cursor: "pointer",
-                                      fontSize: 12,
-                                    }}
+                                    className="px-2 py-1 rounded border border-green-400 bg-green-100 cursor-pointer text-xs"
                                   >
                                     {scheduleSaving ? "Хадгалж..." : "Хадгалах"}
                                   </button>
                                   <button
                                     type="button"
                                     onClick={cancelEditRow}
-                                    style={{
-                                      padding: "4px 8px",
-                                      borderRadius: 4,
-                                      border: "1px solid #ddd",
-                                      background: "#f9fafb",
-                                      cursor: "pointer",
-                                      fontSize: 12,
-                                    }}
+                                    className="px-2 py-1 rounded border border-gray-300 bg-gray-50 cursor-pointer text-xs"
                                   >
                                     Цуцлах
                                   </button>
                                 </div>
                               ) : (
-                                <div style={{ display: "flex", gap: 4 }}>
+                                <div className="flex gap-1">
                                   <button
                                     type="button"
                                     onClick={() => startEditRow(s)}
-                                    style={{
-                                      padding: "4px 8px",
-                                      borderRadius: 4,
-                                      border: "1px solid #ddd",
-                                      background: "#f9fafb",
-                                      cursor: "pointer",
-                                      fontSize: 12,
-                                    }}
+                                    className="px-2 py-1 rounded border border-gray-300 bg-gray-50 cursor-pointer text-xs"
                                   >
                                     Засах
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteSchedule(s.id)}
-                                    style={{
-                                      padding: "4px 8px",
-                                      borderRadius: 4,
-                                      border: "1px solid #fecaca",
-                                      background: "#fee2e2",
-                                      color: "#b91c1c",
-                                      cursor: "pointer",
-                                      fontSize: 12,
-                                    }}
+                                    className="px-2 py-1 rounded border border-red-200 bg-red-100 text-red-700 cursor-pointer text-xs"
                                   >
                                     Устгах
                                   </button>
