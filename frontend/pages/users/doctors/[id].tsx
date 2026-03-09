@@ -978,12 +978,13 @@ export default function DoctorProfilePage() {
     return result;
   }
 
-  /** Format a "YYYY-MM-DD" string as "YYYY/MM/DD" with short weekday. */
+    /** Format a "YYYY-MM-DD" string as "YYYY/MM/DD" with short Mongolian weekday. */
   function formatScheduleDate(ymd: string): string {
     if (!ymd) return "";
     const [y, m, d] = ymd.split("-").map(Number);
     const dt = new Date(y, m - 1, d);
-    const weekday = dt.toLocaleDateString("mn-MN", { weekday: "short" });
+    const weekdays = ["Ням", "Даваа", "Мягмар", "Лхагва", "Пүрэв", "Баасан", "Бямба"];
+    const weekday = weekdays[dt.getDay()];
     return `${y}/${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")} ${weekday}`;
   }
 
