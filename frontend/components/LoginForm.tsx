@@ -1,44 +1,37 @@
 import { useState } from "react";
+import { useRouter } from "next/router";
+import { login } from "../utils/auth";
 
 export default function LoginForm() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
     try {
-      const res = await fetch("https://api.mdent.cloud/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-      let data;
-      try {
-        data = await res.json();
-      } catch (jsonErr) {
-        setError("Server response was not JSON.");
-        return;
-      }
-      if (res.ok) {
-        // Do token set, redirect etc
-        alert("Login successful!");
-      } else {
-        setError(data.error || `Login failed (HTTP ${res.status})`);
-      }
+      await login(email, password);
+      const redirect = (router.query.redirect as string) || "/";
+      router.replace(redirect);
     } catch (err: any) {
-      setError("Network error: " + (err?.message || ""));
+      setError(err?.message || "Login failed.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit}>
       <input
-        name="username"
-        value={username}
-        onChange={e => setUsername(e.target.value)}
-        placeholder="Username"
+        name="email"
+        type="email"
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        placeholder="Email"
         autoFocus
         required
       />
@@ -50,7 +43,9 @@ export default function LoginForm() {
         type="password"
         required
       />
-      <button type="submit">Login</button>
+      <button type="submit" disabled={loading}>
+        {loading ? "Logging in…" : "Login"}
+      </button>
       {error && <div style={{ color: "red" }}>{error}</div>}
     </form>
   );

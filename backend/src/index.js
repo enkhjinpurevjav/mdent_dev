@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import pino from "pino";
 import path from "path"; // NEW
@@ -46,6 +47,8 @@ import encounterServiceTextsRouter from "./routes/encounterServiceTexts.js";
 import publicRouter from "./routes/public.js";
 import ebarimtRouter from "./routes/ebarimt.js";
 import uploadsRouter from "./routes/uploads.js";
+import authRouter from "./routes/auth.js";
+import { authenticateJWT } from "./middleware/auth.js";
 
 const log = pino({ level: process.env.LOG_LEVEL || "info" });
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -53,14 +56,20 @@ const app = express();
 
 app.use(helmet());
 app.use(express.json());
+
+// CORS: use allowlist from env for cookie-based auth compatibility
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim())
+  : ["https://mdent.cloud"];
 app.use(
   cors({
-    origin: "*",
+    origin: corsOrigins,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Authorization", "Content-Type"],
     credentials: true,
   })
 );
+app.use(cookieParser());
 
 // NEW: serve uploaded media files
 const mediaDir = process.env.MEDIA_UPLOAD_DIR || "/data/media";
@@ -88,6 +97,20 @@ app.get("/health", async (_req, res) => {
 });
 
 // Wire routers — do not define handlers inline here
+// Auth routes (public — must be before global auth middleware)
+app.use("/api/auth", authRouter);
+
+// Public routes (no auth)
+app.use("/api/public", publicRouter);
+
+// Global auth middleware: protects all /api/* routes except /api/auth/* and /api/public/*
+app.use("/api", (req, res, next) => {
+  // Skip already-handled /api/auth and /api/public prefixes
+  if (req.path.startsWith("/auth/") || req.path === "/auth") return next();
+  if (req.path.startsWith("/public/") || req.path === "/public") return next();
+  return authenticateJWT(req, res, next);
+});
+
 app.use("/api/login", loginRouter);
 app.use("/api/branches", branchesRouter);
 app.use("/api/patients", patientsRouter);
@@ -131,9 +154,6 @@ app.use("/api/encounter-diagnoses", encounterDiagnosesRouter);
 app.use("/api/encounter-services", encounterServicesRouter);
 app.use("/api/encounter-diagnosis-problem-texts", encounterDiagnosisProblemTextsRouter);
 app.use("/api/encounter-service-texts", encounterServiceTextsRouter);
-
-// Public routes (no auth)
-app.use("/api/public", publicRouter);
 
 // eBarimt POSAPI 3.0 routes
 app.use("/api/ebarimt", ebarimtRouter);
