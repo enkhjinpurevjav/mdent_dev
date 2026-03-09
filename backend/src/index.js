@@ -44,7 +44,7 @@ import publicRouter from "./routes/public.js";
 import ebarimtRouter from "./routes/ebarimt.js";
 import uploadsRouter from "./routes/uploads.js";
 import authRouter from "./routes/auth.js";
-import { authenticateJWT } from "./middleware/auth.js";
+import { authenticateJWT, requireRole } from "./middleware/auth.js";
 import rateLimit from "express-rate-limit";
 
 const log = pino({ level: process.env.LOG_LEVEL || "info" });
@@ -152,6 +152,11 @@ app.use("/api", (req, res, next) => {
   if (req.path.startsWith("/public")) return next();
   return authenticateJWT(req, res, next);
 });
+
+// RBAC: /api/users and /api/admin/* require admin or super_admin
+const requireAdminRole = requireRole("admin", "super_admin");
+app.use("/api/users", requireAdminRole);
+app.use("/api/admin", requireAdminRole);
 
 // Existing routers
 app.use("/api/login", loginRouter);

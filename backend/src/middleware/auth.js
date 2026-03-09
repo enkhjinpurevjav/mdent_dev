@@ -52,6 +52,24 @@ export function authenticateJWT(req, res, next) {
   });
 }
 
+/**
+ * Role-based authorization middleware.
+ * Usage: router.get('/route', authenticateJWT, requireRole('admin', 'super_admin'), handler)
+ * Returns 403 Forbidden if the authenticated user's role is not in the allowed list.
+ */
+export function requireRole(...roles) {
+  return (req, res, next) => {
+    if (process.env.DISABLE_AUTH === "true") return next();
+    if (!req.user) {
+      return res.status(401).json({ error: "Authentication required." });
+    }
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ error: "Forbidden. Insufficient role." });
+    }
+    return next();
+  };
+}
+
 // Optional JWT Authentication Middleware:
 // does not require auth but populates req.user if token is valid.
 // If JWT_SECRET is missing, it will NOT attempt verification.

@@ -21,7 +21,22 @@ async function main() {
     });
   }
 
-  // Seed one user for each role (admin, doctor, receptionist, accountant, nurse, manager)
+  // Upsert super_admin user admin@mdent.cloud (production admin account)
+  const superAdminEmail = "admin@mdent.cloud";
+  const superAdminHash = await bcrypt.hash(adminPassword, 10);
+  await prisma.user.upsert({
+    where: { email: superAdminEmail },
+    update: { password: superAdminHash, role: "super_admin", branchId: branch.id },
+    create: {
+      email: superAdminEmail,
+      password: superAdminHash,
+      role: "super_admin",
+      name: "Super Admin",
+      branchId: branch.id,
+    },
+  });
+
+  // Seed one user for each role (admin, doctor, receptionist, accountant, nurse, manager, xray, sterilization)
   const roles = [
     { email: "admin@mdent.local", role: "admin", password: adminPassword }, // admin password from ENV
     { email: "doctor@mdent.local", role: "doctor", password: "doctor123" },
@@ -37,6 +52,12 @@ async function main() {
     },
     { email: "nurse@mdent.local", role: "nurse", password: "nurse123" },
     { email: "manager@mdent.local", role: "manager", password: "manager123" },
+    { email: "xray@mdent.local", role: "xray", password: "xray123" },
+    {
+      email: "sterilization@mdent.local",
+      role: "sterilization",
+      password: "sterilization123",
+    },
   ];
 
   for (const user of roles) {
@@ -91,6 +112,7 @@ async function main() {
 
   console.log("Seed completed:", {
     branch: branch.name,
+    superAdmin: superAdminEmail,
     users: roles.map((u) => u.email),
     patient: patient.name,
   });
