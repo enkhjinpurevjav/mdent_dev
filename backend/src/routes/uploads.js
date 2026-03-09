@@ -1,11 +1,10 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
-import { fileURLToPath } from "url";
 import fs from "fs";
 import crypto from "crypto";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const MEDIA_UPLOAD_DIR = process.env.MEDIA_UPLOAD_DIR || "/data/media";
 
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
@@ -23,7 +22,7 @@ const MIME_TO_EXT = {
 };
 
 function makeUploader(subDir) {
-  const dir = path.resolve(__dirname, "../../uploads", subDir);
+  const dir = path.resolve(MEDIA_UPLOAD_DIR, subDir);
   fs.mkdirSync(dir, { recursive: true });
 
   const storage = multer.diskStorage({
@@ -94,17 +93,17 @@ const router = Router();
 
 router.post(
   "/staff-photo",
-  ...uploadHandler(staffPhotoUploader, "/uploads/staff-photos")
+  ...uploadHandler(staffPhotoUploader, "/media/staff-photos")
 );
 
 router.post(
   "/stamp",
-  ...uploadHandler(stampUploader, "/uploads/stamps")
+  ...uploadHandler(stampUploader, "/media/stamps")
 );
 
 router.post(
   "/signature",
-  ...uploadHandler(signatureUploader, "/uploads/signatures")
+  ...uploadHandler(signatureUploader, "/media/signatures")
 );
 
 export default router;
