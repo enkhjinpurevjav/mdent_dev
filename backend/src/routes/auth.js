@@ -1,5 +1,6 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import prisma from "../db.js";
@@ -143,6 +144,104 @@ router.get("/me", (req, res) => {
     res.clearCookie(COOKIE_NAME, { ...cookieOptions(), maxAge: 0 });
     return res.status(401).json({ error: "Invalid or expired token." });
   }
+});
+
+// Rate limit: max 5 password reset requests per 15 minutes per IP
+const passwordResetRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please try again later." },
+});
+
+const RESET_TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
+
+function hashToken(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+// POST /api/auth/password-reset/request
+router.post("/password-reset/request", passwordResetRateLimit, async (req, res) => {
+  const { email } = req.body;
+
+  // Always respond 200 to avoid user enumeration
+  if (!email) {
+    return res.json({ ok: true });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (user) {
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const tokenHash = hashToken(rawToken);
+      const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
+
+      await prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash,
+          expiresAt,
+        },
+      });
+
+      const baseUrl = process.env.PUBLIC_APP_URL || "https://mdent.cloud";
+      const resetLink = `${baseUrl}/reset-password?token=${rawToken}`;
+      console.log(`[password-reset] Reset link for ${email}: ${resetLink}`);
+    }
+  } catch (err) {
+    console.error("Error during password reset request:", err);
+  }
+
+  return res.json({ ok: true });
+});
+
+// POST /api/auth/password-reset/confirm
+router.post("/password-reset/confirm", async (req, res) => {
+  const { token, password } = req.body;
+
+  if (!token || !password) {
+    return res.status(400).json({ error: "Token and password are required." });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters." });
+  }
+
+  const tokenHash = hashToken(token);
+
+  let resetToken;
+  try {
+    resetToken = await prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+    });
+  } catch (err) {
+    console.error("DB error during password reset confirm:", err);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+
+  if (!resetToken || resetToken.usedAt || resetToken.expiresAt.getTime() < Date.now()) {
+    return res.status(400).json({ error: "Invalid or expired reset token." });
+  }
+
+  try {
+    const hashed = await bcrypt.hash(password, 10);
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: resetToken.userId },
+        data: { password: hashed },
+      }),
+      prisma.passwordResetToken.update({
+        where: { id: resetToken.id },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+  } catch (err) {
+    console.error("Error during password reset confirm:", err);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+
+  return res.json({ ok: true });
 });
 
 export default router;

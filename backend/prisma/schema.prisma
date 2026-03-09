@@ -680,6 +680,8 @@ model User {
   monthlyGoalAmountMnt Float @default(0) // Monthly revenue goal in Mongolian Tugriks (MNT)
   commissionConfig DoctorCommissionConfig?
   nurseCommissionConfig NurseCommissionConfig?
+
+  passwordResetTokens PasswordResetToken[]
 }
 
 // ==========================================================
@@ -1659,4 +1661,21 @@ model NurseCommissionConfig {
   updatedAt DateTime @updatedAt
 
   @@index([nurseId])
+}
+
+
+// ==========================================================
+// PASSWORD RESET TOKENS
+// ==========================================================
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
