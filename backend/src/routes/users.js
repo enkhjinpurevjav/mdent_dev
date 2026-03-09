@@ -1152,6 +1152,212 @@ router.post("/:id/schedule", async (req, res) => {
 });
 
 /**
+ * POST /api/users/:id/schedule/bulk-create
+ * Bulk-creates (or overwrites) schedule entries from a template.
+ * Body:
+ * {
+ *   days: 7 | 14 | 30,
+ *   branchId: number,
+ *   template: {
+ *     weekdayMode: 'AM' | 'PM' | 'BOTH',
+ *     includeWeekends: boolean,
+ *   },
+ *   note?: string
+ * }
+ * Start date = today (server local date).
+ */
+router.post("/:id/schedule/bulk-create", async (req, res) => {
+  const doctorId = Number(req.params.id);
+  if (!doctorId || Number.isNaN(doctorId)) {
+    return res.status(400).json({ error: "Invalid doctor id" });
+  }
+
+  const { days, branchId, template, note } = req.body || {};
+
+  if (!days || ![7, 14, 30].includes(Number(days))) {
+    return res.status(400).json({ error: "days must be 7, 14, or 30" });
+  }
+  if (!branchId) {
+    return res.status(400).json({ error: "branchId is required" });
+  }
+  if (!template || !template.weekdayMode) {
+    return res.status(400).json({ error: "template.weekdayMode is required" });
+  }
+  if (!["AM", "PM", "BOTH"].includes(template.weekdayMode)) {
+    return res.status(400).json({ error: "template.weekdayMode must be AM, PM, or BOTH" });
+  }
+
+  const bid = Number(branchId);
+  if (Number.isNaN(bid)) {
+    return res.status(400).json({ error: "Invalid branchId" });
+  }
+
+  try {
+    const doctor = await ensureDoctorOr404(doctorId, res);
+    if (!doctor) return;
+
+    const branch = await prisma.branch.findUnique({
+      where: { id: bid },
+      select: { id: true, name: true },
+    });
+    if (!branch) {
+      return res.status(400).json({ error: "Branch not found" });
+    }
+
+    const doctorBranch = await prisma.doctorBranch.findFirst({
+      where: { doctorId, branchId: bid },
+    });
+    if (!doctorBranch) {
+      return res.status(400).json({ error: "Doctor is not assigned to this branch" });
+    }
+
+    const numDays = Number(days);
+    const includeWeekends = Boolean(template.includeWeekends);
+    const weekdayMode = template.weekdayMode;
+    const lunchNote = "(Завсарлага: 14:00-15:00)";
+
+    // Build list of shifts to create
+    const shiftsToCreate = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < numDays; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+
+      const weekday = d.getDay(); // 0=Sun, 6=Sat
+      const isWeekend = weekday === 0 || weekday === 6;
+
+      if (isWeekend) {
+        if (includeWeekends) {
+          const rowNote = note ? `${note} ${lunchNote}` : lunchNote;
+          shiftsToCreate.push({
+            date: d,
+            shiftType: "WEEKEND_FULL",
+            startTime: "10:00",
+            endTime: "19:00",
+            note: rowNote,
+          });
+        }
+      } else {
+        const rowNote = note ? `${note} ${lunchNote}` : lunchNote;
+        if (weekdayMode === "AM" || weekdayMode === "BOTH") {
+          shiftsToCreate.push({
+            date: d,
+            shiftType: "AM",
+            startTime: "09:00",
+            endTime: "15:00",
+            note: rowNote,
+          });
+        }
+        if (weekdayMode === "PM" || weekdayMode === "BOTH") {
+          shiftsToCreate.push({
+            date: d,
+            shiftType: "PM",
+            startTime: "15:00",
+            endTime: "21:00",
+            note: rowNote,
+          });
+        }
+      }
+    }
+
+    let created = 0;
+    let updated = 0;
+
+    for (const shift of shiftsToCreate) {
+      const existing = await prisma.doctorSchedule.findFirst({
+        where: { doctorId, branchId: bid, date: shift.date, shiftType: shift.shiftType },
+      });
+
+      if (existing) {
+        await prisma.doctorSchedule.update({
+          where: { id: existing.id },
+          data: {
+            startTime: shift.startTime,
+            endTime: shift.endTime,
+            note: shift.note,
+          },
+        });
+        updated++;
+      } else {
+        await prisma.doctorSchedule.create({
+          data: {
+            doctorId,
+            branchId: bid,
+            date: shift.date,
+            shiftType: shift.shiftType,
+            startTime: shift.startTime,
+            endTime: shift.endTime,
+            note: shift.note,
+          },
+        });
+        created++;
+      }
+    }
+
+    return res.status(200).json({ created, updated, total: created + updated });
+  } catch (err) {
+    console.error("POST /api/users/:id/schedule/bulk-create error:", err);
+    return res.status(500).json({ error: "Failed to bulk-create schedule" });
+  }
+});
+
+/**
+ * DELETE /api/users/:id/schedule/bulk-clear
+ * Deletes all schedule rows for the doctor in a date range for a specific branch.
+ * Query params: from=YYYY-MM-DD, to=YYYY-MM-DD, branchId=number
+ */
+router.delete("/:id/schedule/bulk-clear", async (req, res) => {
+  const doctorId = Number(req.params.id);
+  if (!doctorId || Number.isNaN(doctorId)) {
+    return res.status(400).json({ error: "Invalid doctor id" });
+  }
+
+  const { from, to, branchId } = req.query;
+
+  if (!from || !to || !branchId) {
+    return res.status(400).json({ error: "from, to, and branchId query params are required" });
+  }
+
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+    return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD" });
+  }
+
+  fromDate.setHours(0, 0, 0, 0);
+  toDate.setHours(23, 59, 59, 999);
+
+  const bid = Number(branchId);
+  if (Number.isNaN(bid)) {
+    return res.status(400).json({ error: "Invalid branchId" });
+  }
+
+  try {
+    const doctor = await ensureDoctorOr404(doctorId, res);
+    if (!doctor) return;
+
+    const result = await prisma.doctorSchedule.deleteMany({
+      where: {
+        doctorId,
+        branchId: bid,
+        date: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+    });
+
+    return res.status(200).json({ deleted: result.count });
+  } catch (err) {
+    console.error("DELETE /api/users/:id/schedule/bulk-clear error:", err);
+    return res.status(500).json({ error: "Failed to clear schedule" });
+  }
+});
+
+/**
  * DELETE /api/users/:id/schedule/:scheduleId
  * Deletes a schedule entry for this doctor.
  */
