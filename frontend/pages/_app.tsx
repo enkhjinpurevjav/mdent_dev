@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 import { getMe } from "../utils/auth";
 import "../styles/globals.css";
 
+
 // Routes that do not require authentication
-const PUBLIC_ROUTES = ["/login", "/online", "/print"];
+const PUBLIC_ROUTES = ["/login", "/online", "/print", "/forgot-password", "/reset-password"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_ROUTES.some(
