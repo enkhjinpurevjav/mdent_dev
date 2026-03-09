@@ -953,7 +953,7 @@ export default function DoctorProfilePage() {
 
   return (
    <main
-  className="max-w-[1100px] mx-auto my-10 p-6 font-sans"
+  className="p-6 font-sans"
 >
       <button
   type="button"
