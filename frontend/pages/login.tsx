@@ -1,13 +1,11 @@
 import Link from "next/link";
 import LoginForm from "../components/LoginForm";
+import PublicHeader from "../components/PublicHeader";
 
 export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">
-      {/* Top dark header */}
-      <header className="bg-gray-900 text-white px-6 py-3 flex items-center shadow">
-        <span className="text-lg font-semibold tracking-wide">M DENT</span>
-      </header>
+      <PublicHeader />
 
       {/* Centered card */}
       <main className="flex flex-1 items-center justify-center px-4">

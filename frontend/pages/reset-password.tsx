@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
+import PublicHeader from "../components/PublicHeader";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -48,9 +49,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">
-      <header className="bg-gray-900 text-white px-6 py-3 flex items-center shadow">
-        <span className="text-lg font-semibold tracking-wide">M DENT</span>
-      </header>
+      <PublicHeader />
 
       <main className="flex flex-1 items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-md w-full max-w-sm p-8">
@@ -75,7 +74,7 @@ export default function ResetPasswordPage() {
                   required
                   autoFocus
                   minLength={6}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Дор хаяж 6 тэмдэгт"
                 />
               </div>
@@ -88,7 +87,7 @@ export default function ResetPasswordPage() {
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   required
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Нууц үгийг давтана уу"
                 />
               </div>
