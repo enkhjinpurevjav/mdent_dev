@@ -256,6 +256,10 @@ export default function DoctorProfilePage() {
     note: "",
   });
 
+  // schedule table pagination
+  const [schedulePage, setSchedulePage] = useState(1);
+  const schedulePageSize = 10;
+
   // History (Хуваарийн түүх) state
   const [historyFrom, setHistoryFrom] = useState("");
   const [historyTo, setHistoryTo] = useState("");
@@ -459,6 +463,7 @@ export default function DoctorProfilePage() {
 
         if (res.ok && Array.isArray(data)) {
           setSchedule(data);
+          setSchedulePage(1);
         } else {
           setScheduleError(
             data && data.error
@@ -530,6 +535,7 @@ export default function DoctorProfilePage() {
 
       if (res.ok && Array.isArray(data)) {
         setSchedule(data);
+        setSchedulePage(1);
       } else {
         setScheduleError(
           data && data.error
@@ -1844,6 +1850,7 @@ export default function DoctorProfilePage() {
                       name="branchId"
                       value={scheduleForm.branchId}
                       onChange={handleScheduleFormChange}
+                      className="w-full rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
                     >
                       <option value="">Сонгох</option>
                       {doctorAssignedBranches.map((b) => (
@@ -1860,6 +1867,7 @@ export default function DoctorProfilePage() {
                       name="shiftType"
                       value={scheduleForm.shiftType}
                       onChange={handleScheduleFormChange}
+                      className="w-full rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
                     >
                       <option value="AM">Өглөө ээлж</option>
                       <option value="PM">Орой ээлж</option>
@@ -1875,6 +1883,7 @@ export default function DoctorProfilePage() {
                         name="startTime"
                         value={scheduleForm.startTime}
                         onChange={handleScheduleFormChange}
+                        className="rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
                       />
                     </label>
                     <label className="flex flex-col gap-1">
@@ -1884,6 +1893,7 @@ export default function DoctorProfilePage() {
                         name="endTime"
                         value={scheduleForm.endTime}
                         onChange={handleScheduleFormChange}
+                        className="rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
                       />
                     </label>
                   </div>
@@ -1939,6 +1949,7 @@ export default function DoctorProfilePage() {
                 )}
 
                 {!scheduleLoading && !scheduleError && schedule.length > 0 && (
+                  <>
                   <table
                     className="w-full border-collapse mt-2 text-sm"
                   >
@@ -1962,7 +1973,7 @@ export default function DoctorProfilePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {schedule.map((s) => {
+                      {schedule.slice((schedulePage - 1) * schedulePageSize, schedulePage * schedulePageSize).map((s) => {
                         const isRowEditing = editingScheduleId === s.id;
 
                         return (
@@ -2089,6 +2100,33 @@ export default function DoctorProfilePage() {
                       })}
                     </tbody>
                   </table>
+                  {/* Pagination controls */}
+                  {Math.ceil(schedule.length / schedulePageSize) > 1 && (
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-[13px] text-gray-500">
+                        Нийт {schedule.length} бичлэг — {schedulePage}/{Math.ceil(schedule.length / schedulePageSize)} хуудас
+                      </span>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          disabled={schedulePage === 1}
+                          onClick={() => setSchedulePage((p) => p - 1)}
+                          className="px-3 py-1 rounded-md border border-gray-300 bg-white text-[13px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          ‹ Өмнөх
+                        </button>
+                        <button
+                          type="button"
+                          disabled={schedulePage >= Math.ceil(schedule.length / schedulePageSize)}
+                          onClick={() => setSchedulePage((p) => p + 1)}
+                          className="px-3 py-1 rounded-md border border-gray-300 bg-white text-[13px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          Дараах ›
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  </>
                 )}
               </Card>
 
