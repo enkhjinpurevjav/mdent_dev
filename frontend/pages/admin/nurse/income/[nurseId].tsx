@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 
 type ImagingLine = {
@@ -42,9 +42,14 @@ export default function NurseIncomeDetailsPage() {
     endDate?: string;
   };
 
+  const PAGE_SIZE = 15;
+
   const [loading, setLoading] = useState(true);
   const [details, setDetails] = useState<NurseIncomeDetails | null>(null);
   const [error, setError] = useState<string>("");
+
+  const [imagingPage, setImagingPage] = useState(1);
+  const [assistPage, setAssistPage] = useState(1);
 
   const fetchDetails = async () => {
     if (!nurseId || !startDate || !endDate) return;
@@ -70,6 +75,32 @@ export default function NurseIncomeDetailsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady, nurseId, startDate, endDate]);
+
+  // Reset pagination when details changes (new nurseId/startDate/endDate)
+  useEffect(() => {
+    setImagingPage(1);
+    setAssistPage(1);
+  }, [details]);
+
+  const imagingTotalPages = useMemo(
+    () => Math.max(1, Math.ceil((details?.imagingLines.length ?? 0) / PAGE_SIZE)),
+    [details]
+  );
+  const imagingPageSafe = Math.min(imagingPage, imagingTotalPages);
+  const imagingPageRows = useMemo(
+    () => (details?.imagingLines ?? []).slice((imagingPageSafe - 1) * PAGE_SIZE, imagingPageSafe * PAGE_SIZE),
+    [details, imagingPageSafe]
+  );
+
+  const assistTotalPages = useMemo(
+    () => Math.max(1, Math.ceil((details?.assistLines.length ?? 0) / PAGE_SIZE)),
+    [details]
+  );
+  const assistPageSafe = Math.min(assistPage, assistTotalPages);
+  const assistPageRows = useMemo(
+    () => (details?.assistLines ?? []).slice((assistPageSafe - 1) * PAGE_SIZE, assistPageSafe * PAGE_SIZE),
+    [details, assistPageSafe]
+  );
 
   return (
     <main className="p-6 font-sans">
@@ -123,7 +154,8 @@ export default function NurseIncomeDetailsPage() {
               Тухайн хугацаанд зурагны мөр олдсонгүй.
             </p>
           ) : (
-            <table className="w-full border-collapse text-sm mb-6">
+            <>
+            <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-gray-50 text-left">
                   <th className="px-3 py-2">Нэхэмжлэл #</th>
@@ -134,7 +166,7 @@ export default function NurseIncomeDetailsPage() {
                 </tr>
               </thead>
               <tbody>
-                {details.imagingLines.map((line) => (
+                {imagingPageRows.map((line) => (
                   <tr key={line.invoiceItemId} className="border-b border-gray-200">
                     <td className="px-3 py-2">{line.invoiceId}</td>
                     <td className="px-3 py-2">{line.serviceName}</td>
@@ -159,6 +191,28 @@ export default function NurseIncomeDetailsPage() {
                 </tr>
               </tfoot>
             </table>
+            <div className="mt-2 mb-6 flex items-center justify-end gap-2 text-sm">
+              <button
+                type="button"
+                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 disabled:opacity-50"
+                disabled={imagingPageSafe <= 1}
+                onClick={() => setImagingPage((p) => Math.max(1, p - 1))}
+              >
+                Өмнөх
+              </button>
+              <span className="text-gray-600">
+                {imagingPageSafe} / {imagingTotalPages}
+              </span>
+              <button
+                type="button"
+                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 disabled:opacity-50"
+                disabled={imagingPageSafe >= imagingTotalPages}
+                onClick={() => setImagingPage((p) => Math.min(imagingTotalPages, p + 1))}
+              >
+                Дараах
+              </button>
+            </div>
+            </>
           )}
 
           {/* Assist lines table */}
@@ -170,6 +224,7 @@ export default function NurseIncomeDetailsPage() {
               Тухайн хугацаанд туслах орлого олдсонгүй.
             </p>
           ) : (
+            <>
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-gray-50 text-left">
@@ -181,7 +236,7 @@ export default function NurseIncomeDetailsPage() {
                 </tr>
               </thead>
               <tbody>
-                {details.assistLines.map((line) => (
+                {assistPageRows.map((line) => (
                   <tr key={`${line.encounterId}-${line.invoiceId}`} className="border-b border-gray-200">
                     <td className="px-3 py-2">{line.invoiceId}</td>
                     <td className="px-3 py-2">{line.doctorName || "-"}</td>
@@ -206,6 +261,28 @@ export default function NurseIncomeDetailsPage() {
                 </tr>
               </tfoot>
             </table>
+            <div className="mt-2 flex items-center justify-end gap-2 text-sm">
+              <button
+                type="button"
+                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 disabled:opacity-50"
+                disabled={assistPageSafe <= 1}
+                onClick={() => setAssistPage((p) => Math.max(1, p - 1))}
+              >
+                Өмнөх
+              </button>
+              <span className="text-gray-600">
+                {assistPageSafe} / {assistTotalPages}
+              </span>
+              <button
+                type="button"
+                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 disabled:opacity-50"
+                disabled={assistPageSafe >= assistTotalPages}
+                onClick={() => setAssistPage((p) => Math.min(assistTotalPages, p + 1))}
+              >
+                Дараах
+              </button>
+            </div>
+            </>
           )}
         </>
       )}
