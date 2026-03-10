@@ -1,5 +1,10 @@
 import express from "express";
 import prisma from "../../db.js";
+import {
+  discountPercentEnumToNumber,
+  computeServiceNetEqualDiscount,
+  allocatePaymentEqualSplitWithOverflow,
+} from "../../utils/incomeHelpers.js";
 
 const router = express.Router();
 
@@ -114,81 +119,108 @@ router.get("/doctors-income", async (req, res) => {
       const payments = inv.payments || [];
       const hasOverride = payments.some((p) => OVERRIDE_METHODS.has(String(p.method).toUpperCase()));
 
-      // ---------- service net after discount via multiplier ----------
-      const totalBefore = Number(inv.totalBeforeDiscount || 0);
-      const finalAmount = Number(inv.finalAmount || 0);
-      const netMultiplier = totalBefore > 0 ? finalAmount / totalBefore : 0;
-
+      // ---------- per-line nets via equal discount distribution ----------
+      const discountPct = discountPercentEnumToNumber(inv.discountPercent);
       const serviceItems = (inv.items || []).filter(
         (it) => it.itemType === "SERVICE" && it.service?.category !== "PREVIOUS"
       );
-      
-      // Separate IMAGING and NON-IMAGING services for doctor sales calculation
+      const lineNets = computeServiceNetEqualDiscount(serviceItems, discountPct);
+
+      // Non-IMAGING items used for sales (IMAGING is excluded from doctorSalesMnt)
       const nonImagingServiceItems = serviceItems.filter(
         (it) => it.service?.category !== "IMAGING"
       );
-      
-      const nonImagingServiceGross = nonImagingServiceItems.reduce(
-        (sum, it) => sum + Number(it.lineTotal || it.unitPrice * it.quantity || 0),
+
+      const totalNonImagingNet = nonImagingServiceItems.reduce(
+        (sum, it) => sum + (lineNets.get(it.id) || 0),
         0
       );
-      const nonImagingServiceNetAfterDiscount = nonImagingServiceGross * netMultiplier;
+      const totalAllServiceNet = serviceItems.reduce(
+        (sum, it) => sum + (lineNets.get(it.id) || 0),
+        0
+      );
+      // Ratio used to allocate BARTER excess proportionally across non-IMAGING lines
+      const nonImagingRatio = totalAllServiceNet > 0 ? totalNonImagingNet / totalAllServiceNet : 0;
 
-      // ---------- SALES (exclude IMAGING services) ----------
+      // ---------- Single payment pass: equal-split allocation with overflow ----------
+      // itemById and serviceLineIds used in both SALES and INCOME sections below
+      const itemById = new Map(serviceItems.map((it) => [it.id, it]));
+      const serviceLineIds = serviceItems.map((it) => it.id);
+
+      // remainingDue tracks outstanding amount per line (initialised to net after discount).
+      // It is mutated by allocatePaymentEqualSplitWithOverflow so later payments only
+      // allocate to still-unpaid portions.
+      const remainingDue = new Map(serviceItems.map((it) => [it.id, lineNets.get(it.id) || 0]));
+
+      // itemAllocationBase accumulates the pre-feeMultiplier payment allocation per line.
+      const itemAllocationBase = new Map(serviceItems.map((it) => [it.id, 0]));
+
+      let barterSum = 0;
+
+      // Process payments in timestamp order for deterministic remaining-due tracking.
+      const sortedPayments = [...payments].sort(
+        (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+      );
+
+      for (const p of sortedPayments) {
+        const method = String(p.method || "").toUpperCase();
+        const ts = new Date(p.timestamp);
+        if (!inRange(ts, start, endExclusive)) continue;
+        if (EXCLUDED_METHODS.has(method)) continue;
+
+        if (method === "BARTER") {
+          barterSum += Number(p.amount || 0);
+          continue;
+        }
+
+        if (!INCLUDED_METHODS.has(method) && !OVERRIDE_METHODS.has(method)) continue;
+
+        const payAmt = Number(p.amount || 0);
+        const payAllocs = p.allocations || [];
+
+        if (payAllocs.length > 0) {
+          // Use explicit allocations; update remainingDue for subsequent payments.
+          for (const alloc of payAllocs) {
+            const item = itemById.get(alloc.invoiceItemId);
+            if (!item) continue;
+            const allocAmt = Number(alloc.amount || 0);
+            itemAllocationBase.set(item.id, (itemAllocationBase.get(item.id) || 0) + allocAmt);
+            remainingDue.set(item.id, Math.max(0, (remainingDue.get(item.id) || 0) - allocAmt));
+          }
+        } else {
+          // Equal-split with overflow across all service lines (mutates remainingDue).
+          const allocs = allocatePaymentEqualSplitWithOverflow(payAmt, serviceLineIds, remainingDue);
+          for (const [id, amt] of allocs) {
+            itemAllocationBase.set(id, (itemAllocationBase.get(id) || 0) + amt);
+          }
+        }
+      }
+
+      // ---------- SALES (exclude IMAGING) ----------
       if (hasOverride) {
-        // insurance/application override: invoice-based, only when invoice PAID
+        // Override invoices: invoice-level sales contribution when paid.
         const status = String(inv.statusLegacy || "").toLowerCase();
         if (status === "paid") {
-          acc.doctorSalesMnt += nonImagingServiceNetAfterDiscount * 0.9;
+          acc.doctorSalesMnt += totalNonImagingNet * 0.9;
         }
       } else {
-        // payment-split based by Payment.timestamp in range
-        // Allocate payments proportionally to NON-IMAGING services only
-        let included = 0;
-        let barterSum = 0;
-
-        for (const p of payments) {
-          const method = String(p.method || "").toUpperCase();
-          const ts = new Date(p.timestamp);
-          if (!inRange(ts, start, endExclusive)) continue;
-
-          const amt = Number(p.amount || 0);
-
-          if (EXCLUDED_METHODS.has(method)) continue;
-
-          if (method === "BARTER") {
-            barterSum += amt;
-            continue;
-          }
-
-          if (INCLUDED_METHODS.has(method)) {
-            included += amt;
-          }
+        // Sum equal-split allocations for non-IMAGING lines.
+        let salesFromIncluded = 0;
+        for (const it of nonImagingServiceItems) {
+          salesFromIncluded += itemAllocationBase.get(it.id) || 0;
         }
 
-        // Calculate total service value (including IMAGING) for proportional allocation
-        const totalServiceGross = serviceItems.reduce(
-          (sum, it) => sum + Number(it.lineTotal || it.unitPrice * it.quantity || 0),
-          0
-        );
-        const totalServiceNet = totalServiceGross * netMultiplier;
-        
-        // Allocate payments proportionally to non-IMAGING services
-        const nonImagingRatio = totalServiceNet > 0 
-          ? nonImagingServiceNetAfterDiscount / totalServiceNet 
-          : 0;
-        
-        const allocatedIncluded = included * nonImagingRatio;
-        const barterIncluded = Math.max(0, barterSum - 800000) * nonImagingRatio;
-        
-        acc.doctorSalesMnt += allocatedIncluded + barterIncluded;
+        // BARTER excess contributes to sales (proportional to non-imaging share of lineNets).
+        const barterExcess = Math.max(0, barterSum - 800000);
+        const barterIncluded = barterExcess * nonImagingRatio;
+        acc.doctorSalesMnt += salesFromIncluded + barterIncluded;
 
-        // barter also contributes to income via generalPct
+        // Barter excess also contributes to income via generalPct.
         const generalPct = Number(cfg?.generalPct || 0);
         acc.doctorIncomeMnt += barterIncluded * (generalPct / 100);
       }
 
-      // ---------- INCOME (Option 2: payment-timestamp-based commission) ----------
+      // ---------- INCOME ----------
       {
         const orthoPct = Number(cfg?.orthoPct || 0);
         const defectPct = Number(cfg?.defectPct || 0);
@@ -197,67 +229,21 @@ router.get("/doctors-income", async (req, res) => {
         const imagingPct = Number(cfg?.imagingPct || 0);
         const feeMultiplier = hasOverride ? 0.9 : 1;
 
-        // Build itemId -> item map
-        const itemById = new Map(serviceItems.map((it) => [it.id, it]));
-
-        // Total service net (for proportional split denominator)
-        const totalServiceNet = serviceItems.reduce(
-          (sum, it) =>
-            sum + Number(it.lineTotal || it.unitPrice * it.quantity || 0) * netMultiplier,
-          0
-        );
-
-        // Accumulate per-item income base from in-range payments
-        const itemIncomeBase = new Map();
-        serviceItems.forEach((it) => itemIncomeBase.set(it.id, 0));
-
-        for (const p of payments) {
-          const method = String(p.method || "").toUpperCase();
-          const ts = new Date(p.timestamp);
-          if (!inRange(ts, start, endExclusive)) continue;
-          if (EXCLUDED_METHODS.has(method) || method === "BARTER") continue;
-          if (!INCLUDED_METHODS.has(method) && !OVERRIDE_METHODS.has(method)) continue;
-
-          const payAmt = Number(p.amount || 0);
-          const payAllocs = p.allocations || [];
-
-          if (payAllocs.length > 0) {
-            // Allocations-only: use allocation amounts, ignore remainder
-            for (const alloc of payAllocs) {
-              const item = itemById.get(alloc.invoiceItemId);
-              if (!item) continue;
-              const contribution = Number(alloc.amount || 0) * feeMultiplier;
-              itemIncomeBase.set(item.id, (itemIncomeBase.get(item.id) || 0) + contribution);
-            }
-          } else {
-            // Proportional split across all service items
-            if (totalServiceNet <= 0) continue;
-            for (const it of serviceItems) {
-              const itemNet =
-                Number(it.lineTotal || it.unitPrice * it.quantity || 0) * netMultiplier;
-              const share = itemNet / totalServiceNet;
-              const contribution = payAmt * share * feeMultiplier;
-              itemIncomeBase.set(it.id, (itemIncomeBase.get(it.id) || 0) + contribution);
-            }
-          }
-        }
-
-        // Apply category pcts to accumulated income bases
         for (const it of serviceItems) {
           const service = it.service;
-          const lineNet = itemIncomeBase.get(it.id) || 0;
+          const lineNet = (itemAllocationBase.get(it.id) || 0) * feeMultiplier;
           if (lineNet <= 0) continue;
 
           if (service?.category === "IMAGING") {
-            // Only credit doctor when explicitly assignedTo=DOCTOR
-            const assignedTo = it.meta?.assignedTo;
-            if (assignedTo === "DOCTOR") {
+            // Only credit doctor when explicitly assignedTo=DOCTOR.
+            if (it.meta?.assignedTo === "DOCTOR") {
               acc.doctorIncomeMnt += lineNet * (imagingPct / 100);
             }
             continue;
           }
 
           if (it.serviceId === HOME_BLEACHING_SERVICE_ID) {
+            // Deduct material cost before applying generalPct.
             const base = Math.max(0, lineNet - homeBleachingDeductAmountMnt);
             acc.doctorIncomeMnt += base * (generalPct / 100);
             continue;
@@ -418,102 +404,103 @@ router.get("/doctors-income/:doctorId/details", async (req, res) => {
       const status = String(inv.statusLegacy || "").toLowerCase();
       const isPaid = status === "paid";
 
-      const totalBefore = Number(inv.totalBeforeDiscount || 0);
-      const finalAmount = Number(inv.finalAmount || 0);
-      const netMultiplier = totalBefore > 0 ? finalAmount / totalBefore : 0;
-
+      // ---------- per-line nets via equal discount distribution ----------
+      const discountPct = discountPercentEnumToNumber(inv.discountPercent);
       const serviceItems = (inv.items || []).filter(
         (it) => it.itemType === "SERVICE" && it.service?.category !== "PREVIOUS"
       );
       if (!serviceItems.length) continue;
 
-      const invoiceCategoryNet = {
-        IMAGING: 0,
-        ORTHODONTIC_TREATMENT: 0,
-        DEFECT_CORRECTION: 0,
-        SURGERY: 0,
-        GENERAL: 0,
-      };
+      const lineNets = computeServiceNetEqualDiscount(serviceItems, discountPct);
 
-      for (const it of serviceItems) {
-        const lineGross = Number(it.lineTotal || it.unitPrice * it.quantity || 0);
-        const lineNet = lineGross * netMultiplier;
-        const k = bucketKeyForService(it.service);
-        invoiceCategoryNet[k] += lineNet;
+      // Non-IMAGING items used for sales (IMAGING excluded from doctorSalesMnt)
+      const nonImagingServiceItems = serviceItems.filter(
+        (it) => it.service?.category !== "IMAGING"
+      );
+
+      const totalAllServiceNet = serviceItems.reduce(
+        (sum, it) => sum + (lineNets.get(it.id) || 0),
+        0
+      );
+      const totalNonImagingNet = nonImagingServiceItems.reduce(
+        (sum, it) => sum + (lineNets.get(it.id) || 0),
+        0
+      );
+      // Ratio used to allocate BARTER excess proportionally across non-IMAGING lines
+      const nonImagingRatio = totalAllServiceNet > 0 ? totalNonImagingNet / totalAllServiceNet : 0;
+
+      // ---------- Single payment pass: equal-split allocation with overflow ----------
+      const itemById = new Map(serviceItems.map((it) => [it.id, it]));
+      const serviceLineIds = serviceItems.map((it) => it.id);
+
+      const remainingDue = new Map(serviceItems.map((it) => [it.id, lineNets.get(it.id) || 0]));
+      const itemAllocationBase = new Map(serviceItems.map((it) => [it.id, 0]));
+
+      let barterSum = 0;
+
+      const sortedPayments = [...payments].sort(
+        (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+      );
+
+      for (const p of sortedPayments) {
+        const method = String(p.method || "").toUpperCase();
+        const ts = new Date(p.timestamp);
+        if (!inRange(ts, start, endExclusive)) continue;
+        if (EXCLUDED_METHODS.has(method)) continue;
+
+        if (method === "BARTER") {
+          barterSum += Number(p.amount || 0);
+          continue;
+        }
+
+        if (!INCLUDED_METHODS.has(method) && !OVERRIDE_METHODS.has(method)) continue;
+
+        const payAmt = Number(p.amount || 0);
+        const payAllocs = p.allocations || [];
+
+        if (payAllocs.length > 0) {
+          // Use explicit allocations; update remainingDue for subsequent payments.
+          for (const alloc of payAllocs) {
+            const item = itemById.get(alloc.invoiceItemId);
+            if (!item) continue;
+            const allocAmt = Number(alloc.amount || 0);
+            itemAllocationBase.set(item.id, (itemAllocationBase.get(item.id) || 0) + allocAmt);
+            remainingDue.set(item.id, Math.max(0, (remainingDue.get(item.id) || 0) - allocAmt));
+          }
+        } else {
+          // Equal-split with overflow across all service lines (mutates remainingDue).
+          const allocs = allocatePaymentEqualSplitWithOverflow(payAmt, serviceLineIds, remainingDue);
+          for (const [id, amt] of allocs) {
+            itemAllocationBase.set(id, (itemAllocationBase.get(id) || 0) + amt);
+          }
+        }
       }
 
-      const invoiceServiceNet =
-        invoiceCategoryNet.IMAGING +
-        invoiceCategoryNet.ORTHODONTIC_TREATMENT +
-        invoiceCategoryNet.DEFECT_CORRECTION +
-        invoiceCategoryNet.SURGERY +
-        invoiceCategoryNet.GENERAL;
-
-      // Calculate non-IMAGING service net for doctor sales allocation
-      const invoiceNonImagingServiceNet =
-        invoiceCategoryNet.ORTHODONTIC_TREATMENT +
-        invoiceCategoryNet.DEFECT_CORRECTION +
-        invoiceCategoryNet.SURGERY +
-        invoiceCategoryNet.GENERAL;
-
-      // ---------- SALES (category-first, exclude IMAGING) ----------
+      // ---------- SALES (exclude IMAGING) ----------
       if (hasOverride) {
         if (isPaid && inv.createdAt >= start && inv.createdAt < endExclusive) {
-          const invoiceSalesBase = invoiceNonImagingServiceNet * 0.9;
-          if (invoiceNonImagingServiceNet > 0) {
-            for (const k of Object.keys(invoiceCategoryNet)) {
-              if (k === "IMAGING") continue; // Skip IMAGING for sales
-              const share = invoiceCategoryNet[k] / invoiceNonImagingServiceNet;
-              const amt = invoiceSalesBase * share;
-              buckets[k].salesMnt += amt;
-              totalSalesMnt += amt;
-            }
+          // Per-item lineNet * 0.9 allocated to each non-IMAGING category bucket.
+          for (const it of nonImagingServiceItems) {
+            const lineNet = lineNets.get(it.id) || 0;
+            if (lineNet <= 0) continue;
+            const amt = lineNet * 0.9;
+            const k = bucketKeyForService(it.service);
+            buckets[k].salesMnt += amt;
+            totalSalesMnt += amt;
           }
         }
       } else {
-        let includedPayments = 0;
-        let barterSum = 0;
-
-        for (const p of payments) {
-          const method = String(p.method || "").toUpperCase();
-          const ts = new Date(p.timestamp);
-          if (!inRange(ts, start, endExclusive)) continue;
-
-          const amt = Number(p.amount || 0);
-          if (EXCLUDED_METHODS.has(method)) continue;
-
-          if (method === "BARTER") {
-            barterSum += amt;
-            continue;
-          }
-          if (INCLUDED_METHODS.has(method)) {
-            includedPayments += amt;
-          }
+        // Sum equal-split allocations for non-IMAGING lines into their category buckets.
+        for (const it of nonImagingServiceItems) {
+          const amt = itemAllocationBase.get(it.id) || 0;
+          if (amt <= 0) continue;
+          const k = bucketKeyForService(it.service);
+          buckets[k].salesMnt += amt;
+          totalSalesMnt += amt;
         }
 
+        // BARTER excess → BARTER_EXCESS bucket (proportional to non-imaging share).
         const barterExcess = Math.max(0, barterSum - 800000);
-
-        // Calculate non-IMAGING ratio once for both includedPayments and barterExcess
-        const nonImagingRatio = invoiceServiceNet > 0 
-          ? invoiceNonImagingServiceNet / invoiceServiceNet 
-          : 0;
-
-        // allocate only includedPayments proportionally to NON-IMAGING services
-        if (invoiceServiceNet > 0 && includedPayments !== 0) {
-          const allocatedIncluded = includedPayments * nonImagingRatio;
-          
-          if (invoiceNonImagingServiceNet > 0) {
-            for (const k of Object.keys(invoiceCategoryNet)) {
-              if (k === "IMAGING") continue; // Skip IMAGING for sales
-              const share = invoiceCategoryNet[k] / invoiceNonImagingServiceNet;
-              const amt = allocatedIncluded * share;
-              buckets[k].salesMnt += amt;
-              totalSalesMnt += amt;
-            }
-          }
-        }
-
-        // barter excess separate row (also exclude IMAGING proportion)
         if (barterExcess > 0) {
           const allocatedBarterExcess = barterExcess * nonImagingRatio;
           buckets.BARTER_EXCESS.salesMnt += allocatedBarterExcess;
@@ -526,7 +513,7 @@ router.get("/doctors-income/:doctorId/details", async (req, res) => {
         }
       }
 
-      // ---------- INCOME (Option 2: payment-timestamp-based commission) ----------
+      // ---------- INCOME ----------
       {
         const orthoPct = Number(cfg?.orthoPct || 0);
         const defectPct = Number(cfg?.defectPct || 0);
@@ -535,68 +522,23 @@ router.get("/doctors-income/:doctorId/details", async (req, res) => {
         const imagingPct = Number(cfg?.imagingPct || 0);
         const feeMultiplier = hasOverride ? 0.9 : 1;
 
-        // Build itemId -> item map
-        const itemById = new Map(serviceItems.map((it) => [it.id, it]));
-
-        // Total service net (proportional split denominator)
-        const totalServiceNetForCommission = serviceItems.reduce(
-          (sum, it) =>
-            sum + Number(it.lineTotal || it.unitPrice * it.quantity || 0) * netMultiplier,
-          0
-        );
-
-        // Accumulate per-item income base from in-range payments
-        const itemIncomeBase = new Map();
-        serviceItems.forEach((it) => itemIncomeBase.set(it.id, 0));
-
-        for (const p of payments) {
-          const method = String(p.method || "").toUpperCase();
-          const ts = new Date(p.timestamp);
-          if (!inRange(ts, start, endExclusive)) continue;
-          if (EXCLUDED_METHODS.has(method) || method === "BARTER") continue;
-          if (!INCLUDED_METHODS.has(method) && !OVERRIDE_METHODS.has(method)) continue;
-
-          const payAmt = Number(p.amount || 0);
-          const payAllocs = p.allocations || [];
-
-          if (payAllocs.length > 0) {
-            // Allocations-only for this payment; ignore remainder
-            for (const alloc of payAllocs) {
-              const item = itemById.get(alloc.invoiceItemId);
-              if (!item) continue;
-              const contribution = Number(alloc.amount || 0) * feeMultiplier;
-              itemIncomeBase.set(item.id, (itemIncomeBase.get(item.id) || 0) + contribution);
-            }
-          } else {
-            // Proportional split across all service items by net value
-            if (totalServiceNetForCommission <= 0) continue;
-            for (const it of serviceItems) {
-              const itemNet =
-                Number(it.lineTotal || it.unitPrice * it.quantity || 0) * netMultiplier;
-              const share = itemNet / totalServiceNetForCommission;
-              const contribution = payAmt * share * feeMultiplier;
-              itemIncomeBase.set(it.id, (itemIncomeBase.get(it.id) || 0) + contribution);
-            }
-          }
-        }
-
-        // Apply category pcts to accumulated item income bases
         for (const it of serviceItems) {
           const service = it.service;
-          const lineNet = itemIncomeBase.get(it.id) || 0;
+          const lineNet = (itemAllocationBase.get(it.id) || 0) * feeMultiplier;
           if (lineNet <= 0) continue;
 
           if (service?.category === "IMAGING") {
-            // Credit doctor only when explicitly assignedTo=DOCTOR
-            const assignedTo = it.meta?.assignedTo;
-            if (assignedTo === "DOCTOR") {
-              buckets.IMAGING.incomeMnt += lineNet * (imagingPct / 100);
-              totalIncomeMnt += lineNet * (imagingPct / 100);
+            // Credit doctor only when explicitly assignedTo=DOCTOR.
+            if (it.meta?.assignedTo === "DOCTOR") {
+              const income = lineNet * (imagingPct / 100);
+              buckets.IMAGING.incomeMnt += income;
+              totalIncomeMnt += income;
             }
             continue;
           }
 
           if (it.serviceId === HOME_BLEACHING_SERVICE_ID) {
+            // Deduct material cost before applying generalPct.
             const base = Math.max(0, lineNet - homeBleachingDeductAmountMnt);
             const income = base * (generalPct / 100);
             buckets.GENERAL.incomeMnt += income;
