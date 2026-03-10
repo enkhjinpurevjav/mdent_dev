@@ -442,6 +442,10 @@ router.get("/:id/appointments", async (req, res) => {
 
     const { from, to } = req.query;
 
+    // Optional params
+    const allStatuses = req.query.allStatuses === "true";
+    const withEncounterData = req.query.withEncounterData === "true";
+
     // Validate required params
     if (!from || !to) {
       return res.status(400).json({ error: "from and to date parameters are required (YYYY-MM-DD)" });
@@ -473,58 +477,118 @@ router.get("/:id/appointments", async (req, res) => {
       return res.status(400).json({ error: "Invalid date format" });
     }
 
-    // Fetch appointments
-    const appointments = await prisma.appointment.findMany({
-      where: {
-        doctorId: doctorId,
-        scheduledAt: {
-          gte: fromRange.start,
-          lte: toRange.end,
-        },
-        status: {
-          notIn: ["cancelled", "no_show"],
+    // Build where clause
+    const whereClause = {
+      doctorId: doctorId,
+      scheduledAt: {
+        gte: fromRange.start,
+        lte: toRange.end,
+      },
+    };
+
+    // When not fetching all statuses, exclude cancelled and no_show
+    if (!allStatuses) {
+      whereClause.status = { notIn: ["cancelled", "no_show"] };
+    }
+
+    // Build patient select — always include phone; it is omitted from the response
+    // mapping unless withEncounterData is set (avoids conditional spread in select object)
+    const patientSelect = {
+      id: true,
+      name: true,
+      ovog: true,
+      phone: true,
+      patientBook: {
+        select: {
+          bookNumber: true,
         },
       },
-      include: {
-        patient: {
-          select: {
-            id: true,
-            name: true,
-            ovog: true,
-            patientBook: {
-              select: {
-                bookNumber: true,
-              },
+    };
+
+    // Build include clause
+    const includeClause = {
+      patient: { select: patientSelect },
+      branch: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    };
+
+    // When encounter data requested, include encounter details for materialsCount
+    if (withEncounterData) {
+      includeClause.encounters = {
+        orderBy: { id: "desc" },
+        take: 1,
+        select: {
+          id: true,
+          _count: {
+            select: {
+              media: { where: { type: "XRAY" } },
+              consents: true,
+            },
+          },
+          prescription: {
+            select: {
+              id: true,
+              _count: { select: { items: true } },
+            },
+          },
+          invoice: {
+            select: {
+              eBarimtReceipt: { select: { id: true } },
             },
           },
         },
-        branch: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
+      };
+    }
+
+    // Fetch appointments — history mode returns newest first, normal mode returns oldest first
+    const appointments = await prisma.appointment.findMany({
+      where: whereClause,
+      include: includeClause,
       orderBy: {
-        scheduledAt: "asc",
+        scheduledAt: allStatuses ? "desc" : "asc",
       },
     });
 
     // Map to response format
-    const rows = appointments.map((a) => ({
-      id: a.id,
-      patientId: a.patientId,
-      branchId: a.branchId,
-      doctorId: a.doctorId,
-      scheduledAt: a.scheduledAt.toISOString(),
-      endAt: a.endAt ? a.endAt.toISOString() : null,
-      status: a.status,
-      notes: a.notes || null,
-      patientName: a.patient?.name || null,
-      patientOvog: a.patient?.ovog || null,
-      patientBookNumber: a.patient?.patientBook?.bookNumber || null,
-      branchName: a.branch?.name || null,
-    }));
+    const rows = appointments.map((a) => {
+      const row = {
+        id: a.id,
+        patientId: a.patientId,
+        branchId: a.branchId,
+        doctorId: a.doctorId,
+        scheduledAt: a.scheduledAt.toISOString(),
+        endAt: a.endAt ? a.endAt.toISOString() : null,
+        status: a.status,
+        notes: a.notes || null,
+        patientName: a.patient?.name || null,
+        patientOvog: a.patient?.ovog || null,
+        patientBookNumber: a.patient?.patientBook?.bookNumber || null,
+        branchName: a.branch?.name || null,
+      };
+
+      if (withEncounterData) {
+        row.patientPhone = a.patient?.phone || null;
+        const enc = a.encounters?.[0] ?? null;
+        let encounterId = null;
+        let materialsCount = 0;
+        if (enc) {
+          encounterId = enc.id;
+          const xrayCount = enc._count?.media ?? 0;
+          const consentCount = enc._count?.consents ?? 0;
+          const prescriptionHasItems = (enc.prescription?._count?.items ?? 0) > 0 ? 1 : 0;
+          const ebarimtPresent = enc.invoice?.eBarimtReceipt ? 1 : 0;
+          materialsCount = xrayCount + consentCount + prescriptionHasItems + ebarimtPresent;
+        }
+        row.encounterId = encounterId;
+        row.materialsCount = materialsCount;
+      }
+
+      return row;
+    });
 
     return res.json(rows);
   } catch (err) {

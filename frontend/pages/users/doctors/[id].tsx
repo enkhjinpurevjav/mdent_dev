@@ -4,6 +4,8 @@ import StaffAvatar from "../../../components/StaffAvatar";
 import SignaturePad, { SignaturePadRef } from "../../../components/SignaturePad";
 import { toAbsoluteFileUrl } from "../../../utils/toAbsoluteFileUrl";
 import AppointmentDetailsModal from "../../../components/appointments/AppointmentDetailsModal";
+import EncounterReportModal from "../../../components/patients/EncounterReportModal";
+import EncounterMaterialsModal from "../../../components/patients/EncounterMaterialsModal";
 import type { Appointment } from "../../../components/appointments/types";
 
 type Branch = {
@@ -51,10 +53,14 @@ type DoctorAppointment = {
   patientOvog: string | null;
   patientBookNumber: string | null;
   branchName: string | null;
+  // extended fields (returned when withEncounterData=true)
+  encounterId?: number | null;
+  materialsCount?: number;
+  patientPhone?: string | null;
 };
 
 type ShiftType = "AM" | "PM" | "WEEKEND_FULL";
-type DoctorTabKey = "profile" | "schedule" | "appointments" | "test1" | "test2";
+type DoctorTabKey = "profile" | "schedule" | "appointments" | "test1" | "history";
 
 function formatDoctorShortName(doc: Doctor) {
   const name = (doc.name || "").toString().trim();
@@ -394,6 +400,19 @@ export default function DoctorProfilePage() {
     appointment: DoctorAppointment | null;
   }>({ open: false, appointment: null });
 
+  // Appointment history ("Үзлэгийн түүх") tab state
+  const [apptHistory, setApptHistory] = useState<DoctorAppointment[]>([]);
+  const [apptHistoryLoading, setApptHistoryLoading] = useState(false);
+  const [apptHistoryError, setApptHistoryError] = useState<string | null>(null);
+  const [apptHistoryFrom, setApptHistoryFrom] = useState<string>("");
+  const [apptHistoryTo, setApptHistoryTo] = useState<string>("");
+  const [apptHistoryPage, setApptHistoryPage] = useState(1);
+  const [apptHistoryPageSize, setApptHistoryPageSize] = useState(15);
+  const [historyReportModalOpen, setHistoryReportModalOpen] = useState(false);
+  const [historyReportAppointmentId, setHistoryReportAppointmentId] = useState<number | null>(null);
+  const [historyMaterialsModalOpen, setHistoryMaterialsModalOpen] = useState(false);
+  const [historyMaterialsEncounterId, setHistoryMaterialsEncounterId] = useState<number | null>(null);
+
   const resetFormFromDoctor = () => {
     if (!doctor) return;
     setForm({
@@ -625,6 +644,13 @@ export default function DoctorProfilePage() {
     setAppointmentsFrom(defaultFrom);
     setAppointmentsTo(defaultTo);
 
+    // Initialize appointment history date range: today-7 to today
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    const todayStr = today.toISOString().slice(0, 10);
+    setApptHistoryFrom(sevenDaysAgo.toISOString().slice(0, 10));
+    setApptHistoryTo(todayStr);
+
     load();
     loadSchedule();
     loadSalesSummary();
@@ -690,12 +716,47 @@ export default function DoctorProfilePage() {
     }
   }, [id, appointmentsFrom, appointmentsTo]);
 
+  const loadApptHistory = useCallback(async () => {
+    if (!id || !apptHistoryFrom || !apptHistoryTo) return;
+
+    setApptHistoryLoading(true);
+    setApptHistoryError(null);
+
+    try {
+      const res = await fetch(
+        `/api/doctors/${id}/appointments?from=${apptHistoryFrom}&to=${apptHistoryTo}&allStatuses=true&withEncounterData=true`
+      );
+      const data = await res.json();
+
+      if (res.ok && Array.isArray(data)) {
+        setApptHistory(data);
+        setApptHistoryPage(1);
+      } else {
+        setApptHistoryError(
+          data?.error || "Үзлэгийн түүхийг ачааллаж чадсангүй"
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      setApptHistoryError("Сүлжээгээ шалгана уу");
+    } finally {
+      setApptHistoryLoading(false);
+    }
+  }, [id, apptHistoryFrom, apptHistoryTo]);
+
   // Auto-load appointments when tab is active and dates are set
   useEffect(() => {
     if (activeTab === "appointments") {
       loadAppointments();
     }
   }, [activeTab, loadAppointments]);
+
+  // Auto-load history when tab is active and dates are set
+  useEffect(() => {
+    if (activeTab === "history") {
+      loadApptHistory();
+    }
+  }, [activeTab, loadApptHistory]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1295,11 +1356,11 @@ function formatScheduleDate(ymd: string): string {
     <button
       type="button"
       onClick={() => {
-        setActiveTab("test2");
+        setActiveTab("history");
         setIsEditingProfile(false);
         setError(null);
       }}
-      className={`text-left px-2.5 py-1.5 rounded-md border-0 ${activeTab === "test2" ? "bg-blue-50" : "bg-transparent"} ${activeTab === "test2" ? "text-blue-700" : "text-gray-500"} ${activeTab === "test2" ? "font-medium" : "font-normal"} cursor-pointer`}
+      className={`text-left px-2.5 py-1.5 rounded-md border-0 ${activeTab === "history" ? "bg-blue-50" : "bg-transparent"} ${activeTab === "history" ? "text-blue-700" : "text-gray-500"} ${activeTab === "history" ? "font-medium" : "font-normal"} cursor-pointer`}
     >
       Үзлэгийн түүх
     </button>
@@ -2796,11 +2857,232 @@ function formatScheduleDate(ymd: string): string {
             </Card>
           )}
 
-          {activeTab === "test2" && (
-            <Card title="Test Page 2">
-              <div className="text-gray-500 text-[13px]">Placeholder page.</div>
-            </Card>
-          )}
+          {activeTab === "history" && (() => {
+            const historyTotalPages = Math.max(1, Math.ceil(apptHistory.length / apptHistoryPageSize));
+            const historyPaged = apptHistory.slice(
+              (apptHistoryPage - 1) * apptHistoryPageSize,
+              apptHistoryPage * apptHistoryPageSize
+            );
+
+            return (
+              <>
+                {/* Date filter */}
+                <Card>
+                  <div className="flex gap-3 items-end flex-wrap">
+                    <div className="shrink-0">
+                      <label className="block text-[13px] font-medium mb-1 text-gray-700">
+                        Эхлэх өдөр:
+                      </label>
+                      <input
+                        type="date"
+                        value={apptHistoryFrom}
+                        onChange={(e) => setApptHistoryFrom(e.target.value)}
+                        className="px-2.5 py-2 border border-gray-300 rounded-md text-sm"
+                      />
+                    </div>
+                    <div className="shrink-0">
+                      <label className="block text-[13px] font-medium mb-1 text-gray-700">
+                        Дуусах өдөр:
+                      </label>
+                      <input
+                        type="date"
+                        value={apptHistoryTo}
+                        onChange={(e) => setApptHistoryTo(e.target.value)}
+                        className="px-2.5 py-2 border border-gray-300 rounded-md text-sm"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={loadApptHistory}
+                      disabled={apptHistoryLoading || !apptHistoryFrom || !apptHistoryTo}
+                      className={`px-4 py-2 ${apptHistoryLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 cursor-pointer"} text-white border-0 rounded-md text-sm font-medium`}
+                    >
+                      {apptHistoryLoading ? "Ачаалж байна..." : "Харах"}
+                    </button>
+                    <div className="shrink-0 ml-auto flex items-center gap-1">
+                      <label className="text-[13px] text-gray-600">Хуудсанд:</label>
+                      <select
+                        value={apptHistoryPageSize}
+                        onChange={(e) => {
+                          setApptHistoryPageSize(Number(e.target.value));
+                          setApptHistoryPage(1);
+                        }}
+                        className="px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                      >
+                        <option value={15}>15</option>
+                        <option value={30}>30</option>
+                        <option value={45}>45</option>
+                      </select>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* History list */}
+                <Card title="Үзлэгийн түүх">
+                  {apptHistoryLoading && (
+                    <div className="text-gray-500 text-sm py-5">
+                      Үзлэгийн түүхийг ачаалж байна...
+                    </div>
+                  )}
+                  {apptHistoryError && !apptHistoryLoading && (
+                    <div className="text-red-600 text-sm py-3">
+                      {apptHistoryError}
+                    </div>
+                  )}
+                  {!apptHistoryLoading && !apptHistoryError && apptHistory.length === 0 && (
+                    <div className="text-gray-500 text-sm py-5">
+                      Тухайн хугацаанд үзлэг олдсонгүй.
+                    </div>
+                  )}
+                  {!apptHistoryLoading && !apptHistoryError && apptHistory.length > 0 && (
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm border-collapse">
+                          <thead>
+                            <tr className="bg-gray-50">
+                              <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap">
+                                Огноо
+                              </th>
+                              <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap">
+                                Цаг
+                              </th>
+                              <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
+                                Үйлчлүүлэгч
+                              </th>
+                              <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
+                                Утас
+                              </th>
+                              <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
+                                Төлөв
+                              </th>
+                              <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
+                                Тэмдэглэл
+                              </th>
+                              <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
+                                Үйлдэл
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {historyPaged.map((a) => {
+                              const dateStr = (a.scheduledAt ?? "").slice(0, 10);
+                              return (
+                                <tr key={a.id} className="odd:bg-white even:bg-gray-50">
+                                  <td className="border-b border-gray-100 py-1.5 px-2 whitespace-nowrap text-[13px]">
+                                    {formatScheduleDate(dateStr)}
+                                  </td>
+                                  <td className="border-b border-gray-100 py-1.5 px-2 whitespace-nowrap text-[13px]">
+                                    {formatApptTimeRange(a)}
+                                  </td>
+                                  <td className="border-b border-gray-100 py-1.5 px-2 text-[13px]">
+                                    {formatApptPatientLabel(a)}
+                                  </td>
+                                  <td className="border-b border-gray-100 py-1.5 px-2 text-[13px] text-gray-600">
+                                    {a.patientPhone || "—"}
+                                  </td>
+                                  <td className="border-b border-gray-100 py-1.5 px-2 text-[13px]">
+                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-medium ${getApptStatusBgClass(a.status)} ${getApptStatusTextClass(a.status)}`}>
+                                      {formatApptStatus(a.status)}
+                                    </span>
+                                  </td>
+                                  <td className="border-b border-gray-100 py-1.5 px-2 text-[13px] text-gray-600 max-w-[200px] truncate">
+                                    {a.notes || "—"}
+                                  </td>
+                                  <td className="border-b border-gray-100 py-1.5 px-2">
+                                    {a.status === "completed" && (
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          title="Дэлгэрэнгүй"
+                                          onClick={() => {
+                                            setHistoryReportAppointmentId(a.id);
+                                            setHistoryReportModalOpen(true);
+                                          }}
+                                          className="inline-flex items-center justify-center w-7 h-7 rounded border border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer"
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                            <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+                                            <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                                          </svg>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          title="Хавсралтууд"
+                                          disabled={(a.materialsCount ?? 0) < 1}
+                                          onClick={() => {
+                                            if (a.encounterId) {
+                                              setHistoryMaterialsEncounterId(a.encounterId);
+                                              setHistoryMaterialsModalOpen(true);
+                                            }
+                                          }}
+                                          className="inline-flex items-center justify-center w-7 h-7 rounded border border-gray-300 bg-gray-50 text-gray-500 hover:bg-gray-100 cursor-pointer disabled:opacity-40 disabled:cursor-default"
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                                          </svg>
+                                        </button>
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {/* Pagination */}
+                      <div className="flex items-center justify-between mt-3 text-sm text-gray-600">
+                        <span>
+                          Нийт {apptHistory.length} бүртгэл
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setApptHistoryPage((p) => Math.max(1, p - 1))}
+                            disabled={apptHistoryPage === 1}
+                            className="px-2 py-1 rounded border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer disabled:opacity-40 disabled:cursor-default"
+                          >
+                            ‹ Өмнөх
+                          </button>
+                          <span>
+                            {apptHistoryPage} / {historyTotalPages}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setApptHistoryPage((p) => Math.min(historyTotalPages, p + 1))}
+                            disabled={apptHistoryPage === historyTotalPages}
+                            className="px-2 py-1 rounded border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer disabled:opacity-40 disabled:cursor-default"
+                          >
+                            Дараах ›
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </Card>
+
+                {/* Encounter Report Modal */}
+                <EncounterReportModal
+                  open={historyReportModalOpen}
+                  onClose={() => {
+                    setHistoryReportModalOpen(false);
+                    setHistoryReportAppointmentId(null);
+                  }}
+                  appointmentId={historyReportAppointmentId}
+                />
+
+                {/* Encounter Materials Modal */}
+                <EncounterMaterialsModal
+                  open={historyMaterialsModalOpen}
+                  onClose={() => {
+                    setHistoryMaterialsModalOpen(false);
+                    setHistoryMaterialsEncounterId(null);
+                  }}
+                  encounterId={historyMaterialsEncounterId}
+                />
+              </>
+            );
+          })()}
         </div>
       </section>
     </main>
