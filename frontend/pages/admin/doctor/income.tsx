@@ -1,6 +1,23 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
+function getTodayStr(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function getLastDayOfMonthStr(): string {
+  const d = new Date();
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  const y = lastDay.getFullYear();
+  const m = String(lastDay.getMonth() + 1).padStart(2, "0");
+  const day = String(lastDay.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 type DoctorSummary = {
   doctorId: number;
   doctorName: string;
@@ -15,8 +32,8 @@ type DoctorSummary = {
 
 export default function DoctorsIncomePage() {
   const router = useRouter();
-  const [startDate, setStartDate] = useState<string>("2026-01-01");
-  const [endDate, setEndDate] = useState<string>("2026-01-10");
+  const [startDate, setStartDate] = useState<string>(getTodayStr);
+  const [endDate, setEndDate] = useState<string>(getLastDayOfMonthStr);
   const [branchId, setBranchId] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -59,18 +76,18 @@ export default function DoctorsIncomePage() {
   }, [startDate, endDate, branchId]);
 
   return (
-    <main style={{ padding: "24px", fontFamily: "sans-serif", maxWidth: 1200, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16 }}>Эмчийн Орлогын Тайлан</h1>
+    <main className="w-full px-6 py-6 font-sans">
+      <h1 className="mb-4 text-2xl font-bold text-gray-900">Эмчийн Орлогын Тайлан</h1>
 
       {/* Filters */}
-      <section style={{ marginBottom: 24, display: "flex", gap: 16, flexWrap: "wrap" }}>
+      <section className="mb-6 flex flex-wrap gap-4">
         <div>
           <label>Эхлэх:</label>
           <input
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            style={{ padding: "8px", fontSize: 14, borderRadius: 8, border: "1px solid #d1d5db" }}
+            className="rounded-lg border border-gray-300 px-2 py-2 text-sm"
           />
         </div>
         <div>
@@ -79,7 +96,7 @@ export default function DoctorsIncomePage() {
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            style={{ padding: "8px", fontSize: 14, borderRadius: 8, border: "1px solid #d1d5db" }}
+            className="rounded-lg border border-gray-300 px-2 py-2 text-sm"
           />
         </div>
         <div>
@@ -87,7 +104,7 @@ export default function DoctorsIncomePage() {
           <select
             value={branchId || ""}
             onChange={(e) => setBranchId(Number(e.target.value) || null)}
-            style={{ padding: "8px", fontSize: 14, borderRadius: 8, border: "1px solid #d1d5db" }}
+            className="rounded-lg border border-gray-300 px-2 py-2 text-sm"
           >
             <option value="">Бүх салбар</option>
             {branches.map((branch) => (
@@ -101,16 +118,7 @@ export default function DoctorsIncomePage() {
 
       {/* Error message */}
       {error && (
-        <div
-          style={{
-            marginBottom: 16,
-            padding: 12,
-            color: "#b91c1c",
-            backgroundColor: "#fef2f2",
-            border: "1px solid #fca5a5",
-            borderRadius: 8,
-          }}
-        >
+        <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -118,63 +126,57 @@ export default function DoctorsIncomePage() {
       {/* Data Table */}
       <section>
         {loading ? (
-          <p>Ачаалж байна...</p>
+          <p className="text-sm text-gray-600">Ачаалж байна...</p>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-            <thead>
-              <tr style={{ backgroundColor: "#f9fafb", textAlign: "left" }}>
-                <th style={{ padding: "8px" }}>Нэр</th>
-                <th style={{ padding: "8px" }}>Салбар</th>
-                <th style={{ padding: "8px" }}>Эхлэх</th>
-                <th style={{ padding: "8px" }}>Дуусах</th>
-                <th style={{ padding: "8px", textAlign: "right" }}>Борлуулалтын орлого</th>
-                <th style={{ padding: "8px", textAlign: "right" }}>Эмчийн хувь</th>
-                <th style={{ padding: "8px", textAlign: "right" }}>Сарын зорилт</th>
-                <th style={{ padding: "8px", textAlign: "right" }}>Гүйцэтгэл (%)</th>
-                <th style={{ padding: "8px" }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {doctors.map((doctor) => (
-                <tr key={doctor.doctorId} style={{ borderBottom: "1px solid #e5e7eb" }}>
-                  <td style={{ padding: "8px" }}>{doctor.doctorName}</td>
-                  <td style={{ padding: "8px" }}>{doctor.branchName}</td>
-                  <td style={{ padding: "8px" }}>{doctor.startDate}</td>
-                  <td style={{ padding: "8px" }}>{doctor.endDate}</td>
-                  <td style={{ padding: "8px", textAlign: "right" }}>
-                    {doctor.revenue.toLocaleString("mn-MN")} ₮
-                  </td>
-                  <td style={{ padding: "8px", textAlign: "right" }}>
-                    {doctor.commission.toLocaleString("mn-MN")} ₮
-                  </td>
-                  <td style={{ padding: "8px", textAlign: "right" }}>
-                    {doctor.monthlyGoal.toLocaleString("mn-MN")} ₮
-                  </td>
-                  <td style={{ padding: "8px", textAlign: "right" }}>{doctor.progressPercent}%</td>
-                  <td style={{ padding: "8px" }}>
-                    <button
-                      style={{
-                        padding: "6px 12px",
-                        fontSize: 14,
-                        borderRadius: 6,
-                        border: "1px solid #2563eb",
-                        backgroundColor: "#eff6ff",
-                        color: "#2563eb",
-                        cursor: "pointer",
-                      }}
-                      onClick={() =>
-                        router.push(
-                          `/admin/doctor/income/${doctor.doctorId}?startDate=${startDate}&endDate=${endDate}`
-                        )
-                      }
-                    >
-                      Дэлгэрэнгүй
-                    </button>
-                  </td>
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <table className="w-full border-collapse text-sm">
+              <thead className="bg-gray-50 text-left">
+                <tr>
+                  <th className="px-2 py-3 font-semibold text-gray-700">Нэр</th>
+                  <th className="px-2 py-3 font-semibold text-gray-700">Салбар</th>
+                  <th className="px-2 py-3 font-semibold text-gray-700">Эхлэх</th>
+                  <th className="px-2 py-3 font-semibold text-gray-700">Дуусах</th>
+                  <th className="px-2 py-3 text-right font-semibold text-gray-700">Борлуулалтын орлого</th>
+                  <th className="px-2 py-3 text-right font-semibold text-gray-700">Эмчийн хувь</th>
+                  <th className="px-2 py-3 text-right font-semibold text-gray-700">Сарын зорилт</th>
+                  <th className="px-2 py-3 text-right font-semibold text-gray-700">Гүйцэтгэл (%)</th>
+                  <th className="px-2 py-3"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {doctors.map((doctor) => (
+                  <tr key={doctor.doctorId} className="border-t border-gray-200">
+                    <td className="px-2 py-2">{doctor.doctorName}</td>
+                    <td className="px-2 py-2">{doctor.branchName}</td>
+                    <td className="px-2 py-2">{doctor.startDate}</td>
+                    <td className="px-2 py-2">{doctor.endDate}</td>
+                    <td className="px-2 py-2 text-right">
+                      {doctor.revenue.toLocaleString("mn-MN")} ₮
+                    </td>
+                    <td className="px-2 py-2 text-right">
+                      {doctor.commission.toLocaleString("mn-MN")} ₮
+                    </td>
+                    <td className="px-2 py-2 text-right">
+                      {doctor.monthlyGoal.toLocaleString("mn-MN")} ₮
+                    </td>
+                    <td className="px-2 py-2 text-right">{doctor.progressPercent}%</td>
+                    <td className="px-2 py-2">
+                      <button
+                        className="rounded-md border border-blue-600 bg-blue-50 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-100"
+                        onClick={() =>
+                          router.push(
+                            `/admin/doctor/income/${doctor.doctorId}?startDate=${startDate}&endDate=${endDate}`
+                          )
+                        }
+                      >
+                        Дэлгэрэнгүй
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </main>

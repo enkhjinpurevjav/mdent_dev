@@ -77,7 +77,7 @@ export default function DoctorIncomeDetailsPage() {
   }, [doctorId, startDate, endDate]);
 
   return (
-    <main className="px-6 py-6 font-sans">
+    <main className="w-full px-6 py-6 font-sans">
       <div className="mb-4 flex items-center gap-3">
         <button
           type="button"
