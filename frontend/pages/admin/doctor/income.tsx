@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 
-function getTodayStr(): string {
+function getFirstDayOfMonthStr(): string {
   const d = new Date();
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return `${y}-${m}-01`;
 }
 
 function getLastDayOfMonthStr(): string {
@@ -18,9 +17,19 @@ function getLastDayOfMonthStr(): string {
   return `${y}-${m}-${day}`;
 }
 
+function formatDoctorName(ovog: string | null | undefined, name: string): string {
+  if (ovog && ovog.trim().length > 0) {
+    return `${ovog.trim()[0]}. ${name}`;
+  }
+  return name;
+}
+
+const PAGE_SIZE = 15;
+
 type DoctorSummary = {
   doctorId: number;
   doctorName: string;
+  doctorOvog: string | null;
   branchName: string;
   startDate: string;
   endDate: string;
@@ -32,7 +41,7 @@ type DoctorSummary = {
 
 export default function DoctorsIncomePage() {
   const router = useRouter();
-  const [startDate, setStartDate] = useState<string>(getTodayStr);
+  const [startDate, setStartDate] = useState<string>(getFirstDayOfMonthStr);
   const [endDate, setEndDate] = useState<string>(getLastDayOfMonthStr);
   const [branchId, setBranchId] = useState<number | null>(null);
 
@@ -40,6 +49,7 @@ export default function DoctorsIncomePage() {
   const [doctors, setDoctors] = useState<DoctorSummary[]>([]);
   const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
   const [error, setError] = useState<string>("");
+  const [page, setPage] = useState<number>(1);
 
   const fetchBranches = async () => {
     try {
@@ -71,9 +81,19 @@ export default function DoctorsIncomePage() {
   };
 
   useEffect(() => {
+    setPage(1);
     fetchBranches();
     fetchData();
   }, [startDate, endDate, branchId]);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(doctors.length / PAGE_SIZE)),
+    [doctors.length]
+  );
+  const pagedDoctors = useMemo(
+    () => doctors.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [doctors, page]
+  );
 
   return (
     <main className="w-full px-6 py-6 font-sans">
@@ -128,55 +148,106 @@ export default function DoctorsIncomePage() {
         {loading ? (
           <p className="text-sm text-gray-600">Ачаалж байна...</p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-            <table className="w-full border-collapse text-sm">
-              <thead className="bg-gray-50 text-left">
-                <tr>
-                  <th className="px-2 py-3 font-semibold text-gray-700">Нэр</th>
-                  <th className="px-2 py-3 font-semibold text-gray-700">Салбар</th>
-                  <th className="px-2 py-3 font-semibold text-gray-700">Эхлэх</th>
-                  <th className="px-2 py-3 font-semibold text-gray-700">Дуусах</th>
-                  <th className="px-2 py-3 text-right font-semibold text-gray-700">Борлуулалтын орлого</th>
-                  <th className="px-2 py-3 text-right font-semibold text-gray-700">Эмчийн хувь</th>
-                  <th className="px-2 py-3 text-right font-semibold text-gray-700">Сарын зорилт</th>
-                  <th className="px-2 py-3 text-right font-semibold text-gray-700">Гүйцэтгэл (%)</th>
-                  <th className="px-2 py-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {doctors.map((doctor) => (
-                  <tr key={doctor.doctorId} className="border-t border-gray-200">
-                    <td className="px-2 py-2">{doctor.doctorName}</td>
-                    <td className="px-2 py-2">{doctor.branchName}</td>
-                    <td className="px-2 py-2">{doctor.startDate}</td>
-                    <td className="px-2 py-2">{doctor.endDate}</td>
-                    <td className="px-2 py-2 text-right">
-                      {doctor.revenue.toLocaleString("mn-MN")} ₮
-                    </td>
-                    <td className="px-2 py-2 text-right">
-                      {doctor.commission.toLocaleString("mn-MN")} ₮
-                    </td>
-                    <td className="px-2 py-2 text-right">
-                      {doctor.monthlyGoal.toLocaleString("mn-MN")} ₮
-                    </td>
-                    <td className="px-2 py-2 text-right">{doctor.progressPercent}%</td>
-                    <td className="px-2 py-2">
-                      <button
-                        className="rounded-md border border-blue-600 bg-blue-50 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-100"
-                        onClick={() =>
-                          router.push(
-                            `/admin/doctor/income/${doctor.doctorId}?startDate=${startDate}&endDate=${endDate}`
-                          )
-                        }
-                      >
-                        Дэлгэрэнгүй
-                      </button>
-                    </td>
+          <>
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <table className="w-full border-collapse text-sm">
+                <thead className="bg-gray-50 text-left">
+                  <tr>
+                    <th className="px-2 py-3 font-semibold text-gray-700">Нэр</th>
+                    <th className="px-2 py-3 font-semibold text-gray-700">Салбар</th>
+                    <th className="px-2 py-3 font-semibold text-gray-700">Эхлэх</th>
+                    <th className="px-2 py-3 font-semibold text-gray-700">Дуусах</th>
+                    <th className="px-2 py-3 text-right font-semibold text-gray-700">Борлуулалтын орлого</th>
+                    <th className="px-2 py-3 text-right font-semibold text-gray-700">Эмчийн хувь</th>
+                    <th className="px-2 py-3 text-right font-semibold text-gray-700">Сарын зорилт</th>
+                    <th className="px-2 py-3 text-right font-semibold text-gray-700">Гүйцэтгэл (%)</th>
+                    <th className="px-2 py-3 font-semibold text-gray-700">Үйлдэл</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {pagedDoctors.map((doctor) => (
+                    <tr key={doctor.doctorId} className="border-t border-gray-200">
+                      <td className="px-2 py-2">
+                        {formatDoctorName(doctor.doctorOvog, doctor.doctorName)}
+                      </td>
+                      <td className="px-2 py-2">{doctor.branchName}</td>
+                      <td className="px-2 py-2">{doctor.startDate}</td>
+                      <td className="px-2 py-2">{doctor.endDate}</td>
+                      <td className="px-2 py-2 text-right">
+                        {doctor.revenue.toLocaleString("mn-MN")} ₮
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        {doctor.commission.toLocaleString("mn-MN")} ₮
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        {doctor.monthlyGoal.toLocaleString("mn-MN")} ₮
+                      </td>
+                      <td className="px-2 py-2 text-right">{doctor.progressPercent}%</td>
+                      <td className="px-2 py-2">
+                        <div className="group relative inline-block">
+                          <button
+                            aria-label="Дэлгэрэнгүй"
+                            className="rounded-md border border-gray-300 bg-white p-1.5 text-gray-600 hover:bg-gray-50 hover:text-blue-600"
+                            onClick={() =>
+                              router.push(
+                                `/admin/doctor/income/${doctor.doctorId}?startDate=${startDate}&endDate=${endDate}`
+                              )
+                            }
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
+                            </svg>
+                          </button>
+                          <span className="pointer-events-none absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+                            Дэлгэрэнгүй
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-4 flex items-center gap-3">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ← Өмнөх
+                </button>
+                <span className="text-sm text-gray-600">
+                  {page} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Дараах →
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
     </main>

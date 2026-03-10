@@ -102,6 +102,7 @@ router.get("/doctors-income", async (req, res) => {
         byDoctor.set(doctorId, {
           doctorId,
           doctorName: doctor.name,
+          doctorOvog: doctor.ovog ?? null,
           branchName: doctor.branch?.name,
 
           // ✅ date-only strings (no time)
@@ -266,6 +267,7 @@ router.get("/doctors-income", async (req, res) => {
       return {
         doctorId: d.doctorId,
         doctorName: d.doctorName,
+        doctorOvog: d.doctorOvog,
         branchName: d.branchName,
         startDate: d.startDate,
         endDate: d.endDate,
