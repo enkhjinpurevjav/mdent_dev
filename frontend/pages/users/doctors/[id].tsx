@@ -7,6 +7,7 @@ import AppointmentDetailsModal from "../../../components/appointments/Appointmen
 import EncounterReportModal from "../../../components/patients/EncounterReportModal";
 import EncounterMaterialsModal from "../../../components/patients/EncounterMaterialsModal";
 import type { Appointment } from "../../../components/appointments/types";
+import DoctorDashboardTab from "../../../components/doctors/DoctorDashboardTab";
 
 type Branch = {
   id: number;
@@ -60,7 +61,7 @@ type DoctorAppointment = {
 };
 
 type ShiftType = "AM" | "PM" | "WEEKEND_FULL";
-type DoctorTabKey = "profile" | "schedule" | "appointments" | "sales" | "history";
+type DoctorTabKey = "profile" | "dashboard" | "schedule" | "appointments" | "sales" | "history";
 
 // ── Sales tab types ────────────────────────────────────────────────────────────
 
@@ -1586,6 +1587,18 @@ function formatScheduleDate(ymd: string): string {
     <button
       type="button"
       onClick={() => {
+        setActiveTab("dashboard");
+        setIsEditingProfile(false);
+        setError(null);
+      }}
+      className={`text-left px-2.5 py-1.5 rounded-md border-0 ${activeTab === "dashboard" ? "bg-blue-50" : "bg-transparent"} ${activeTab === "dashboard" ? "text-blue-700" : "text-gray-500"} ${activeTab === "dashboard" ? "font-medium" : "font-normal"} cursor-pointer`}
+    >
+      Дашбоард
+    </button>
+
+    <button
+      type="button"
+      onClick={() => {
         setActiveTab("schedule");
         setIsEditingProfile(false);
         setError(null);
@@ -2342,6 +2355,11 @@ function formatScheduleDate(ymd: string): string {
     </div>
   </>
 )}
+
+          {/* DASHBOARD TAB */}
+          {activeTab === "dashboard" && doctor && (
+            <DoctorDashboardTab doctorId={doctor.id} />
+          )}
 
           {/* SCHEDULE TAB */}
           {activeTab === "schedule" && (

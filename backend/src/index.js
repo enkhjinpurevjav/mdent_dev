@@ -27,6 +27,7 @@ import employeeBenefitsRouter from "./routes/employeeBenefits.js";
 import reportsPatientBalancesRouter from "./routes/reports-patient-balances.js";
 import inventoryRouter from "./routes/inventory.js";
 import staffIncomeSettingsRouter from "./routes/admin/staffIncomeSettings.js";
+import doctorDashboardRouter from "./routes/admin/doctorDashboard.js";
 
 import diagnosesRouter from "./routes/diagnoses.js";
 import diagnosisProblemsRouter from "./routes/diagnosisProblems.js";
@@ -179,6 +180,7 @@ app.use("/api/admin", staffIncomeSettingsRouter);
 // Admin routes
 app.use("/api/admin", employeeBenefitsRouter);
 app.use("/api/admin", incomeRoutes);
+app.use("/api/admin", doctorDashboardRouter);
 
 app.use("/api/doctors", doctorsRouter);
 app.use("/api/bookings", bookingsRouter);
