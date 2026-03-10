@@ -3,6 +3,8 @@ import { useRouter } from "next/router";
 import StaffAvatar from "../../../components/StaffAvatar";
 import SignaturePad, { SignaturePadRef } from "../../../components/SignaturePad";
 import { toAbsoluteFileUrl } from "../../../utils/toAbsoluteFileUrl";
+import AppointmentDetailsModal from "../../../components/appointments/AppointmentDetailsModal";
+import type { Appointment } from "../../../components/appointments/types";
 
 type Branch = {
   id: number;
@@ -146,6 +148,34 @@ function formatApptTimeRange(a: DoctorAppointment): string {
   const eh = String(end.getHours()).padStart(2, "0");
   const em = String(end.getMinutes()).padStart(2, "0");
   return `${startStr} – ${eh}:${em}`;
+}
+
+function doctorApptToModalAppt(a: DoctorAppointment): Appointment {
+  return {
+    id: a.id,
+    patientId: a.patientId,
+    doctorId: a.doctorId,
+    branchId: a.branchId,
+    scheduledAt: a.scheduledAt,
+    endAt: a.endAt ?? null,
+    status: a.status,
+    notes: a.notes ?? null,
+    patient: {
+      name: a.patientName ?? "",
+      ovog: a.patientOvog ?? null,
+      phone: null,
+      patientBook: a.patientBookNumber ? { bookNumber: a.patientBookNumber } : null,
+    },
+    branch: a.branchName ? { id: a.branchId, name: a.branchName } : null,
+    doctorName: null,
+    doctorOvog: null,
+    patientName: a.patientName ?? null,
+    patientOvog: a.patientOvog ?? null,
+    patientPhone: null,
+    patientBookNumber: a.patientBookNumber ?? null,
+    branchName: a.branchName ?? null,
+    patientRegNo: null,
+  } as unknown as Appointment;
 }
 
 function Card({
@@ -359,7 +389,10 @@ export default function DoctorProfilePage() {
   const [appointmentsError, setAppointmentsError] = useState<string | null>(null);
   const [appointmentsFrom, setAppointmentsFrom] = useState<string>("");
   const [appointmentsTo, setAppointmentsTo] = useState<string>("");
-  const [apptModalAppointment, setApptModalAppointment] = useState<DoctorAppointment | null>(null);
+  const [detailsModal, setDetailsModal] = useState<{
+    open: boolean;
+    appointment: DoctorAppointment | null;
+  }>({ open: false, appointment: null });
 
   const resetFormFromDoctor = () => {
     if (!doctor) return;
@@ -2495,10 +2528,25 @@ function formatScheduleDate(ymd: string): string {
             const todayStr = new Date().toISOString().slice(0, 10);
             const todayDate = new Date(todayStr);
             const isWeekend = todayDate.getDay() === 0 || todayDate.getDay() === 6;
-            const dayStartHour = isWeekend ? 10 : 9;
-            const dayEndHour   = isWeekend ? 19 : 21;
-            const totalSlots   = (dayEndHour - dayStartHour) * 2; // 30-min slots
-            const cellPx       = 80; // px per 30-min slot (Tailwind w-20 = 80px)
+
+            // Change 1: derive calendar bounds from today's schedule entry
+            const todaySchedule = schedule.find((s) => s.date === todayStr);
+            let calendarFirstMinute: number;
+            let calendarLastMinute: number;
+            let calendarTitle: string;
+            if (todaySchedule) {
+              const [sh, sm] = todaySchedule.startTime.split(":").map(Number);
+              const [eh, em] = todaySchedule.endTime.split(":").map(Number);
+              calendarFirstMinute = sh * 60 + (sm || 0);
+              calendarLastMinute  = eh * 60 + (em || 0);
+              calendarTitle = `Өнөөдрийн цагийн хуваарь (${todaySchedule.startTime}–${todaySchedule.endTime})`;
+            } else {
+              calendarFirstMinute = isWeekend ? 10 * 60 : 9 * 60;
+              calendarLastMinute  = isWeekend ? 19 * 60 : 21 * 60;
+              calendarTitle = "Өнөөдрийн цагийн хуваарь";
+            }
+            const totalSlots = (calendarLastMinute - calendarFirstMinute) / 30;
+            const cellPx     = 80; // px per 30-min slot (Tailwind w-20 = 80px)
 
             const todayAppts = appointments.filter(
               (a) => a.scheduledAt && a.scheduledAt.slice(0, 10) === todayStr
@@ -2519,23 +2567,32 @@ function formatScheduleDate(ymd: string): string {
             }
             const sortedDates = Array.from(groupedMap.keys()).sort();
 
-            // slot index for a given ISO time string
+            // slot index for a given ISO time string (can be fractional)
             function slotIndex(iso: string): number {
               const d = new Date(iso);
               const minutes = d.getHours() * 60 + d.getMinutes();
-              const startMinutes = dayStartHour * 60;
-              return (minutes - startMinutes) / 30;
+              return (minutes - calendarFirstMinute) / 30;
+            }
+
+            // Change 2: build slotMap for 2-row stacked layout
+            const slotMap = new Map<number, DoctorAppointment[]>();
+            for (const appt of todayAppts) {
+              if (!appt.scheduledAt) continue;
+              const si = Math.floor(slotIndex(appt.scheduledAt));
+              if (!slotMap.has(si)) slotMap.set(si, []);
+              const existing = slotMap.get(si)!;
+              if (existing.length < 2) existing.push(appt);
             }
 
             return (
               <>
                 {/* ── Section 1: Today's horizontal calendar ─────────────── */}
-                <Card title="Өнөөдрийн цагийн хуваарь">
+                <Card title={calendarTitle}>
                   <div className="overflow-x-auto">
                     {/* time labels row */}
                     <div className="flex" style={{ width: totalSlots * cellPx }}>
                       {Array.from({ length: totalSlots }, (_, i) => {
-                        const totalMin = dayStartHour * 60 + i * 30;
+                        const totalMin = calendarFirstMinute + i * 30;
                         const h = String(Math.floor(totalMin / 60)).padStart(2, "0");
                         const m = String(totalMin % 60).padStart(2, "0");
                         return (
@@ -2549,10 +2606,10 @@ function formatScheduleDate(ymd: string): string {
                       })}
                     </div>
 
-                    {/* appointment row */}
+                    {/* appointment area — 2-row stacked layout (h-28 = 112px = 2 × 56px) */}
                     <div
                       className="relative border-t border-gray-100 bg-gray-50 rounded-lg"
-                      style={{ height: 64, width: totalSlots * cellPx }}
+                      style={{ height: 112, width: totalSlots * cellPx }}
                     >
                       {/* slot grid lines */}
                       {Array.from({ length: totalSlots }, (_, i) => (
@@ -2569,43 +2626,45 @@ function formatScheduleDate(ymd: string): string {
                         </div>
                       )}
 
-                      {todayAppts.map((appt) => {
-                        if (!appt.scheduledAt) return null;
-                        const MIN_APPT_SLOTS = 0.5; // minimum 15-min display
-                        const APPT_SPACING_PX = 2;  // pixel gap between blocks
-                        const startSlot = slotIndex(appt.scheduledAt);
-                        const endSlot = appt.endAt
-                          ? slotIndex(appt.endAt)
-                          : startSlot + 1;
-                        const duration = Math.max(endSlot - startSlot, MIN_APPT_SLOTS);
-                        const leftPx  = startSlot * cellPx;
-                        const widthPx = duration * cellPx - APPT_SPACING_PX;
+                      {Array.from(slotMap.entries()).flatMap(([si, appts]) =>
+                        appts.map((appt, rowIndex) => {
+                          if (!appt.scheduledAt) return null;
+                          const MIN_APPT_SLOTS = 0.5;
+                          const APPT_SPACING_PX = 2;
+                          const endSlot = appt.endAt
+                            ? slotIndex(appt.endAt)
+                            : si + 1;
+                          const duration = Math.max(endSlot - si, MIN_APPT_SLOTS);
+                          const leftPx  = si * cellPx;
+                          const widthPx = duration * cellPx - APPT_SPACING_PX;
+                          const topPx   = rowIndex * 56;
 
-                        if (startSlot < 0 || startSlot >= totalSlots) return null;
+                          if (si < 0 || si >= totalSlots) return null;
 
-                        const bgCls   = getApptStatusBgClass(appt.status);
-                        const textCls = getApptStatusTextClass(appt.status);
+                          const bgCls   = getApptStatusBgClass(appt.status);
+                          const textCls = getApptStatusTextClass(appt.status);
 
-                        return (
-                          <button
-                            key={appt.id}
-                            type="button"
-                            onClick={() => setApptModalAppointment(appt)}
-                            className={`absolute top-1 bottom-1 ${bgCls} ${textCls} rounded-lg shadow-sm cursor-pointer border-0 px-1.5 py-0.5 overflow-hidden flex flex-col justify-center`}
-                            style={{ left: leftPx, width: widthPx }}
-                          >
-                            <span className="text-[10px] font-semibold leading-tight truncate">
-                              {formatApptPatientLabel(appt)}
-                            </span>
-                            <span className="text-[9px] leading-tight truncate opacity-90">
-                              {formatApptTimeRange(appt)}
-                            </span>
-                            <span className="text-[9px] leading-tight truncate opacity-75">
-                              {formatApptStatus(appt.status)}
-                            </span>
-                          </button>
-                        );
-                      })}
+                          return (
+                            <button
+                              key={appt.id}
+                              type="button"
+                              onClick={() => setDetailsModal({ open: true, appointment: appt })}
+                              className={`absolute ${bgCls} ${textCls} rounded-lg shadow-sm cursor-pointer border-0 px-1.5 py-0.5 overflow-hidden flex flex-col justify-center`}
+                              style={{ left: leftPx, width: widthPx, top: topPx, height: 52 }}
+                            >
+                              <span className="text-[10px] font-semibold leading-tight truncate">
+                                {formatApptPatientLabel(appt)}
+                              </span>
+                              <span className="text-[9px] leading-tight truncate opacity-90">
+                                {formatApptTimeRange(appt)}
+                              </span>
+                              <span className="text-[9px] leading-tight truncate opacity-75">
+                                {formatApptStatus(appt.status)}
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -2680,7 +2739,7 @@ function formatScheduleDate(ymd: string): string {
                                   <button
                                     key={appt.id}
                                     type="button"
-                                    onClick={() => setApptModalAppointment(appt)}
+                                    onClick={() => setDetailsModal({ open: true, appointment: appt })}
                                     className={`${bgCls} ${textCls} rounded-lg shadow-sm cursor-pointer border-0 px-3 py-2 flex flex-col items-start min-w-[150px] max-w-[220px]`}
                                   >
                                     <span className="text-xs font-semibold">
@@ -2703,101 +2762,28 @@ function formatScheduleDate(ymd: string): string {
                   )}
                 </Card>
 
-                {/* ── Section 4: Detail popup ─────────────────────────────── */}
-                {apptModalAppointment && (
-                  <div
-                    className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-                    onClick={() => setApptModalAppointment(null)}
-                  >
-                    <div
-                      className="bg-white rounded-xl p-5 w-96 max-w-[95vw] shadow-2xl text-[13px]"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {/* Header */}
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-base font-bold text-gray-900">
-                          Цагийн дэлгэрэнгүй
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setApptModalAppointment(null)}
-                          className="text-gray-400 border-0 bg-transparent cursor-pointer text-lg leading-none"
-                        >
-                          ✕
-                        </button>
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex flex-col gap-2">
-                        {doctor && (
-                          <div>
-                            <span className="text-gray-500">Эмч: </span>
-                            <span className="font-medium">{formatDoctorShortName(doctor)}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-gray-500">Үйлчлүүлэгч: </span>
-                          <span className="font-medium">{formatApptPatientLabel(apptModalAppointment)}</span>
-                          {apptModalAppointment.patientBookNumber && (
-                            <button
-                              type="button"
-                              onClick={() => router.push(`/patients/${apptModalAppointment.patientBookNumber}`)}
-                              className="px-2 py-0.5 bg-blue-500 text-white border-0 rounded text-[11px] cursor-pointer"
-                            >
-                              Үйлчлүүлэгчийн дэлгэрэнгүй
-                            </button>
-                          )}
-                        </div>
-                        {apptModalAppointment.patientBookNumber && (
-                          <div>
-                            <span className="text-gray-500">Картын дугаар: </span>
-                            <span className="font-medium">{apptModalAppointment.patientBookNumber}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-gray-500">Төлөв: </span>
-                          <span className={`${getApptStatusBgClass(apptModalAppointment.status)} ${getApptStatusTextClass(apptModalAppointment.status)} px-2 py-0.5 rounded text-xs font-medium`}>
-                            {formatApptStatus(apptModalAppointment.status)}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Салбар: </span>
-                          <span className="font-medium">
-                            {apptModalAppointment.branchName || `#${apptModalAppointment.branchId}`}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Огноо: </span>
-                          <span className="font-medium">
-                            {apptModalAppointment.scheduledAt
-                              ? formatScheduleDate(apptModalAppointment.scheduledAt.slice(0, 10))
-                              : "—"}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Цаг захиалга: </span>
-                          <span className="font-medium">{formatApptTimeRange(apptModalAppointment)}</span>
-                        </div>
-                        {apptModalAppointment.notes && (
-                          <div>
-                            <span className="text-gray-500">Тэмдэглэл: </span>
-                            <span className="font-medium">{apptModalAppointment.notes}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Footer */}
-                      <div className="flex justify-end mt-4">
-                        <button
-                          type="button"
-                          onClick={() => setApptModalAppointment(null)}
-                          className="px-4 py-1.5 bg-gray-100 text-gray-700 border-0 rounded-md text-sm cursor-pointer"
-                        >
-                          Хаах
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                {/* ── Section 4: AppointmentDetailsModal ─────────────────── */}
+                {detailsModal.open && detailsModal.appointment && (
+                  <AppointmentDetailsModal
+                    open={detailsModal.open}
+                    onClose={() => setDetailsModal({ open: false, appointment: null })}
+                    doctor={
+                      doctor
+                        ? { id: doctor.id, name: doctor.name ?? null, ovog: doctor.ovog ?? null, regNo: null, phone: doctor.phone ?? null }
+                        : null
+                    }
+                    appointments={[doctorApptToModalAppt(detailsModal.appointment)]}
+                    slotAppointmentCount={1}
+                    onStatusUpdated={(updated) => {
+                      setAppointments((prev) =>
+                        prev.map((a) =>
+                          a.id === updated.id
+                            ? { ...a, status: updated.status, notes: updated.notes ?? null }
+                            : a
+                        )
+                      );
+                    }}
+                  />
                 )}
               </>
             );
