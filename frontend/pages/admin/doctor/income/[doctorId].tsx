@@ -194,14 +194,18 @@ export default function DoctorIncomeDetailsPage() {
   const router = useRouter();
   const { doctorId, startDate: qsStart, endDate: qsEnd } = router.query;
 
+  // Fallback to current-month range when query params are missing
   const startDate = useMemo(() => {
     if (typeof qsStart === "string" && qsStart) return qsStart;
-    return "";
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
   }, [qsStart]);
 
   const endDate = useMemo(() => {
     if (typeof qsEnd === "string" && qsEnd) return qsEnd;
-    return "";
+    const d = new Date();
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
   }, [qsEnd]);
 
   const [loading, setLoading] = useState(true);
