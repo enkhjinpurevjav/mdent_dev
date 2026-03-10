@@ -19,7 +19,7 @@ function getLastDayOfMonthStr(): string {
 
 function formatDoctorName(ovog: string | null | undefined, name: string): string {
   if (ovog && ovog.trim().length > 0) {
-    return `${ovog.trim()[0]}. ${name}`;
+    return `${ovog.trim()[0]}.${name}`;
   }
   return name;
 }
