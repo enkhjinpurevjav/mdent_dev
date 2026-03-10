@@ -79,6 +79,75 @@ function formatMNT(amount: number): string {
   return new Intl.NumberFormat("en-US").format(amount) + " ₮";
 }
 
+// ─── Appointment status helpers ────────────────────────────────────────────
+
+function getApptStatusBgClass(status: string): string {
+  switch (status) {
+    case "booked":       return "bg-cyan-200";
+    case "confirmed":    return "bg-green-200";
+    case "online":       return "bg-violet-400";
+    case "ongoing":      return "bg-gray-400";
+    case "imaging":      return "bg-purple-500";
+    case "ready_to_pay": return "bg-yellow-300";
+    case "partial_paid": return "bg-amber-400";
+    case "completed":    return "bg-pink-500";
+    case "no_show":      return "bg-red-500";
+    case "cancelled":    return "bg-blue-500";
+    case "other":        return "bg-slate-400";
+    default:             return "bg-cyan-200";
+  }
+}
+
+function getApptStatusTextClass(status: string): string {
+  switch (status) {
+    case "booked":
+    case "confirmed":
+    case "ready_to_pay":
+      return "text-gray-900";
+    default:
+      return "text-white";
+  }
+}
+
+function formatApptStatus(status: string): string {
+  switch (status) {
+    case "booked":       return "Захиалсан";
+    case "confirmed":    return "Баталгаажсан";
+    case "online":       return "Онлайн";
+    case "ongoing":      return "Явж байна";
+    case "imaging":      return "Зураг";
+    case "ready_to_pay": return "Төлбөр төлөх";
+    case "partial_paid": return "Үлдэгдэлтэй";
+    case "completed":    return "Дууссан";
+    case "no_show":      return "Ирээгүй";
+    case "cancelled":    return "Цуцалсан";
+    case "other":        return "Бусад";
+    default:             return status;
+  }
+}
+
+function formatApptPatientLabel(a: DoctorAppointment): string {
+  const name = (a.patientName || "").trim();
+  const ovog = (a.patientOvog || "").trim();
+  let displayName = name;
+  if (ovog) displayName = `${ovog.charAt(0).toUpperCase()}.${name}`;
+  const book = a.patientBookNumber ? ` #${a.patientBookNumber}` : "";
+  return displayName ? `${displayName}${book}` : (a.patientBookNumber ? `#${a.patientBookNumber}` : "—");
+}
+
+function formatApptTimeRange(a: DoctorAppointment): string {
+  if (!a.scheduledAt) return "";
+  const start = new Date(a.scheduledAt);
+  const hh = String(start.getHours()).padStart(2, "0");
+  const mm = String(start.getMinutes()).padStart(2, "0");
+  const startStr = `${hh}:${mm}`;
+  if (!a.endAt) return startStr;
+  const end = new Date(a.endAt);
+  const eh = String(end.getHours()).padStart(2, "0");
+  const em = String(end.getMinutes()).padStart(2, "0");
+  return `${startStr} – ${eh}:${em}`;
+}
+
 function Card({
   title,
   right,
@@ -290,6 +359,7 @@ export default function DoctorProfilePage() {
   const [appointmentsError, setAppointmentsError] = useState<string | null>(null);
   const [appointmentsFrom, setAppointmentsFrom] = useState<string>("");
   const [appointmentsTo, setAppointmentsTo] = useState<string>("");
+  const [apptModalAppointment, setApptModalAppointment] = useState<DoctorAppointment | null>(null);
 
   const resetFormFromDoctor = () => {
     if (!doctor) return;
@@ -978,15 +1048,13 @@ export default function DoctorProfilePage() {
     return result;
   }
 
-   /** Format a "YYYY-MM-DD" string as "YYYY оны MM сарын DD өдөр (Weekday)" in Mongolian. */
+  /** Format a "YYYY-MM-DD" string as "YYYY/MM/DD Гараг" in Mongolian. */
 function formatScheduleDate(ymd: string): string {
   if (!ymd) return "";
   const [y, m, d] = ymd.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
-
-  const weekdays = ["Ням", "Да", "Мя", "Лх", "Пү", "Ба", "Бя"];
+  const weekdays = ["Ням", "Даваа", "Мягмар", "Лхагва", "Пүрэв", "Баасан", "Бямба"];
   const weekday = weekdays[dt.getDay()];
-
   return `${y}/${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")} ${weekday}`;
 }
 
@@ -2422,179 +2490,318 @@ function formatScheduleDate(ymd: string): string {
             </div>
           )}
 
-          {activeTab === "appointments" && (
-            <Card title="Цагууд">
-              {/* Date Range Filter */}
-              <div
-                className="flex gap-3 mb-4 items-end flex-wrap"
-              >
-                <div className="shrink-0">
-                  <label
-                    className="block text-[13px] font-medium mb-1 text-gray-700"
-                  >
-                    Эхлэх өдөр:
-                  </label>
-                  <input
-                    type="date"
-                    value={appointmentsFrom}
-                    onChange={(e) => setAppointmentsFrom(e.target.value)}
-                    className="px-2.5 py-2 border border-gray-300 rounded-md text-sm"
-                  />
-                </div>
-                <div className="shrink-0">
-                  <label
-                    className="block text-[13px] font-medium mb-1 text-gray-700"
-                  >
-                    Дуусах өдөр:
-                  </label>
-                  <input
-                    type="date"
-                    value={appointmentsTo}
-                    onChange={(e) => setAppointmentsTo(e.target.value)}
-                    className="px-2.5 py-2 border border-gray-300 rounded-md text-sm"
-                  />
-                </div>
-                <button
-                  onClick={loadAppointments}
-                  disabled={appointmentsLoading || !appointmentsFrom || !appointmentsTo}
-                  className={`px-4 py-2 ${appointmentsLoading ? "bg-gray-400" : "bg-blue-500"} text-white border-0 rounded-md text-sm font-medium ${appointmentsLoading ? "cursor-not-allowed" : "cursor-pointer"}`}
-                >
-                  {appointmentsLoading ? "Ачаалж байна..." : "Харах"}
-                </button>
-              </div>
+          {activeTab === "appointments" && (() => {
+            // ── helpers scoped to render ──────────────────────────────────
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const todayDate = new Date(todayStr);
+            const isWeekend = todayDate.getDay() === 0 || todayDate.getDay() === 6;
+            const dayStartHour = isWeekend ? 10 : 9;
+            const dayEndHour   = isWeekend ? 19 : 21;
+            const totalSlots   = (dayEndHour - dayStartHour) * 2; // 30-min slots
+            const cellPx       = 80; // px per 30-min slot (Tailwind w-20 = 80px)
 
-              {/* Loading State */}
-              {appointmentsLoading && (
-                <div className="text-gray-500 text-sm py-5">
-                  Цагуудыг ачаалж байна...
-                </div>
-              )}
+            const todayAppts = appointments.filter(
+              (a) => a.scheduledAt && a.scheduledAt.slice(0, 10) === todayStr
+            );
 
-              {/* Error State */}
-              {appointmentsError && !appointmentsLoading && (
-                <div className="text-red-600 text-sm py-3">
-                  {appointmentsError}
-                </div>
-              )}
+            // upcoming list: exclude cancelled, sort asc
+            const upcoming = appointments
+              .filter((a) => a.status !== "cancelled")
+              .sort((a, b) => (a.scheduledAt ?? "").localeCompare(b.scheduledAt ?? ""));
 
-              {/* Empty State */}
-              {!appointmentsLoading &&
-                !appointmentsError &&
-                appointments.length === 0 && (
-                  <div className="text-gray-500 text-sm py-5">
-                    Тухайн хугацаанд цаг олдсонгүй.
-                  </div>
-                )}
+            // group by date
+            const groupedMap = new Map<string, DoctorAppointment[]>();
+            for (const a of upcoming) {
+              const key = (a.scheduledAt ?? "").slice(0, 10);
+              if (!key) continue;
+              if (!groupedMap.has(key)) groupedMap.set(key, []);
+              groupedMap.get(key)!.push(a);
+            }
+            const sortedDates = Array.from(groupedMap.keys()).sort();
 
-              {/* Appointments Table */}
-              {!appointmentsLoading &&
-                !appointmentsError &&
-                appointments.length > 0 && (
+            // slot index for a given ISO time string
+            function slotIndex(iso: string): number {
+              const d = new Date(iso);
+              const minutes = d.getHours() * 60 + d.getMinutes();
+              const startMinutes = dayStartHour * 60;
+              return (minutes - startMinutes) / 30;
+            }
+
+            return (
+              <>
+                {/* ── Section 1: Today's horizontal calendar ─────────────── */}
+                <Card title="Өнөөдрийн цагийн хуваарь">
                   <div className="overflow-x-auto">
-                    <table
-                      className="w-full border-collapse text-sm"
+                    {/* time labels row */}
+                    <div className="flex" style={{ width: totalSlots * cellPx }}>
+                      {Array.from({ length: totalSlots }, (_, i) => {
+                        const totalMin = dayStartHour * 60 + i * 30;
+                        const h = String(Math.floor(totalMin / 60)).padStart(2, "0");
+                        const m = String(totalMin % 60).padStart(2, "0");
+                        return (
+                          <div
+                            key={i}
+                            className="shrink-0 w-20 text-[11px] text-gray-400 border-l border-gray-100 pl-1 py-0.5"
+                          >
+                            {h}:{m}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* appointment row */}
+                    <div
+                      className="relative border-t border-gray-100 bg-gray-50 rounded-lg"
+                      style={{ height: 64, width: totalSlots * cellPx }}
                     >
-                      <thead>
-                        <tr
-                          className="border-b-2 border-gray-200 bg-gray-50"
-                        >
-                          <th
-                            className="px-2 py-2.5 text-left font-semibold text-gray-700"
-                          >
-                            Огноо
-                          </th>
-                          <th
-                            className="px-2 py-2.5 text-left font-semibold text-gray-700"
-                          >
-                            Цаг
-                          </th>
-                          <th
-                            className="px-2 py-2.5 text-left font-semibold text-gray-700"
-                          >
-                            Өвчтөн
-                          </th>
-                          <th
-                            className="px-2 py-2.5 text-left font-semibold text-gray-700"
-                          >
-                            Төлөв
-                          </th>
-                          <th
-                            className="px-2 py-2.5 text-left font-semibold text-gray-700"
-                          >
-                            Салбар
-                          </th>
-                          <th
-                            className="px-2 py-2.5 text-left font-semibold text-gray-700"
-                          >
-                            Үйлдэл
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {appointments.map((appt) => {
-                          const scheduledDate = appt.scheduledAt
-                            ? new Date(appt.scheduledAt)
-                            : null;
-                          const dateStr = scheduledDate
-                            ? scheduledDate.toISOString().slice(0, 10)
-                            : "";
-                          const timeStr = formatTime(appt.scheduledAt);
-                          const endTimeStr = formatTime(appt.endAt);
+                      {/* slot grid lines */}
+                      {Array.from({ length: totalSlots }, (_, i) => (
+                        <div
+                          key={i}
+                          className="absolute top-0 bottom-0 border-l border-gray-200"
+                          style={{ left: i * cellPx }}
+                        />
+                      ))}
 
-                          const patientFullName = [appt.patientOvog, appt.patientName]
-                            .filter(Boolean)
-                            .join(" ");
+                      {todayAppts.length === 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xs">
+                          Өнөөдөр энэ эмчид цаг захиалга байхгүй байна.
+                        </div>
+                      )}
 
-                          return (
-                            <tr
-                              key={appt.id}
-                              className="border-b border-gray-200"
-                            >
-                              <td className="px-2 py-2.5">{dateStr}</td>
-                              <td className="px-2 py-2.5">
-                                {timeStr}
-                                {endTimeStr && ` - ${endTimeStr}`}
-                              </td>
-                              <td className="px-2 py-2.5">
-                                {patientFullName || "—"}
-                              </td>
-                              <td className="px-2 py-2.5">
-                                <span
-                                  className={`px-2 py-0.5 rounded text-xs font-medium ${appt.status === "completed" ? "bg-[#d1fae5] text-[#065f46]" : appt.status === "ongoing" ? "bg-[#fef3c7] text-[#92400e]" : "bg-[#dbeafe] text-[#1e40af]"}`}
-                                >
-                                  {appt.status}
-                                </span>
-                              </td>
-                              <td className="px-2 py-2.5">
-                                {appt.branchName || `#${appt.branchId}`}
-                              </td>
-                              <td className="px-2 py-2.5">
-                                {appt.patientBookNumber ? (
+                      {todayAppts.map((appt) => {
+                        if (!appt.scheduledAt) return null;
+                        const MIN_APPT_SLOTS = 0.5; // minimum 15-min display
+                        const APPT_SPACING_PX = 2;  // pixel gap between blocks
+                        const startSlot = slotIndex(appt.scheduledAt);
+                        const endSlot = appt.endAt
+                          ? slotIndex(appt.endAt)
+                          : startSlot + 1;
+                        const duration = Math.max(endSlot - startSlot, MIN_APPT_SLOTS);
+                        const leftPx  = startSlot * cellPx;
+                        const widthPx = duration * cellPx - APPT_SPACING_PX;
+
+                        if (startSlot < 0 || startSlot >= totalSlots) return null;
+
+                        const bgCls   = getApptStatusBgClass(appt.status);
+                        const textCls = getApptStatusTextClass(appt.status);
+
+                        return (
+                          <button
+                            key={appt.id}
+                            type="button"
+                            onClick={() => setApptModalAppointment(appt)}
+                            className={`absolute top-1 bottom-1 ${bgCls} ${textCls} rounded-lg shadow-sm cursor-pointer border-0 px-1.5 py-0.5 overflow-hidden flex flex-col justify-center`}
+                            style={{ left: leftPx, width: widthPx }}
+                          >
+                            <span className="text-[10px] font-semibold leading-tight truncate">
+                              {formatApptPatientLabel(appt)}
+                            </span>
+                            <span className="text-[9px] leading-tight truncate opacity-90">
+                              {formatApptTimeRange(appt)}
+                            </span>
+                            <span className="text-[9px] leading-tight truncate opacity-75">
+                              {formatApptStatus(appt.status)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </Card>
+
+                {/* ── Section 2: Date filter ──────────────────────────────── */}
+                <Card>
+                  <div className="flex gap-3 items-end flex-wrap">
+                    <div className="shrink-0">
+                      <label className="block text-[13px] font-medium mb-1 text-gray-700">
+                        Эхлэх өдөр:
+                      </label>
+                      <input
+                        type="date"
+                        value={appointmentsFrom}
+                        onChange={(e) => setAppointmentsFrom(e.target.value)}
+                        className="px-2.5 py-2 border border-gray-300 rounded-md text-sm"
+                      />
+                    </div>
+                    <div className="shrink-0">
+                      <label className="block text-[13px] font-medium mb-1 text-gray-700">
+                        Дуусах өдөр:
+                      </label>
+                      <input
+                        type="date"
+                        value={appointmentsTo}
+                        onChange={(e) => setAppointmentsTo(e.target.value)}
+                        className="px-2.5 py-2 border border-gray-300 rounded-md text-sm"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={loadAppointments}
+                      disabled={appointmentsLoading || !appointmentsFrom || !appointmentsTo}
+                      className={`px-4 py-2 ${appointmentsLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 cursor-pointer"} text-white border-0 rounded-md text-sm font-medium`}
+                    >
+                      {appointmentsLoading ? "Ачаалж байна..." : "Харах"}
+                    </button>
+                  </div>
+                </Card>
+
+                {/* ── Section 3: Grouped appointment list ────────────────── */}
+                <Card title="Цагууд">
+                  {appointmentsLoading && (
+                    <div className="text-gray-500 text-sm py-5">
+                      Цагуудыг ачаалж байна...
+                    </div>
+                  )}
+                  {appointmentsError && !appointmentsLoading && (
+                    <div className="text-red-600 text-sm py-3">
+                      {appointmentsError}
+                    </div>
+                  )}
+                  {!appointmentsLoading && !appointmentsError && upcoming.length === 0 && (
+                    <div className="text-gray-500 text-sm py-5">
+                      Тухайн хугацаанд цаг олдсонгүй.
+                    </div>
+                  )}
+                  {!appointmentsLoading && !appointmentsError && sortedDates.length > 0 && (
+                    <div className="flex flex-col gap-4">
+                      {sortedDates.map((dateKey) => {
+                        const dayAppts = groupedMap.get(dateKey)!;
+                        return (
+                          <div key={dateKey}>
+                            <div className="text-[13px] font-semibold text-gray-700 mb-2">
+                              {formatScheduleDate(dateKey)}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {dayAppts.map((appt) => {
+                                const bgCls   = getApptStatusBgClass(appt.status);
+                                const textCls = getApptStatusTextClass(appt.status);
+                                return (
                                   <button
-                                    onClick={() =>
-                                      router.push(
-                                        `/patients/${appt.patientBookNumber}`
-                                      )
-                                    }
-                                    className="px-3 py-1 bg-blue-500 text-white border-0 rounded text-[13px] font-medium cursor-pointer"
+                                    key={appt.id}
+                                    type="button"
+                                    onClick={() => setApptModalAppointment(appt)}
+                                    className={`${bgCls} ${textCls} rounded-lg shadow-sm cursor-pointer border-0 px-3 py-2 flex flex-col items-start min-w-[150px] max-w-[220px]`}
                                   >
-                                    Харах
+                                    <span className="text-xs font-semibold">
+                                      {formatApptPatientLabel(appt)}
+                                    </span>
+                                    <span className="text-[11px] mt-0.5">
+                                      {formatApptTimeRange(appt)}
+                                    </span>
+                                    <span className="text-[10px] mt-0.5 opacity-75">
+                                      {formatApptStatus(appt.status)}{appt.branchName ? ` · ${appt.branchName}` : ""}
+                                    </span>
                                   </button>
-                                ) : (
-                                  <span className="text-gray-400 text-xs">
-                                    —
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </Card>
+
+                {/* ── Section 4: Detail popup ─────────────────────────────── */}
+                {apptModalAppointment && (
+                  <div
+                    className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+                    onClick={() => setApptModalAppointment(null)}
+                  >
+                    <div
+                      className="bg-white rounded-xl p-5 w-96 max-w-[95vw] shadow-2xl text-[13px]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-base font-bold text-gray-900">
+                          Цагийн дэлгэрэнгүй
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setApptModalAppointment(null)}
+                          className="text-gray-400 border-0 bg-transparent cursor-pointer text-lg leading-none"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex flex-col gap-2">
+                        {doctor && (
+                          <div>
+                            <span className="text-gray-500">Эмч: </span>
+                            <span className="font-medium">{formatDoctorShortName(doctor)}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-gray-500">Үйлчлүүлэгч: </span>
+                          <span className="font-medium">{formatApptPatientLabel(apptModalAppointment)}</span>
+                          {apptModalAppointment.patientBookNumber && (
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/patients/${apptModalAppointment.patientBookNumber}`)}
+                              className="px-2 py-0.5 bg-blue-500 text-white border-0 rounded text-[11px] cursor-pointer"
+                            >
+                              Үйлчлүүлэгчийн дэлгэрэнгүй
+                            </button>
+                          )}
+                        </div>
+                        {apptModalAppointment.patientBookNumber && (
+                          <div>
+                            <span className="text-gray-500">Картын дугаар: </span>
+                            <span className="font-medium">{apptModalAppointment.patientBookNumber}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-gray-500">Төлөв: </span>
+                          <span className={`${getApptStatusBgClass(apptModalAppointment.status)} ${getApptStatusTextClass(apptModalAppointment.status)} px-2 py-0.5 rounded text-xs font-medium`}>
+                            {formatApptStatus(apptModalAppointment.status)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Салбар: </span>
+                          <span className="font-medium">
+                            {apptModalAppointment.branchName || `#${apptModalAppointment.branchId}`}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Огноо: </span>
+                          <span className="font-medium">
+                            {apptModalAppointment.scheduledAt
+                              ? formatScheduleDate(apptModalAppointment.scheduledAt.slice(0, 10))
+                              : "—"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Цаг захиалга: </span>
+                          <span className="font-medium">{formatApptTimeRange(apptModalAppointment)}</span>
+                        </div>
+                        {apptModalAppointment.notes && (
+                          <div>
+                            <span className="text-gray-500">Тэмдэглэл: </span>
+                            <span className="font-medium">{apptModalAppointment.notes}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Footer */}
+                      <div className="flex justify-end mt-4">
+                        <button
+                          type="button"
+                          onClick={() => setApptModalAppointment(null)}
+                          className="px-4 py-1.5 bg-gray-100 text-gray-700 border-0 rounded-md text-sm cursor-pointer"
+                        >
+                          Хаах
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
-            </Card>
-          )}
+              </>
+            );
+          })()}
 
           {activeTab === "test1" && (
             <Card title="Test Page 1">
