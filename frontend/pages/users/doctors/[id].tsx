@@ -2631,11 +2631,12 @@ function formatScheduleDate(ymd: string): string {
                           if (!appt.scheduledAt) return null;
                           const MIN_APPT_SLOTS = 0.5;
                           const APPT_SPACING_PX = 2;
+                          const exactStartSlot = slotIndex(appt.scheduledAt);
                           const endSlot = appt.endAt
                             ? slotIndex(appt.endAt)
-                            : si + 1;
-                          const duration = Math.max(endSlot - si, MIN_APPT_SLOTS);
-                          const leftPx  = si * cellPx;
+                            : exactStartSlot + 1;
+                          const duration = Math.max(endSlot - exactStartSlot, MIN_APPT_SLOTS);
+                          const leftPx  = exactStartSlot * cellPx;
                           const widthPx = duration * cellPx - APPT_SPACING_PX;
                           const topPx   = rowIndex * 56;
 
