@@ -2,8 +2,8 @@ import express from "express";
 import prisma from "../../db.js";
 import {
   discountPercentEnumToNumber,
-  computeServiceNetEqualDiscount,
-  allocatePaymentEqualSplitWithOverflow,
+  computeServiceNetProportionalDiscount,
+  allocatePaymentProportionalByRemaining,
 } from "../../utils/incomeHelpers.js";
 
 const router = express.Router();
@@ -23,8 +23,8 @@ const EXCLUDED_METHODS = new Set(["EMPLOYEE_BENEFIT"]);
 
 const OVERRIDE_METHODS = new Set(["INSURANCE", "APPLICATION"]);
 
-// Home bleaching: serviceId=110 (Service.code=151)
-const HOME_BLEACHING_SERVICE_ID = 110;
+// Home bleaching: Service.code === 151
+const HOME_BLEACHING_SERVICE_CODE = 151;
 
 function inRange(ts, start, end) {
   return ts >= start && ts < end;
@@ -119,12 +119,12 @@ router.get("/doctors-income", async (req, res) => {
       const payments = inv.payments || [];
       const hasOverride = payments.some((p) => OVERRIDE_METHODS.has(String(p.method).toUpperCase()));
 
-      // ---------- per-line nets via equal discount distribution ----------
+      // ---------- per-line nets via proportional discount per service line ----------
       const discountPct = discountPercentEnumToNumber(inv.discountPercent);
       const serviceItems = (inv.items || []).filter(
         (it) => it.itemType === "SERVICE" && it.service?.category !== "PREVIOUS"
       );
-      const lineNets = computeServiceNetEqualDiscount(serviceItems, discountPct);
+      const lineNets = computeServiceNetProportionalDiscount(serviceItems, discountPct);
 
       // Non-IMAGING items used for sales (IMAGING is excluded from doctorSalesMnt)
       const nonImagingServiceItems = serviceItems.filter(
@@ -142,13 +142,13 @@ router.get("/doctors-income", async (req, res) => {
       // Ratio used to allocate BARTER excess proportionally across non-IMAGING lines
       const nonImagingRatio = totalAllServiceNet > 0 ? totalNonImagingNet / totalAllServiceNet : 0;
 
-      // ---------- Single payment pass: equal-split allocation with overflow ----------
+      // ---------- Single payment pass: proportional allocation by remaining due ----------
       // itemById and serviceLineIds used in both SALES and INCOME sections below
       const itemById = new Map(serviceItems.map((it) => [it.id, it]));
       const serviceLineIds = serviceItems.map((it) => it.id);
 
       // remainingDue tracks outstanding amount per line (initialised to net after discount).
-      // It is mutated by allocatePaymentEqualSplitWithOverflow so later payments only
+      // It is mutated by allocatePaymentProportionalByRemaining so later payments only
       // allocate to still-unpaid portions.
       const remainingDue = new Map(serviceItems.map((it) => [it.id, lineNets.get(it.id) || 0]));
 
@@ -188,8 +188,8 @@ router.get("/doctors-income", async (req, res) => {
             remainingDue.set(item.id, Math.max(0, (remainingDue.get(item.id) || 0) - allocAmt));
           }
         } else {
-          // Equal-split with overflow across all service lines (mutates remainingDue).
-          const allocs = allocatePaymentEqualSplitWithOverflow(payAmt, serviceLineIds, remainingDue);
+          // Proportional allocation by remaining due across all service lines (mutates remainingDue).
+          const allocs = allocatePaymentProportionalByRemaining(payAmt, serviceLineIds, remainingDue);
           for (const [id, amt] of allocs) {
             itemAllocationBase.set(id, (itemAllocationBase.get(id) || 0) + amt);
           }
@@ -204,7 +204,7 @@ router.get("/doctors-income", async (req, res) => {
           acc.doctorSalesMnt += totalNonImagingNet * 0.9;
         }
       } else {
-        // Sum equal-split allocations for non-IMAGING lines.
+        // Sum proportional allocations for non-IMAGING lines.
         let salesFromIncluded = 0;
         for (const it of nonImagingServiceItems) {
           salesFromIncluded += itemAllocationBase.get(it.id) || 0;
@@ -242,7 +242,7 @@ router.get("/doctors-income", async (req, res) => {
             continue;
           }
 
-          if (it.serviceId === HOME_BLEACHING_SERVICE_ID) {
+          if (Number(it.service?.code) === HOME_BLEACHING_SERVICE_CODE) {
             // Deduct material cost before applying generalPct.
             const base = Math.max(0, lineNet - homeBleachingDeductAmountMnt);
             acc.doctorIncomeMnt += base * (generalPct / 100);
@@ -404,14 +404,14 @@ router.get("/doctors-income/:doctorId/details", async (req, res) => {
       const status = String(inv.statusLegacy || "").toLowerCase();
       const isPaid = status === "paid";
 
-      // ---------- per-line nets via equal discount distribution ----------
+      // ---------- per-line nets via proportional discount per service line ----------
       const discountPct = discountPercentEnumToNumber(inv.discountPercent);
       const serviceItems = (inv.items || []).filter(
         (it) => it.itemType === "SERVICE" && it.service?.category !== "PREVIOUS"
       );
       if (!serviceItems.length) continue;
 
-      const lineNets = computeServiceNetEqualDiscount(serviceItems, discountPct);
+      const lineNets = computeServiceNetProportionalDiscount(serviceItems, discountPct);
 
       // Non-IMAGING items used for sales (IMAGING excluded from doctorSalesMnt)
       const nonImagingServiceItems = serviceItems.filter(
@@ -429,7 +429,7 @@ router.get("/doctors-income/:doctorId/details", async (req, res) => {
       // Ratio used to allocate BARTER excess proportionally across non-IMAGING lines
       const nonImagingRatio = totalAllServiceNet > 0 ? totalNonImagingNet / totalAllServiceNet : 0;
 
-      // ---------- Single payment pass: equal-split allocation with overflow ----------
+      // ---------- Single payment pass: proportional allocation by remaining due ----------
       const itemById = new Map(serviceItems.map((it) => [it.id, it]));
       const serviceLineIds = serviceItems.map((it) => it.id);
 
@@ -468,8 +468,8 @@ router.get("/doctors-income/:doctorId/details", async (req, res) => {
             remainingDue.set(item.id, Math.max(0, (remainingDue.get(item.id) || 0) - allocAmt));
           }
         } else {
-          // Equal-split with overflow across all service lines (mutates remainingDue).
-          const allocs = allocatePaymentEqualSplitWithOverflow(payAmt, serviceLineIds, remainingDue);
+          // Proportional allocation by remaining due across all service lines (mutates remainingDue).
+          const allocs = allocatePaymentProportionalByRemaining(payAmt, serviceLineIds, remainingDue);
           for (const [id, amt] of allocs) {
             itemAllocationBase.set(id, (itemAllocationBase.get(id) || 0) + amt);
           }
@@ -537,7 +537,7 @@ router.get("/doctors-income/:doctorId/details", async (req, res) => {
             continue;
           }
 
-          if (it.serviceId === HOME_BLEACHING_SERVICE_ID) {
+          if (Number(it.service?.code) === HOME_BLEACHING_SERVICE_CODE) {
             // Deduct material cost before applying generalPct.
             const base = Math.max(0, lineNet - homeBleachingDeductAmountMnt);
             const income = base * (generalPct / 100);
