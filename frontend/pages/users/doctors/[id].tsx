@@ -60,7 +60,54 @@ type DoctorAppointment = {
 };
 
 type ShiftType = "AM" | "PM" | "WEEKEND_FULL";
-type DoctorTabKey = "profile" | "schedule" | "appointments" | "test1" | "history";
+type DoctorTabKey = "profile" | "schedule" | "appointments" | "sales" | "history";
+
+// ── Sales tab types ────────────────────────────────────────────────────────────
+
+type SalesCategoryRow = {
+  key:
+    | "IMAGING"
+    | "ORTHODONTIC_TREATMENT"
+    | "DEFECT_CORRECTION"
+    | "SURGERY"
+    | "GENERAL"
+    | "BARTER_EXCESS";
+  label: string;
+  salesMnt: number;
+  incomeMnt: number;
+  pctUsed: number;
+};
+
+type SalesDetailsResponse = {
+  doctorId: number;
+  doctorName: string | null;
+  doctorOvog: string | null;
+  startDate: string;
+  endDate: string;
+  categories: SalesCategoryRow[];
+  totals: {
+    totalSalesMnt: number;
+    totalIncomeMnt: number;
+  };
+};
+
+type SalesLineItem = {
+  invoiceId: number;
+  encounterId: number | null;
+  appointmentId: number | null;
+  appointmentScheduledAt: string | null;
+  visitDate: string | null;
+  patientId: number | null;
+  patientOvog: string | null;
+  patientName: string | null;
+  serviceName: string;
+  serviceCategory: string;
+  priceMnt: number;
+  discountMnt: number;
+  netAfterDiscountMnt: number;
+  allocatedPaidMnt: number;
+  paymentMethodLabel: string | null;
+};
 
 function formatDoctorShortName(doc: Doctor) {
   const name = (doc.name || "").toString().trim();
@@ -85,6 +132,132 @@ function formatIsoDateOnly(iso?: string | null) {
 
 function formatMNT(amount: number): string {
   return new Intl.NumberFormat("en-US").format(amount) + " ₮";
+}
+
+// ─── Sales tab helpers ─────────────────────────────────────────────────────
+
+function fmtMnt(v: number) {
+  return `${Number(v || 0).toLocaleString("mn-MN")} ₮`;
+}
+
+function salesFormatPatient(ovog: string | null | undefined, name: string | null | undefined) {
+  const n = (name || "").trim();
+  const o = (ovog || "").trim();
+  if (o && n) return `${o[0]}. ${n}`;
+  return n || o || "-";
+}
+
+function salesFormatDate(isoStr: string | null | undefined) {
+  if (!isoStr) return "-";
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString("mn-MN", { year: "numeric", month: "2-digit", day: "2-digit" });
+}
+
+function SalesChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
+function SalesEyeIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-4 w-4"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+      />
+    </svg>
+  );
+}
+
+function SalesDrillDownRows({
+  lines,
+  onOpenReport,
+}: {
+  lines: SalesLineItem[];
+  onOpenReport: (appointmentId: number) => void;
+}) {
+  if (lines.length === 0) {
+    return (
+      <tr>
+        <td colSpan={10} className="px-8 py-4 text-center text-xs text-gray-500">
+          Энэ ангилалд мэдээлэл олдсонгүй.
+        </td>
+      </tr>
+    );
+  }
+  return (
+    <>
+      {lines.map((line, idx) => {
+        const dateStr = salesFormatDate(line.appointmentScheduledAt || line.visitDate);
+        const patientStr = salesFormatPatient(line.patientOvog, line.patientName);
+        const canOpen = line.appointmentId !== null && line.appointmentId !== undefined;
+        const tooltip = canOpen ? "Дэлгэрэнгүй" : "Цаг захиалга байхгүй";
+        return (
+          <tr key={`${line.invoiceId}-${idx}`} className="border-t border-blue-100 bg-blue-50/30">
+            <td className="py-2 pl-8 pr-3 text-xs text-gray-700">#{line.invoiceId}</td>
+            <td className="px-3 py-2 text-xs text-gray-700">{dateStr}</td>
+            <td className="px-3 py-2 text-xs text-gray-700">{patientStr}</td>
+            <td className="px-3 py-2 text-xs text-gray-700">{line.serviceName}</td>
+            <td className="px-3 py-2 text-right text-xs text-gray-700">{fmtMnt(line.priceMnt)}</td>
+            <td className="px-3 py-2 text-right text-xs text-gray-700">
+              {line.discountMnt > 0 ? fmtMnt(line.discountMnt) : "-"}
+            </td>
+            <td className="px-3 py-2 text-right text-xs font-semibold text-gray-800">
+              {fmtMnt(line.allocatedPaidMnt)}
+            </td>
+            <td className="px-3 py-2 text-xs text-gray-700">
+              {line.paymentMethodLabel || "-"}
+            </td>
+            <td className="px-3 py-2 text-xs text-gray-500">{line.serviceCategory}</td>
+            <td className="px-3 py-2 text-center">
+              <div className="group relative inline-block">
+                <button
+                  type="button"
+                  disabled={!canOpen}
+                  aria-label={tooltip}
+                  onClick={() => canOpen && line.appointmentId !== null && line.appointmentId !== undefined && onOpenReport(line.appointmentId)}
+                  className={`rounded border p-1 transition-colors ${
+                    canOpen
+                      ? "border-blue-400 bg-white text-blue-600 hover:bg-blue-50"
+                      : "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-300"
+                  }`}
+                >
+                  <SalesEyeIcon />
+                </button>
+                <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  {tooltip}
+                </span>
+              </div>
+            </td>
+          </tr>
+        );
+      })}
+    </>
+  );
 }
 
 // ─── Appointment status helpers ────────────────────────────────────────────
@@ -412,6 +585,26 @@ export default function DoctorProfilePage() {
   const [historyReportAppointmentId, setHistoryReportAppointmentId] = useState<number | null>(null);
   const [historyMaterialsModalOpen, setHistoryMaterialsModalOpen] = useState(false);
   const [historyMaterialsEncounterId, setHistoryMaterialsEncounterId] = useState<number | null>(null);
+
+  // ── Sales tab state ──────────────────────────────────────────────────────
+  const now = new Date();
+  const salesDefaultStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const salesDefaultEnd = (() => {
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
+  })();
+  const [salesStartDate, setSalesStartDate] = useState<string>(salesDefaultStart);
+  const [salesEndDate, setSalesEndDate] = useState<string>(salesDefaultEnd);
+  const [salesData, setSalesData] = useState<SalesDetailsResponse | null>(null);
+  const [salesDataLoading, setSalesDataLoading] = useState(false);
+  const [salesDataError, setSalesDataError] = useState<string>("");
+  const [salesExpandedCategories, setSalesExpandedCategories] = useState<Set<string>>(new Set());
+  const [salesCategoryLines, setSalesCategoryLines] = useState<
+    Record<string, SalesLineItem[] | null | undefined>
+  >({});
+  const [salesCategoryErrors, setSalesCategoryErrors] = useState<Record<string, string>>({});
+  const [salesReportModalAppointmentId, setSalesReportModalAppointmentId] = useState<number | null>(null);
+  // ── end Sales tab state ──────────────────────────────────────────────────
 
   const resetFormFromDoctor = () => {
     if (!doctor) return;
@@ -757,6 +950,79 @@ export default function DoctorProfilePage() {
       loadApptHistory();
     }
   }, [activeTab, loadApptHistory]);
+
+  // ── Sales tab fetch functions ─────────────────────────────────────────────
+  const fetchSalesData = useCallback(async () => {
+    if (!id) return;
+    setSalesDataLoading(true);
+    setSalesDataError("");
+    try {
+      const res = await fetch(
+        `/api/admin/doctors-income/${id}/details?startDate=${salesStartDate}&endDate=${salesEndDate}`
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Failed to fetch doctor income details");
+      setSalesData(json);
+      setSalesExpandedCategories(new Set());
+      setSalesCategoryLines({});
+      setSalesCategoryErrors({});
+    } catch (e: any) {
+      setSalesDataError(e?.message || "Failed to fetch details");
+      setSalesData(null);
+    } finally {
+      setSalesDataLoading(false);
+    }
+  }, [id, salesStartDate, salesEndDate]);
+
+  const fetchSalesCategoryLines = useCallback(
+    async (categoryKey: string) => {
+      if (!id) return;
+      let shouldFetch = true;
+      setSalesCategoryLines((prev) => {
+        if (prev[categoryKey] !== undefined) {
+          shouldFetch = false;
+          return prev;
+        }
+        return { ...prev, [categoryKey]: null };
+      });
+      if (!shouldFetch) return;
+      try {
+        const res = await fetch(
+          `/api/admin/doctors-income/${id}/details/lines?startDate=${salesStartDate}&endDate=${salesEndDate}&category=${categoryKey}`
+        );
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error || "Failed to fetch lines");
+        setSalesCategoryLines((prev) => ({ ...prev, [categoryKey]: json }));
+      } catch (e: any) {
+        setSalesCategoryErrors((prev) => ({ ...prev, [categoryKey]: e?.message || "Error" }));
+        setSalesCategoryLines((prev) => ({ ...prev, [categoryKey]: [] }));
+      }
+    },
+    [id, salesStartDate, salesEndDate]
+  );
+
+  const toggleSalesCategory = useCallback(
+    (categoryKey: string) => {
+      setSalesExpandedCategories((prev) => {
+        const next = new Set(prev);
+        if (next.has(categoryKey)) {
+          next.delete(categoryKey);
+        } else {
+          next.add(categoryKey);
+          fetchSalesCategoryLines(categoryKey);
+        }
+        return next;
+      });
+    },
+    [fetchSalesCategoryLines]
+  );
+
+  useEffect(() => {
+    if (activeTab === "sales") {
+      fetchSalesData();
+    }
+  }, [activeTab, fetchSalesData]);
+  // ── end Sales tab fetch functions ─────────────────────────────────────────
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1254,7 +1520,7 @@ function formatScheduleDate(ymd: string): string {
 >
       <button
   type="button"
-  onClick={() => router.push("/users/doctors")}
+  onClick={() => router.back()}
   className="mb-4 px-2 py-1 rounded border border-gray-300 bg-gray-50 cursor-pointer text-[13px]"
 >
   ← Буцах
@@ -1344,11 +1610,11 @@ function formatScheduleDate(ymd: string): string {
     <button
       type="button"
       onClick={() => {
-        setActiveTab("test1");
+        setActiveTab("sales");
         setIsEditingProfile(false);
         setError(null);
       }}
-      className={`text-left px-2.5 py-1.5 rounded-md border-0 ${activeTab === "test1" ? "bg-blue-50" : "bg-transparent"} ${activeTab === "test1" ? "text-blue-700" : "text-gray-500"} ${activeTab === "test1" ? "font-medium" : "font-normal"} cursor-pointer`}
+      className={`text-left px-2.5 py-1.5 rounded-md border-0 ${activeTab === "sales" ? "bg-blue-50" : "bg-transparent"} ${activeTab === "sales" ? "text-blue-700" : "text-gray-500"} ${activeTab === "sales" ? "font-medium" : "font-normal"} cursor-pointer`}
     >
       Борлуулалт
     </button>
@@ -2851,10 +3117,189 @@ function formatScheduleDate(ymd: string): string {
             );
           })()}
 
-          {activeTab === "test1" && (
-            <Card title="Test Page 1">
-              <div className="text-gray-500 text-[13px]">Placeholder page.</div>
-            </Card>
+          {activeTab === "sales" && (
+            <div className="flex flex-col gap-4">
+              {/* Date range filter */}
+              <Card>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <label className="mb-1 block text-[13px] font-medium text-gray-700">
+                      Эхлэх өдөр:
+                    </label>
+                    <input
+                      type="date"
+                      value={salesStartDate}
+                      onChange={(e) => setSalesStartDate(e.target.value)}
+                      className="rounded-md border border-gray-300 px-2.5 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[13px] font-medium text-gray-700">
+                      Дуусах өдөр:
+                    </label>
+                    <input
+                      type="date"
+                      value={salesEndDate}
+                      onChange={(e) => setSalesEndDate(e.target.value)}
+                      className="rounded-md border border-gray-300 px-2.5 py-2 text-sm"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={fetchSalesData}
+                    disabled={salesDataLoading || !salesStartDate || !salesEndDate}
+                    className={`rounded-md border-0 px-4 py-2 text-sm font-medium text-white ${salesDataLoading ? "cursor-not-allowed bg-gray-400" : "cursor-pointer bg-blue-500 hover:bg-blue-600"}`}
+                  >
+                    {salesDataLoading ? "Ачаалж байна..." : "Харах"}
+                  </button>
+                </div>
+              </Card>
+
+              {salesDataError && (
+                <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+                  {salesDataError}
+                </div>
+              )}
+
+              {salesDataLoading ? (
+                <p className="text-sm text-gray-600">Ачаалж байна...</p>
+              ) : salesData && (
+                <>
+                  {/* Summary totals */}
+                  <Card>
+                    <div className="flex flex-wrap gap-8">
+                      <div>
+                        <div className="text-xs text-gray-500">Нийт борлуулалт</div>
+                        <div className="text-lg font-bold text-gray-900">
+                          {fmtMnt(salesData.totals.totalSalesMnt)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Нийт эмчийн хувь</div>
+                        <div className="text-lg font-bold text-gray-900">
+                          {fmtMnt(salesData.totals.totalIncomeMnt)}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Category table with expandable rows */}
+                  <Card>
+                    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                      <table className="w-full border-collapse text-sm">
+                        <thead className="bg-gray-50 text-left">
+                          <tr>
+                            <th className="px-4 py-3 font-semibold text-gray-700">Ангилал</th>
+                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Хувь (%)</th>
+                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Борлуулалт</th>
+                            <th className="px-4 py-3 text-right font-semibold text-gray-700">Эмчийн хувь</th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-700">Үйлдэл</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {salesData.categories.map((row) => {
+                            const isOpen = salesExpandedCategories.has(row.key);
+                            const lines = salesCategoryLines[row.key];
+                            const lineError = salesCategoryErrors[row.key];
+                            return (
+                              <React.Fragment key={row.key}>
+                                <tr className="border-t border-gray-200">
+                                  <td className="px-4 py-3">{row.label}</td>
+                                  <td className="px-4 py-3 text-right">{Number(row.pctUsed || 0)}%</td>
+                                  <td className="px-4 py-3 text-right">{fmtMnt(row.salesMnt)}</td>
+                                  <td className="px-4 py-3 text-right">{fmtMnt(row.incomeMnt)}</td>
+                                  <td className="px-4 py-3 text-center">
+                                    <button
+                                      type="button"
+                                      aria-label={isOpen ? "Хаах" : "Дэлгэрэнгүй харах"}
+                                      onClick={() => toggleSalesCategory(row.key)}
+                                      className="inline-flex items-center justify-center rounded border border-gray-300 bg-white p-1.5 text-gray-600 hover:bg-gray-50 hover:text-blue-600"
+                                    >
+                                      <SalesChevronIcon open={isOpen} />
+                                    </button>
+                                  </td>
+                                </tr>
+                                {isOpen && (
+                                  <tr>
+                                    <td colSpan={5} className="p-0">
+                                      <div className="border-t border-blue-100 bg-blue-50/20">
+                                        {lines === null ? (
+                                          <p className="px-8 py-3 text-xs text-gray-500">
+                                            Ачаалж байна...
+                                          </p>
+                                        ) : lineError ? (
+                                          <p className="px-8 py-3 text-xs text-red-600">{lineError}</p>
+                                        ) : (
+                                          <div className="overflow-x-auto">
+                                            <table className="w-full border-collapse text-xs">
+                                              <thead className="bg-blue-50 text-left">
+                                                <tr>
+                                                  <th className="py-2 pl-8 pr-3 font-semibold text-gray-600">
+                                                    Нэхэмжлэл #
+                                                  </th>
+                                                  <th className="px-3 py-2 font-semibold text-gray-600">
+                                                    Үзлэгийн огноо
+                                                  </th>
+                                                  <th className="px-3 py-2 font-semibold text-gray-600">
+                                                    Үйлчлүүлэгч
+                                                  </th>
+                                                  <th className="px-3 py-2 font-semibold text-gray-600">
+                                                    Үйлчилгээ
+                                                  </th>
+                                                  <th className="px-3 py-2 text-right font-semibold text-gray-600">
+                                                    Үнийн дүн
+                                                  </th>
+                                                  <th className="px-3 py-2 text-right font-semibold text-gray-600">
+                                                    Хөнгөлөлт
+                                                  </th>
+                                                  <th className="px-3 py-2 text-right font-semibold text-gray-600">
+                                                    Нийт
+                                                  </th>
+                                                  <th className="px-3 py-2 font-semibold text-gray-600">
+                                                    Төлбөрийн хэрэгсэл
+                                                  </th>
+                                                  <th className="px-3 py-2 font-semibold text-gray-600">
+                                                    Үйлчилгээний төрөл
+                                                  </th>
+                                                  <th className="px-3 py-2 text-center font-semibold text-gray-600">
+                                                    Үйлдэл
+                                                  </th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                <SalesDrillDownRows
+                                                  lines={lines ?? []}
+                                                  onOpenReport={(apptId) =>
+                                                    setSalesReportModalAppointmentId(apptId)
+                                                  }
+                                                />
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot className="bg-gray-50">
+                          <tr className="border-t-2 border-gray-200 font-bold">
+                            <td className="px-4 py-3">Нийт</td>
+                            <td className="px-4 py-3" />
+                            <td className="px-4 py-3 text-right">{fmtMnt(salesData.totals.totalSalesMnt)}</td>
+                            <td className="px-4 py-3 text-right">{fmtMnt(salesData.totals.totalIncomeMnt)}</td>
+                            <td className="px-4 py-3" />
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </Card>
+                </>
+              )}
+            </div>
           )}
 
           {activeTab === "history" && (() => {
@@ -3085,6 +3530,13 @@ function formatScheduleDate(ymd: string): string {
           })()}
         </div>
       </section>
+
+      {/* Sales tab: Encounter Report Modal */}
+      <EncounterReportModal
+        open={salesReportModalAppointmentId != null}
+        onClose={() => setSalesReportModalAppointmentId(null)}
+        appointmentId={salesReportModalAppointmentId}
+      />
     </main>
   );
 }
