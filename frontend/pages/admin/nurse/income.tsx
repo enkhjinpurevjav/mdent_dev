@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
+const PAGE_SIZE = 15;
+
 type NurseSummary = {
   nurseId: number;
   nurseName: string | null;
@@ -21,16 +23,30 @@ function formatNurseName(n: { nurseName?: string | null; nurseOvog?: string | nu
   return `${ovog.charAt(0)}. ${name || "-"}`;
 }
 
+function getDefaultDates(): { startDate: string; endDate: string } {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    startDate: `${firstDay.getFullYear()}-${pad(firstDay.getMonth() + 1)}-${pad(firstDay.getDate())}`,
+    endDate: `${lastDay.getFullYear()}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`,
+  };
+}
+
 export default function NursesIncomePage() {
   const router = useRouter();
-  const [startDate, setStartDate] = useState<string>("2026-01-01");
-  const [endDate, setEndDate] = useState<string>("2026-01-31");
+  const [startDate, setStartDate] = useState<string>(() => getDefaultDates().startDate);
+  const [endDate, setEndDate] = useState<string>(() => getDefaultDates().endDate);
   const [branchId, setBranchId] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [nurses, setNurses] = useState<NurseSummary[]>([]);
   const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
   const [error, setError] = useState<string>("");
+  const [page, setPage] = useState(1);
 
   const fetchBranches = async () => {
     try {
@@ -61,42 +77,51 @@ export default function NursesIncomePage() {
   };
 
   useEffect(() => {
-    fetchBranches();
+    void fetchBranches();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    setPage(1);
+    void fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate, branchId]);
+
+  const totalPages = Math.max(1, Math.ceil(nurses.length / PAGE_SIZE));
+  const pagedNurses = nurses.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
-    <main style={{ padding: "24px", fontFamily: "sans-serif", maxWidth: 1000, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16 }}>
+    <main className="w-full px-6 py-6 font-sans">
+      <h1 className="text-2xl font-bold mb-4">
         Сувилагчийн Зурагны Орлогын Тайлан
       </h1>
 
       {/* Filters */}
-      <section style={{ marginBottom: 24, display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
+      <section className="mb-6 flex flex-wrap gap-4 items-end">
         <div>
-          <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>Эхлэх:</label>
+          <label className="block text-sm mb-1">Эхлэх:</label>
           <input
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            style={{ padding: "8px", fontSize: 14, borderRadius: 8, border: "1px solid #d1d5db" }}
+            className="px-2 py-2 text-sm rounded-lg border border-gray-300"
           />
         </div>
         <div>
-          <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>Дуусах:</label>
+          <label className="block text-sm mb-1">Дуусах:</label>
           <input
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            style={{ padding: "8px", fontSize: 14, borderRadius: 8, border: "1px solid #d1d5db" }}
+            className="px-2 py-2 text-sm rounded-lg border border-gray-300"
           />
         </div>
         <div>
-          <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>Салбар:</label>
+          <label className="block text-sm mb-1">Салбар:</label>
           <select
             value={branchId || ""}
             onChange={(e) => setBranchId(Number(e.target.value) || null)}
-            style={{ padding: "8px", fontSize: 14, borderRadius: 8, border: "1px solid #d1d5db" }}
+            className="px-2 py-2 text-sm rounded-lg border border-gray-300"
           >
             <option value="">Бүх салбар</option>
             {branches.map((branch) => (
@@ -106,37 +131,11 @@ export default function NursesIncomePage() {
             ))}
           </select>
         </div>
-        <button
-          type="button"
-          onClick={() => void fetchData()}
-          disabled={loading}
-          style={{
-            padding: "9px 16px",
-            borderRadius: 8,
-            border: "1px solid #2563eb",
-            background: "#eff6ff",
-            color: "#2563eb",
-            cursor: "pointer",
-            fontSize: 14,
-            fontWeight: 700,
-          }}
-        >
-          {loading ? "Ачаалж байна..." : "Хайх"}
-        </button>
       </section>
 
       {/* Error message */}
       {error && (
-        <div
-          style={{
-            marginBottom: 16,
-            padding: 12,
-            color: "#b91c1c",
-            backgroundColor: "#fef2f2",
-            border: "1px solid #fca5a5",
-            borderRadius: 8,
-          }}
-        >
+        <div className="mb-4 p-3 text-red-700 bg-red-50 border border-red-300 rounded-lg">
           {error}
         </div>
       )}
@@ -144,60 +143,81 @@ export default function NursesIncomePage() {
       {/* Data Table */}
       <section>
         {loading ? (
-          <p style={{ color: "#6b7280" }}>Ачаалж байна...</p>
+          <p className="text-gray-500">Ачаалж байна...</p>
         ) : nurses.length === 0 ? (
-          <p style={{ color: "#6b7280", fontSize: 14 }}>
+          <p className="text-gray-500 text-sm">
             Тухайн хугацаанд зурагны орлоготой сувилагч олдсонгүй.
           </p>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-            <thead>
-              <tr style={{ backgroundColor: "#f9fafb", textAlign: "left" }}>
-                <th style={{ padding: "8px 12px" }}>Сувилагч</th>
-                <th style={{ padding: "8px 12px", textAlign: "right" }}>Зурагны орлого (₮)</th>
-                <th style={{ padding: "8px 12px", textAlign: "right" }}>Туслах орлого (₮)</th>
-                <th style={{ padding: "8px 12px", textAlign: "right" }}>Нийт орлого (₮)</th>
-                <th style={{ padding: "8px 12px" }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {nurses.map((n) => (
-                <tr key={n.nurseId} style={{ borderBottom: "1px solid #e5e7eb" }}>
-                  <td style={{ padding: "8px 12px" }}>{formatNurseName(n)}</td>
-                  <td style={{ padding: "8px 12px", textAlign: "right" }}>
-                    {n.imagingIncomeMnt.toLocaleString("mn-MN")} ₮
-                  </td>
-                  <td style={{ padding: "8px 12px", textAlign: "right" }}>
-                    {n.assistIncomeMnt.toLocaleString("mn-MN")} ₮
-                  </td>
-                  <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700 }}>
-                    {n.totalIncomeMnt.toLocaleString("mn-MN")} ₮
-                  </td>
-                  <td style={{ padding: "8px 12px" }}>
-                    <button
-                      type="button"
-                      style={{
-                        padding: "6px 12px",
-                        fontSize: 13,
-                        borderRadius: 6,
-                        border: "1px solid #2563eb",
-                        backgroundColor: "#eff6ff",
-                        color: "#2563eb",
-                        cursor: "pointer",
-                      }}
-                      onClick={() =>
-                        router.push(
-                          `/admin/nurse/income/${n.nurseId}?startDate=${startDate}&endDate=${endDate}`
-                        )
-                      }
-                    >
-                      Дэлгэрэнгүй
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-left">
+                    <th className="px-3 py-2">Сувилагч</th>
+                    <th className="px-3 py-2 text-right">Зурагны орлого (₮)</th>
+                    <th className="px-3 py-2 text-right">Туслах орлого (₮)</th>
+                    <th className="px-3 py-2 text-right">Нийт орлого (₮)</th>
+                    <th className="px-3 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedNurses.map((n) => (
+                    <tr key={n.nurseId} className="border-t border-gray-200">
+                      <td className="px-3 py-2">{formatNurseName(n)}</td>
+                      <td className="px-3 py-2 text-right">
+                        {n.imagingIncomeMnt.toLocaleString("mn-MN")} ₮
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {n.assistIncomeMnt.toLocaleString("mn-MN")} ₮
+                      </td>
+                      <td className="px-3 py-2 text-right font-bold">
+                        {n.totalIncomeMnt.toLocaleString("mn-MN")} ₮
+                      </td>
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          className="py-1.5 px-3 text-xs rounded-md border border-blue-600 bg-blue-50 text-blue-600 cursor-pointer hover:bg-blue-100"
+                          onClick={() =>
+                            router.push(
+                              `/admin/nurse/income/${n.nurseId}?startDate=${startDate}&endDate=${endDate}`
+                            )
+                          }
+                        >
+                          Дэлгэрэнгүй
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-4 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 bg-white disabled:opacity-40 hover:bg-gray-50"
+                >
+                  ← Өмнөх
+                </button>
+                <span className="text-sm text-gray-600">
+                  {page} / {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 bg-white disabled:opacity-40 hover:bg-gray-50"
+                >
+                  Дараах →
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
     </main>
