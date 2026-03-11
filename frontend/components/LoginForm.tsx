@@ -13,10 +13,18 @@ export default function LoginForm() {
     e.preventDefault();
     setError("");
     setLoading(true);
+
     try {
-      await login(email, password);
-      const redirect = (router.query.redirect as string) || "/";
-      router.replace(redirect);
+      const user = await login(email, password);
+
+      // Honor explicit redirect first (when user was forced to login)
+      const redirectParam =
+        typeof router.query.redirect === "string" ? router.query.redirect : "";
+
+      // Otherwise, role-based default landing page
+      const fallback = user?.role === "doctor" ? "/doctor" : "/";
+
+      router.replace(redirectParam || fallback);
     } catch (err: any) {
       setError(err?.message || "Login failed.");
     } finally {
@@ -34,13 +42,14 @@ export default function LoginForm() {
           name="email"
           type="email"
           value={email}
-          onChange={e => setEmail(e.target.value)}
+          onChange={(e) => setEmail(e.target.value)}
           placeholder="example@mdent.cloud"
           autoFocus
           required
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Нууц үг
@@ -48,13 +57,14 @@ export default function LoginForm() {
         <input
           name="password"
           value={password}
-          onChange={e => setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
           type="password"
           required
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
+
       <button
         type="submit"
         disabled={loading}
@@ -62,6 +72,7 @@ export default function LoginForm() {
       >
         {loading ? "Нэвтэрч байна..." : "Нэвтрэх"}
       </button>
+
       {error && <p className="text-sm text-red-600">{error}</p>}
     </form>
   );
