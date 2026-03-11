@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import UsersTabs from "../../components/UsersTabs";
+import SendResetLinkButton from "../../components/SendResetLinkButton";
 
 type Branch = {
   id: number;
@@ -526,6 +527,8 @@ export default function DoctorsPage() {
                           </a>
                           <span className={tooltipCls}>Түүх</span>
                         </div>
+                        {/* Нууц үг сэргээх */}
+                        <SendResetLinkButton email={d.email} />
                       </div>
                     </td>
                   </tr>

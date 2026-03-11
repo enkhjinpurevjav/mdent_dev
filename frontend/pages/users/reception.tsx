@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import UsersTabs from "../../components/UsersTabs";
+import SendResetLinkButton from "../../components/SendResetLinkButton";
 
 type Branch = {
   id: number;
@@ -413,6 +414,8 @@ export default function ReceptionPage() {
                             </a>
                             <span className={tooltipCls}>Ажлын хуваарь</span>
                           </div>
+                          {/* Нууц үг сэргээх */}
+                          <SendResetLinkButton email={u.email} />
                         </div>
                       </td>
                     </tr>
