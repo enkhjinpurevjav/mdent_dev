@@ -8,6 +8,73 @@ import { finalizeSterilizationForEncounter } from "../services/sterilizationFina
 
 const router = express.Router();
 
+/**
+ * Authorization middleware for encounter write endpoints.
+ *
+ * Rules:
+ * - admin / super_admin: always allowed.
+ * - doctor: allowed only when
+ *     1) encounter.doctorId === req.user.id  (ownership)
+ *     2) the linked appointment.status === 'ongoing'  (not finished)
+ * - Any other role (or unauthenticated): 403.
+ *
+ * Usage: add as a route-level middleware before the handler, e.g.
+ *   router.put("/:id/prescription", requireEncounterWriteAccess, async (req, res) => { ... })
+ *
+ * The middleware extracts the encounter id from req.params.id or
+ * req.params.encounterId (whichever is present).
+ */
+async function requireEncounterWriteAccess(req, res, next) {
+  // Skip auth when DISABLE_AUTH is set (development bypass)
+  if (process.env.DISABLE_AUTH === "true") return next();
+
+  if (!req.user) {
+    return res.status(401).json({ error: "Authentication required." });
+  }
+
+  const { role, id: userId } = req.user;
+
+  // Admins are always allowed
+  if (role === "admin" || role === "super_admin") return next();
+
+  // Doctors must own the encounter AND the appointment must be ongoing
+  if (role === "doctor") {
+    const rawId = req.params.encounterId ?? req.params.id;
+    const encounterId = Number(rawId);
+    if (!Number.isFinite(encounterId) || encounterId <= 0) {
+      return res.status(400).json({ error: "Invalid encounter id" });
+    }
+
+    const encounter = await prisma.encounter.findUnique({
+      where: { id: encounterId },
+      select: {
+        doctorId: true,
+        appointment: { select: { status: true } },
+      },
+    });
+
+    if (!encounter) {
+      return res.status(404).json({ error: "Encounter not found" });
+    }
+
+    if (encounter.doctorId !== userId) {
+      return res.status(403).json({ error: "Forbidden. This encounter does not belong to you." });
+    }
+
+    const apptStatus = encounter.appointment?.status;
+    if (apptStatus !== "ongoing") {
+      return res.status(403).json({
+        error: `Encounters can only be edited while the appointment is 'ongoing'. Current status: '${apptStatus ?? "unknown"}'.`,
+      });
+    }
+
+    return next();
+  }
+
+  // All other roles are forbidden
+  return res.status(403).json({ error: "Forbidden. Insufficient role." });
+}
+
 // --- Media upload config ---
 const uploadDir = process.env.MEDIA_UPLOAD_DIR || "/data/media";
 
@@ -185,7 +252,7 @@ router.get("/:id/consents", async (req, res) => {
  * - answers === null -> delete consent of that type
  * - else -> upsert consent of that type
  */
-router.put("/:id/consents/:type", async (req, res) => {
+router.put("/:id/consents/:type", requireEncounterWriteAccess, async (req, res) => {
   try {
     const encounterId = Number(req.params.id);
     const type = String(req.params.type || "").trim();
@@ -237,6 +304,7 @@ router.put("/:id/consents/:type", async (req, res) => {
  */
 router.post(
   "/:id/patient-signature",
+  requireEncounterWriteAccess,
   upload.single("file"),
   async (req, res) => {
     try {
@@ -287,6 +355,7 @@ router.post(
  */
 router.post(
   "/:id/doctor-signature",
+  requireEncounterWriteAccess,
   upload.single("file"),
   async (req, res) => {
     try {
@@ -377,7 +446,7 @@ router.get("/:id/consent", async (req, res) => {
  * - If type is null -> delete ALL consents for encounter
  * - Otherwise upsert consent for that type (by encounterId_type)
  */
-router.put("/:id/consent", async (req, res) => {
+router.put("/:id/consent", requireEncounterWriteAccess, async (req, res) => {
   try {
     const encounterId = Number(req.params.id);
     if (!encounterId || Number.isNaN(encounterId)) {
@@ -549,7 +618,7 @@ router.get("/:id/nurses", async (req, res) => {
  * - Non-empty array: only deletes/recreates services for diagnosis IDs present in payload
  * - Services for other diagnosis rows remain unchanged
  */
-router.put("/:id/services", async (req, res) => {
+router.put("/:id/services", requireEncounterWriteAccess, async (req, res) => {
   const encounterId = Number(req.params.id);
   if (!encounterId || Number.isNaN(encounterId)) {
     return res.status(400).json({ error: "Invalid encounter id" });
@@ -665,7 +734,7 @@ router.put("/:id/services", async (req, res) => {
  * PUT /api/encounters/:id/nurse
  * Body: { nurseId: number | null }
  */
-router.put("/:id/nurse", async (req, res) => {
+router.put("/:id/nurse", requireEncounterWriteAccess, async (req, res) => {
   try {
     const encounterId = Number(req.params.id);
     if (!encounterId || Number.isNaN(encounterId)) {
@@ -710,7 +779,7 @@ router.put("/:id/nurse", async (req, res) => {
 /**
  * PUT /api/encounters/:id/prescription
  */
-router.put("/:id/prescription", async (req, res) => {
+router.put("/:id/prescription", requireEncounterWriteAccess, async (req, res) => {
   const encounterId = Number(req.params.id);
   if (!encounterId || Number.isNaN(encounterId)) {
     return res.status(400).json({ error: "Invalid encounter id" });
@@ -864,7 +933,7 @@ router.get("/:id/chart-teeth", async (req, res) => {
 /**
  * PUT /api/encounters/:id/chart-teeth
  */
-router.put("/:id/chart-teeth", async (req, res) => {
+router.put("/:id/chart-teeth", requireEncounterWriteAccess, async (req, res) => {
   try {
     const encounterId = Number(req.params.id);
     if (!encounterId || Number.isNaN(encounterId)) {
@@ -920,7 +989,7 @@ router.put("/:id/chart-teeth", async (req, res) => {
  * Doctor finishes encounter → mark related appointment as ready_to_pay
  * NEW: Also finalizes sterilization draft attachments
  */
-router.put("/:id/finish", async (req, res) => {
+router.put("/:id/finish", requireEncounterWriteAccess, async (req, res) => {
   try {
     const encounterId = Number(req.params.id);
     if (!encounterId || Number.isNaN(encounterId)) {
@@ -1005,7 +1074,7 @@ router.get("/:id/media", async (req, res) => {
  * Note: XRAY users should only be able to upload when appointment.status === "imaging"
  * After ready_to_pay (and later statuses), XRAY becomes read-only.
  */
-router.post("/:id/media", upload.single("file"), async (req, res) => {
+router.post("/:id/media", requireEncounterWriteAccess, upload.single("file"), async (req, res) => {
   try {
     const encounterId = Number(req.params.id);
     if (!encounterId || Number.isNaN(encounterId)) {
@@ -1067,7 +1136,7 @@ router.post("/:id/media", upload.single("file"), async (req, res) => {
  * - Deletes the DB record
  * - Attempts to delete the file from disk (best effort)
  */
-router.delete("/:encounterId/media/:mediaId", async (req, res) => {
+router.delete("/:encounterId/media/:mediaId", requireEncounterWriteAccess, async (req, res) => {
   try {
     const encounterId = Number(req.params.encounterId);
     const mediaId = Number(req.params.mediaId);
@@ -1137,7 +1206,7 @@ router.delete("/:encounterId/media/:mediaId", async (req, res) => {
  * Returns: Array of all encounter diagnosis rows with nested diagnosis.problems and 
  * sterilizationIndicators for UI display after save.
  */
-router.put("/:id/diagnoses", async (req, res) => {
+router.put("/:id/diagnoses", requireEncounterWriteAccess, async (req, res) => {
   const encounterId = Number(req.params.id);
   if (!encounterId || Number.isNaN(encounterId)) {
     return res.status(400).json({ error: "Invalid encounter id" });
@@ -1253,7 +1322,7 @@ router.put("/:id/diagnoses", async (req, res) => {
  *
  * Replaces sterilization indicators for a single EncounterDiagnosis row.
  */
-router.put("/:id/diagnoses/:diagnosisId/sterilization-indicators", async (req, res) => {
+router.put("/:id/diagnoses/:diagnosisId/sterilization-indicators", requireEncounterWriteAccess, async (req, res) => {
   try {
     const encounterId = Number(req.params.id);
     const diagnosisRowId = Number(req.params.diagnosisId);
@@ -1399,7 +1468,7 @@ router.put("/:id/diagnoses/:diagnosisId/sterilization-indicators", async (req, r
  *   deletedDiagnosisIds: number[]
  * }
  */
-router.put("/:encounterId/diagnosis-rows", async (req, res) => {
+router.put("/:encounterId/diagnosis-rows", requireEncounterWriteAccess, async (req, res) => {
   const encounterId = Number(req.params.encounterId);
   if (!encounterId || Number.isNaN(encounterId)) {
     return res.status(400).json({ error: "Invalid encounter id" });
