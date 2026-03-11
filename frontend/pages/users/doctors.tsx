@@ -359,8 +359,8 @@ export default function DoctorsPage() {
   };
 
   return (
-    <main className="p-6 font-sans">
-      <h1>Эмч нар</h1>
+    <main className="max-w-7xl px-4 lg:px-8 my-4 font-sans">
+      <h1 className="text-2xl font-bold mt-1 mb-2">Эмч нар</h1>
       <p className="text-gray-500 mb-4">
         Эмч нарыг бүртгэх, салбарт хуваарьлах, профайлыг харах.
       </p>
@@ -368,27 +368,27 @@ export default function DoctorsPage() {
       <UsersTabs />
 
       {/* summary cards */}
-      <section className="grid [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))] gap-3 mb-4">
-        <div className="bg-gradient-to-r from-blue-50 to-white rounded-xl border border-blue-100 p-3 shadow">
-          <div className="text-xs uppercase text-blue-700 font-bold tracking-wide mb-1">
-            Нийт эмч
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <div className="rounded-2xl p-4 bg-blue-100 shadow-sm">
+          <div className="text-xs font-semibold tracking-wide text-blue-700 uppercase mb-1.5">
+            НИЙТ ЭМЧ
           </div>
-          <div className="text-[26px] font-bold text-gray-900 mb-1">
+          <div className="text-3xl font-bold mb-1">
             {summary ? summary.total : "—"}
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-600">
             Системд бүртгэлтэй нийт эмчийн тоо.
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-green-100 to-white rounded-xl border border-green-200 p-3 shadow">
-          <div className="text-xs uppercase text-green-700 font-bold tracking-wide mb-1">
-            Өнөөдөр ажиллаж буй эмч
+        <div className="rounded-2xl p-4 bg-green-100 shadow-sm">
+          <div className="text-xs font-semibold tracking-wide text-green-700 uppercase mb-1.5">
+            ӨНӨӨДӨР АЖИЛЛАЖ БУЙ ЭМЧ
           </div>
-          <div className="text-[26px] font-bold text-gray-900 mb-1">
+          <div className="text-3xl font-bold mb-1">
             {summary ? summary.workingToday : "—"}
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-600">
             Өнөөдрийн ажлын хуваарьт орсон эмч нарын тоо.
           </div>
         </div>
@@ -410,43 +410,46 @@ export default function DoctorsPage() {
         }}
       />
 
-      {loading && <div>Ачааллаж байна...</div>}
-      {!loading && error && <div className="text-red-600">{error}</div>}
+      {loading && <p className="text-gray-500 text-sm">Ачааллаж байна...</p>}
+      {!loading && error && <p className="text-red-600 text-sm">{error}</p>}
 
       {!loading && !error && (
-        <table className="w-full border-collapse mt-5 text-sm">
-          <thead>
-            <tr>
-              <th className="text-left border-b border-gray-200 p-2">#</th>
-              <th className="text-left border-b border-gray-200 p-2">Овог</th>
-              <th className="text-left border-b border-gray-200 p-2">Нэр</th>
-              <th className="text-left border-b border-gray-200 p-2">РД</th>
-              <th className="text-left border-b border-gray-200 p-2">Утас</th>
-              <th className="text-left border-b border-gray-200 p-2">Салбар</th>
-              <th className="text-left border-b border-gray-200 p-2">Дараалал</th>
-              <th className="text-left border-b border-gray-200 p-2">Дэлгэрэнгүй</th>
-            </tr>
-          </thead>
-          <tbody>
-            {doctors.map((d, index) => (
-              <tr key={d.id}>
-                <td className="border-b border-gray-100 p-2">{index + 1}</td>
-                <td className="border-b border-gray-100 p-2">{d.ovog || "-"}</td>
-                <td className="border-b border-gray-100 p-2">{d.name || "-"}</td>
-                <td className="border-b border-gray-100 p-2">{d.regNo || "-"}</td>
-                <td className="border-b border-gray-100 p-2">{d.phone || "-"}</td>
-                <td className="border-b border-gray-100 p-2">
-                  {Array.isArray(d.branches) && d.branches.length > 0
-                    ? d.branches.map((b) => b.name).join(", ")
-                    : d.branch
-                    ? d.branch.name
-                    : "-"}
-                </td>
-                <td className="border-b border-gray-100 p-2">
-                  {(() => {
-                    const isUpDisabled = index === 0 || reorderSaving;
-                    const isDownDisabled = index === doctors.length - 1 || reorderSaving;
-                    return (
+        <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <table className="w-full border-collapse text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                {["#", "Овог", "Нэр", "РД", "Утас", "Салбар", "Дараалал", "Үйлдэл"].map((label, i) => (
+                  <th
+                    key={i}
+                    className="sticky top-0 z-10 text-left border-b border-gray-200 py-2 px-3 font-semibold text-gray-700 whitespace-nowrap bg-gray-50"
+                  >
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {doctors.map((d, index) => {
+                const baseUrl = `/users/doctors/${d.id}`;
+                const btnCls = "inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 bg-gray-50 text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors";
+                const tooltipCls = "pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100";
+                const isUpDisabled = index === 0 || reorderSaving;
+                const isDownDisabled = index === doctors.length - 1 || reorderSaving;
+                return (
+                  <tr key={d.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100">
+                    <td className="border-b border-gray-100 py-2 px-3">{index + 1}</td>
+                    <td className="border-b border-gray-100 py-2 px-3">{d.ovog || "-"}</td>
+                    <td className="border-b border-gray-100 py-2 px-3">{d.name || "-"}</td>
+                    <td className="border-b border-gray-100 py-2 px-3">{d.regNo || "-"}</td>
+                    <td className="border-b border-gray-100 py-2 px-3">{d.phone || "-"}</td>
+                    <td className="border-b border-gray-100 py-2 px-3">
+                      {Array.isArray(d.branches) && d.branches.length > 0
+                        ? d.branches.map((b) => b.name).join(", ")
+                        : d.branch
+                        ? d.branch.name
+                        : "-"}
+                    </td>
+                    <td className="border-b border-gray-100 py-2 px-3">
                       <div className="flex flex-col gap-0.5">
                         <button
                           type="button"
@@ -465,28 +468,79 @@ export default function DoctorsPage() {
                           ▼
                         </button>
                       </div>
-                    );
-                  })()}
-                </td>
-                <td className="border-b border-gray-100 p-2 whitespace-nowrap">
-                  <a
-                    href={`/users/doctors/${d.id}`}
-                    className="inline-block px-2 py-1 rounded border border-blue-600 text-blue-600 no-underline text-xs"
-                  >
-                    Профайл
-                  </a>
-                </td>
-              </tr>
-            ))}
-            {doctors.length === 0 && (
-              <tr>
-                <td colSpan={8} className="text-center text-gray-400 p-3">
-                  Өгөгдөл алга
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                    </td>
+                    <td className="border-b border-gray-100 py-2 px-3">
+                      <div className="flex items-center gap-1">
+                        {/* Профайл */}
+                        <div className="group relative inline-block">
+                          <a href={baseUrl} className={btnCls}>
+                            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
+                            </svg>
+                          </a>
+                          <span className={tooltipCls}>Профайл</span>
+                        </div>
+                        {/* Гүйцэтгэл (Dashboard) */}
+                        <div className="group relative inline-block">
+                          <a href={`${baseUrl}?tab=dashboard`} className={btnCls}>
+                            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M2 10a8 8 0 1116 0H2z" />
+                              <path d="M10 2a8 8 0 00-8 8h8V2z" />
+                            </svg>
+                          </a>
+                          <span className={tooltipCls}>Гүйцэтгэл</span>
+                        </div>
+                        {/* Хуваарь (Schedule) */}
+                        <div className="group relative inline-block">
+                          <a href={`${baseUrl}?tab=schedule`} className={btnCls}>
+                            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clipRule="evenodd" />
+                            </svg>
+                          </a>
+                          <span className={tooltipCls}>Хуваарь</span>
+                        </div>
+                        {/* Цагууд (Appointments) */}
+                        <div className="group relative inline-block">
+                          <a href={`${baseUrl}?tab=appointments`} className={btnCls}>
+                            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clipRule="evenodd" />
+                            </svg>
+                          </a>
+                          <span className={tooltipCls}>Цагууд</span>
+                        </div>
+                        {/* Борлуулалт (Sales) */}
+                        <div className="group relative inline-block">
+                          <a href={`${baseUrl}?tab=sales`} className={btnCls}>
+                            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                            </svg>
+                          </a>
+                          <span className={tooltipCls}>Борлуулалт</span>
+                        </div>
+                        {/* Түүх (History) */}
+                        <div className="group relative inline-block">
+                          <a href={`${baseUrl}?tab=history`} className={btnCls}>
+                            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-.75-4.75a.75.75 0 001.5 0V8.66l1.95 2.1a.75.75 0 101.1-1.02l-3.25-3.5a.75.75 0 00-1.1 0L6.2 9.74a.75.75 0 101.1 1.02l1.95-2.1v4.59z" clipRule="evenodd" />
+                            </svg>
+                          </a>
+                          <span className={tooltipCls}>Түүх</span>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {doctors.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="text-center text-gray-400 py-6 text-sm">
+                    Өгөгдөл алга
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </main>
   );
