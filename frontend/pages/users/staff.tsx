@@ -562,9 +562,9 @@ export default function OtherStaffPage() {
     "w-full border border-gray-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
-    <main className="max-w-[900px] mx-auto my-10 p-6 font-sans">
-      <h1 className="text-2xl font-bold mb-1">Бусад ажилтан</h1>
-      <p className="text-sm text-gray-500 mb-4">
+    <main className="max-w-7xl px-4 lg:px-8 my-4 font-sans">
+      <h1 className="text-2xl font-bold mt-1 mb-2">Бусад ажилтан</h1>
+      <p className="text-gray-500 mb-4">
         Нягтлан, менежер, админ зэрэг бусад ажилчдыг бүртгэх, салбарт
         хуваарьлах, жагсаалтаар харах.
       </p>

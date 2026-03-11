@@ -93,9 +93,9 @@ setUsers(
   };
 
   return (
-    <main className="max-w-[900px] mx-auto my-10 p-6 font-sans">
-      <h1 className="text-2xl font-bold mb-1">Ажилтнууд</h1>
-      <p className="text-sm text-gray-500 mb-4">
+    <main className="max-w-7xl px-4 lg:px-8 my-4 font-sans">
+      <h1 className="text-2xl font-bold mt-1 mb-2">Ажилтнууд</h1>
+      <p className="text-gray-500 mb-4">
         Эмч, ресепшн, сувилагч болон бусад ажилтнуудын мэдээллийг нэг жагсаалтаар
         харах.
       </p>
@@ -114,7 +114,7 @@ setUsers(
                   {["#", "Овог", "Нэр", "Үүрэг", "РД", "Утас", "Салбар"].map((label) => (
                     <th
                       key={label}
-                      className="sticky top-0 z-10 text-left border-b border-gray-200 py-2 px-3 font-semibold text-gray-700 whitespace-nowrap bg-gray-50"
+                      className={`sticky top-0 z-10 text-left border-b border-gray-200 py-2 px-3 font-semibold text-gray-700 bg-gray-50${label === "Салбар" ? " whitespace-normal break-words" : " whitespace-nowrap"}`}
                     >
                       {label}
                     </th>
@@ -126,13 +126,13 @@ setUsers(
                   const rowNumber = (safePage - 1) * PAGE_SIZE + index + 1;
                   return (
                     <tr key={u.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100">
-                      <td className="border-b border-gray-100 py-2 px-3">{rowNumber}</td>
-                      <td className="border-b border-gray-100 py-2 px-3">{u.ovog || "-"}</td>
-                      <td className="border-b border-gray-100 py-2 px-3">{u.name || "-"}</td>
-                      <td className="border-b border-gray-100 py-2 px-3">{getRoleLabel(u.role)}</td>
-                      <td className="border-b border-gray-100 py-2 px-3">{u.regNo || "-"}</td>
-                      <td className="border-b border-gray-100 py-2 px-3">{u.phone || "-"}</td>
-                      <td className="border-b border-gray-100 py-2 px-3">
+                      <td className="border-b border-gray-100 py-2 px-3 whitespace-nowrap">{rowNumber}</td>
+                      <td className="border-b border-gray-100 py-2 px-3 whitespace-nowrap">{u.ovog || "-"}</td>
+                      <td className="border-b border-gray-100 py-2 px-3 whitespace-nowrap">{u.name || "-"}</td>
+                      <td className="border-b border-gray-100 py-2 px-3 whitespace-nowrap">{getRoleLabel(u.role)}</td>
+                      <td className="border-b border-gray-100 py-2 px-3 whitespace-nowrap">{u.regNo || "-"}</td>
+                      <td className="border-b border-gray-100 py-2 px-3 whitespace-nowrap">{u.phone || "-"}</td>
+                      <td className="border-b border-gray-100 py-2 px-3 whitespace-normal break-words">
                         {Array.isArray(u.branches) && u.branches.length > 0
                           ? u.branches.map((b) => b.name).join(", ")
                           : u.branch
