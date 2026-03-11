@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import { formatStatus } from "../../components/appointments/formatters";
 
 type DoctorMeResponse = {
   user?: { id: number; role?: string } | null;
@@ -114,6 +113,25 @@ function getStatusColor(status: string): string {
 function formatPatient(a: DoctorAppointment): string {
   const name = [a.patientOvog, a.patientName].filter(Boolean).join(" ");
   return name || a.patientBookNumber || "—";
+}
+
+const SLOT_PX = 60;
+const MINUTES_PER_SLOT = 30;
+
+function formatStatusShort(status: string): string {
+  switch (status) {
+    case "booked": return "Зах.";
+    case "confirmed": return "Бат.";
+    case "ongoing": return "Яв.";
+    case "completed": return "Дуус.";
+    case "cancelled": return "Цуц.";
+    case "no_show": return "Ирээгүй";
+    case "ready_to_pay": return "Төлбөр";
+    case "partial_paid": return "Үлд.";
+    case "imaging": return "Зураг";
+    case "online": return "Онл.";
+    default: return "Төлөв";
+  }
 }
 
 function groupByDate(appts: DoctorAppointment[]): Grouped[] {
@@ -273,6 +291,41 @@ export default function DoctorAppointmentsPage() {
 
   const grouped = useMemo(() => groupByDate(appointments), [appointments]);
 
+  // Assign lane 0 or 1 to each today appointment for vertical stacking,
+  // and track which appointments overlap with at least one other.
+  const { laneAssignments, overlappingIds } = useMemo(() => {
+    const laneMap = new Map<number, 0 | 1>();
+    const overlapSet = new Set<number>();
+
+    const getInterval = (a: DoctorAppointment) => {
+      const start = new Date(a.scheduledAt).getTime();
+      const end = a.endAt
+        ? new Date(a.endAt).getTime()
+        : start + MINUTES_PER_SLOT * 60_000;
+      return { start, end };
+    };
+
+    for (let i = 0; i < todayAppointments.length; i++) {
+      const a = todayAppointments[i];
+      const aInterval = getInterval(a);
+      const usedLanes = new Set<number>();
+
+      for (let j = 0; j < i; j++) {
+        const b = todayAppointments[j];
+        const bInterval = getInterval(b);
+        if (aInterval.start < bInterval.end && aInterval.end > bInterval.start) {
+          overlapSet.add(a.id);
+          overlapSet.add(b.id);
+          const bLane = laneMap.get(b.id);
+          if (bLane !== undefined) usedLanes.add(bLane);
+        }
+      }
+      laneMap.set(a.id, usedLanes.has(0) ? 1 : 0);
+    }
+
+    return { laneAssignments: laneMap, overlappingIds: overlapSet };
+  }, [todayAppointments]);
+
   // ---- today timeline bounds (schedule -> appointments -> clinic fallback) ----
   const timeline = useMemo(() => {
     const fallback = defaultClinicHours(today);
@@ -345,7 +398,7 @@ export default function DoctorAppointmentsPage() {
     };
   }, [scheduleToday, today, todayAppointments]);
 
-  // compute left/width percentages for appointment blocks
+  // compute left/width pixel values for appointment blocks
   function blockStyle(a: DoctorAppointment): React.CSSProperties {
     const start = new Date(a.scheduledAt);
     const end = a.endAt
@@ -355,22 +408,23 @@ export default function DoctorAppointmentsPage() {
     const startMin = start.getHours() * 60 + start.getMinutes();
     const endMin = end.getHours() * 60 + end.getMinutes();
 
-    const total = timeline.endMin - timeline.startMin || 1;
-    const left = ((startMin - timeline.startMin) / total) * 100;
-    const width = ((endMin - startMin) / total) * 100;
+    const leftPx = ((startMin - timeline.startMin) / MINUTES_PER_SLOT) * SLOT_PX;
+    const widthPx = Math.max(50, ((endMin - startMin) / MINUTES_PER_SLOT) * SLOT_PX);
+
+    const lane = laneAssignments.get(a.id) ?? 0;
+    const isOverlapping = overlappingIds.has(a.id);
 
     return {
       position: "absolute",
-      left: `${Math.max(0, left)}%`,
-      width: `${Math.max(2, width)}%`,
-      top: 8,
-      bottom: 8,
-      borderRadius: 10,
-      padding: "10px 10px",
+      left: Math.max(0, leftPx),
+      width: widthPx,
+      top: isOverlapping ? (lane === 0 ? 4 : "calc(50% + 2px)") : 4,
+      bottom: isOverlapping ? (lane === 0 ? "calc(50% + 2px)" : 4) : 4,
+      borderRadius: 8,
+      padding: "3px 8px",
       background: getStatusColor(a.status),
       color: a.status === "completed" ? "#fff" : "#111827",
       overflow: "hidden",
-      minWidth: 80,
       boxShadow: "0 1px 3px rgba(0,0,0,0.10)",
     };
   }
@@ -391,113 +445,110 @@ export default function DoctorAppointmentsPage() {
           {timeline.title}
         </div>
 
-        {/* timeline header */}
+        {/* single horizontal scroll container: header + body scroll together */}
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${timeline.slots.length}, minmax(60px, 1fr))`,
-            gap: 0,
+            marginTop: 6,
+            overflowX: "auto",
+            overflowY: "hidden",
+            WebkitOverflowScrolling: "touch",
           }}
         >
-          {timeline.slots.map((t) => (
+          {/* fixed-width inner canvas */}
+          <div
+            style={{
+              width: Math.max(360, timeline.slots.length * SLOT_PX),
+            }}
+          >
+            {/* time labels row */}
+            <div style={{ display: "flex" }}>
+              {timeline.slots.map((t, idx) => (
+                <div
+                  key={t}
+                  style={{
+                    width: SLOT_PX,
+                    flexShrink: 0,
+                    fontSize: 11,
+                    color: "#94a3b8",
+                    borderLeft: idx > 0 ? "1px solid #eef2f7" : "none",
+                    paddingLeft: 4,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {t}
+                </div>
+              ))}
+            </div>
+
+            {/* blocks canvas */}
             <div
-              key={t}
               style={{
-                fontSize: 12,
-                color: "#94a3b8",
-                borderLeft: "1px solid #eef2f7",
-                paddingLeft: 6,
+                position: "relative",
+                height: 110,
+                marginTop: 4,
+                background: "#f8fafc",
+                borderRadius: 12,
               }}
             >
-              {t}
+              {/* vertical grid lines */}
+              {timeline.slots.map((t, idx) => (
+                <div
+                  key={t}
+                  style={{
+                    position: "absolute",
+                    left: idx * SLOT_PX,
+                    top: 0,
+                    bottom: 0,
+                    width: 1,
+                    background: "#e5e7eb",
+                  }}
+                />
+              ))}
+
+              {/* blocks */}
+              {todayAppointments.map((a) => (
+                <div
+                  key={a.id}
+                  style={blockStyle(a)}
+                  title={`${formatPatient(a)} ${isoToLocalHHMM(a.scheduledAt)}-${isoToLocalHHMM(
+                    a.endAt || null
+                  )}`}
+                >
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      fontSize: 12,
+                      whiteSpace: "nowrap",
+                      textOverflow: "ellipsis",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {formatPatient(a)}
+                  </div>
+                  <div style={{ fontSize: 11, opacity: 0.9 }}>
+                    {formatStatusShort(a.status)}
+                  </div>
+                </div>
+              ))}
+
+              {todayAppointments.length === 0 && !loading && !error && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#94a3b8",
+                    fontSize: 13,
+                  }}
+                >
+                  Өнөөдрийн цаг алга
+                </div>
+              )}
             </div>
-          ))}
+          </div>
         </div>
-
-        {/* timeline body */}
-<div
-  style={{
-    marginTop: 6,
-    borderRadius: 12,
-    background: "#f8fafc",
-    overflowX: "auto",
-    overflowY: "hidden",
-    WebkitOverflowScrolling: "touch",
-  }}
->
-  {/* Make a scrollable "canvas" that DOES NOT force page width */}
-  <div
-    style={{
-      position: "relative",
-      display: "inline-block",
-      height: 110,
-      width: Math.max(360, timeline.slots.length * 70),
-      verticalAlign: "top",
-    }}
-  >
-    {/* vertical grid lines */}
-    {timeline.slots.map((t, idx) => (
-      <div
-        key={t}
-        style={{
-          position: "absolute",
-          left: `${(idx / (timeline.slots.length - 1)) * 100}%`,
-          top: 0,
-          bottom: 0,
-          width: 1,
-          background: "#e5e7eb",
-        }}
-      />
-    ))}
-
-    {/* blocks */}
-    {todayAppointments.map((a) => (
-      <div
-        key={a.id}
-        style={blockStyle(a)}
-        title={`${formatPatient(a)} ${isoToLocalHHMM(a.scheduledAt)}-${isoToLocalHHMM(
-          a.endAt || null
-        )}`}
-      >
-        <div
-          style={{
-            fontWeight: 800,
-            fontSize: 13,
-            marginBottom: 2,
-            whiteSpace: "nowrap",
-            textOverflow: "ellipsis",
-            overflow: "hidden",
-          }}
-        >
-          {formatPatient(a)} #{a.id}
-        </div>
-        <div style={{ fontSize: 12, opacity: 0.9 }}>
-          {isoToLocalHHMM(a.scheduledAt)} – {isoToLocalHHMM(a.endAt || null)}
-        </div>
-        <div style={{ fontSize: 12, marginTop: 2, opacity: 0.9 }}>
-          {formatStatus(a.status)}
-          {a.branchName ? ` · ${a.branchName}` : ""}
-        </div>
-      </div>
-    ))}
-
-    {todayAppointments.length === 0 && !loading && !error && (
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#94a3b8",
-          fontSize: 13,
-        }}
-      >
-        Өнөөдрийн цаг алга
-      </div>
-    )}
-  </div>
-</div>
       </div>
 
       {/* Filters (range) */}
@@ -623,28 +674,37 @@ export default function DoctorAppointmentsPage() {
               {date.replaceAll("-", "/")} {formatDateLabel(date) === "Өнөөдөр" ? "" : ""}
             </div>
 
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(min(300px, 100%), 1fr))",
+                gap: 10,
+              }}
+            >
               {items.map((a) => (
                 <div
                   key={a.id}
                   style={{
-                    width: "min(260px, 100%)",
-                    flex: "1 1 220px",
                     borderRadius: 12,
                     padding: 12,
                     background: getStatusColor(a.status),
                     color: "#111827",
                   }}
                 >
-                  <div style={{ fontWeight: 900, fontSize: 13, marginBottom: 4 }}>
-                    {formatPatient(a)} #{a.id}
+                  <div
+                    style={{
+                      fontWeight: 900,
+                      fontSize: 13,
+                      marginBottom: 4,
+                      whiteSpace: "nowrap",
+                      textOverflow: "ellipsis",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {formatPatient(a)}
                   </div>
-                  <div style={{ fontSize: 12, opacity: 0.95 }}>
-                    {isoToLocalHHMM(a.scheduledAt)} – {isoToLocalHHMM(a.endAt || null)}
-                  </div>
-                  <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2 }}>
-                    {formatStatus(a.status)}
-                    {a.branchName ? ` · ${a.branchName}` : ""}
+                  <div style={{ fontSize: 12, opacity: 0.9 }}>
+                    {formatStatusShort(a.status)}
                   </div>
 
                   {a.status === "ongoing" && (
