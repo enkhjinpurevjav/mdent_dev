@@ -31,6 +31,11 @@ type Service = {
   serviceBranches: ServiceBranch[];
 };
 
+type CategorySetting = {
+  category: ServiceCategory;
+  durationMinutes: number;
+};
+
 const SERVICE_CATEGORY_LABELS: Record<ServiceCategory, string> = {
   ORTHODONTIC_TREATMENT: "Гажиг заслын эмчилгээ",
   IMAGING: "Зураг авах",
@@ -41,6 +46,8 @@ const SERVICE_CATEGORY_LABELS: Record<ServiceCategory, string> = {
   SURGERY: "Мэс засал",
   PREVIOUS: "Өмнөх",
 };
+
+const ALL_CATEGORIES = Object.keys(SERVICE_CATEGORY_LABELS) as ServiceCategory[];
 
 export default function ServicesPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -92,6 +99,23 @@ export default function ServicesPage() {
   const [page, setPage] = useState(1);
   const pageSize = 30;
 
+  // category duration settings
+  const [categorySettings, setCategorySettings] = useState<
+    Record<ServiceCategory, number>
+  >({} as Record<ServiceCategory, number>);
+  const [durationInputs, setDurationInputs] = useState<
+    Record<ServiceCategory, string>
+  >({} as Record<ServiceCategory, string>);
+  const [durationSaving, setDurationSaving] = useState<
+    Partial<Record<ServiceCategory, boolean>>
+  >({});
+  const [durationErrors, setDurationErrors] = useState<
+    Partial<Record<ServiceCategory, string>>
+  >({});
+  const [durationSaved, setDurationSaved] = useState<
+    Partial<Record<ServiceCategory, boolean>>
+  >({});
+
   const buildQuery = () => {
     const params = new URLSearchParams();
     if (filterCategory) params.set("category", filterCategory);
@@ -135,10 +159,79 @@ export default function ServicesPage() {
     }
   };
 
+  const loadCategorySettings = async () => {
+    try {
+      const res = await fetch("/api/service-category-settings");
+      if (!res.ok) return;
+      const data: CategorySetting[] = await res.json();
+      const settingsMap = {} as Record<ServiceCategory, number>;
+      const inputsMap = {} as Record<ServiceCategory, string>;
+      data.forEach(({ category, durationMinutes }) => {
+        settingsMap[category] = durationMinutes;
+        inputsMap[category] = String(durationMinutes);
+      });
+      // fill any missing categories with default
+      ALL_CATEGORIES.forEach((cat) => {
+        if (settingsMap[cat] === undefined) {
+          settingsMap[cat] = 30;
+          inputsMap[cat] = "30";
+        }
+      });
+      setCategorySettings(settingsMap);
+      setDurationInputs(inputsMap);
+    } catch (err) {
+      console.error("loadCategorySettings error:", err);
+    }
+  };
+
   useEffect(() => {
     loadAll();
+    loadCategorySettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterCategory, filterBranchId, filterOnlyActive]);
+
+  const handleSaveDuration = async (category: ServiceCategory) => {
+    const rawVal = durationInputs[category];
+    const val = Number(rawVal);
+    if (!Number.isInteger(val) || val < 30) {
+      setDurationErrors((prev) => ({
+        ...prev,
+        [category]: "Хамгийн бага 30 минут байх ёстой",
+      }));
+      return;
+    }
+    setDurationErrors((prev) => ({ ...prev, [category]: undefined }));
+    setDurationSaving((prev) => ({ ...prev, [category]: true }));
+    setDurationSaved((prev) => ({ ...prev, [category]: false }));
+    try {
+      const res = await fetch(`/api/service-category-settings/${category}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ durationMinutes: val }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setDurationErrors((prev) => ({
+          ...prev,
+          [category]: (data as any).error || "Хадгалах үед алдаа гарлаа",
+        }));
+      } else {
+        setCategorySettings((prev) => ({ ...prev, [category]: val }));
+        setDurationSaved((prev) => ({ ...prev, [category]: true }));
+        setTimeout(() => {
+          setDurationSaved((prev) => ({ ...prev, [category]: false }));
+        }, 2000);
+      }
+    } catch (err) {
+      console.error("handleSaveDuration error:", err);
+      setDurationErrors((prev) => ({
+        ...prev,
+        [category]: "Сүлжээгээ шалгана уу",
+      }));
+    } finally {
+      setDurationSaving((prev) => ({ ...prev, [category]: false }));
+    }
+  };
 
   const toggleCreateBranch = (branchId: number) => {
     setForm((prev) => {
@@ -395,56 +488,23 @@ export default function ServicesPage() {
   }, [pagedServices]);
 
   return (
-    <main
-      style={{
-        maxWidth: 1000,
-        margin: "16px auto",
-        padding: 24,
-        fontFamily: "sans-serif",
-      }}
-    >
-      <h1 style={{ fontSize: 20, margin: "4px 0 8px" }}>Үйлчилгээ</h1>
-      <p style={{ color: "#6b7280", fontSize: 13, marginBottom: 12 }}>
+    <main className="w-full px-6 py-6 max-w-5xl mx-auto">
+      <h1 className="text-xl font-semibold mb-1">Үйлчилгээ</h1>
+      <p className="text-sm text-gray-500 mb-4">
         Үйлчилгээний нэр, үнэ, категори болон салбаруудыг бүртгэх, засварлах.
       </p>
 
-      {/* Create service form – polished card */}
-      <section
-        style={{
-          marginTop: 8,
-          marginBottom: 16,
-          padding: 16,
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-          background: "#ffffff",
-        }}
-      >
-        <h2 style={{ margin: 0, fontSize: 16, marginBottom: 8 }}>
-          Шинэ үйлчилгээ бүртгэх
-        </h2>
-        <p
-          style={{
-            margin: 0,
-            marginBottom: 12,
-            color: "#6b7280",
-            fontSize: 12,
-          }}
-        >
+      {/* Create service form */}
+      <section className="mb-4 p-4 rounded-lg border border-gray-200 bg-white">
+        <h2 className="text-base font-semibold mb-1">Шинэ үйлчилгээ бүртгэх</h2>
+        <p className="text-xs text-gray-500 mb-3">
           Зөвхөн нэр, үнэ, категори болон салбарыг заавал бөглөнө. Код, тайлбар
           талбарууд сонголттой.
         </p>
 
         <form onSubmit={handleCreateSubmit}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 10,
-              marginBottom: 10,
-              fontSize: 13,
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mb-2.5 text-sm">
+            <div className="flex flex-col gap-1">
               <label>Нэр</label>
               <input
                 placeholder="Ж: Шүдний цоорхой пломбдох"
@@ -453,15 +513,11 @@ export default function ServicesPage() {
                   setForm((f) => ({ ...f, name: e.target.value }))
                 }
                 required
-                style={{
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  padding: "6px 8px",
-                }}
+                className="rounded border border-gray-300 px-2 py-1.5"
               />
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div className="flex flex-col gap-1">
               <label>Үнэ (₮)</label>
               <input
                 type="number"
@@ -471,15 +527,11 @@ export default function ServicesPage() {
                   setForm((f) => ({ ...f, price: e.target.value }))
                 }
                 required
-                style={{
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  padding: "6px 8px",
-                }}
+                className="rounded border border-gray-300 px-2 py-1.5"
               />
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div className="flex flex-col gap-1">
               <label>Категори</label>
               <select
                 value={form.category || ""}
@@ -492,11 +544,7 @@ export default function ServicesPage() {
                   }))
                 }
                 required
-                style={{
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  padding: "6px 8px",
-                }}
+                className="rounded border border-gray-300 px-2 py-1.5"
               >
                 <option value="">Категори сонгох</option>
                 {Object.entries(SERVICE_CATEGORY_LABELS).map(
@@ -509,13 +557,7 @@ export default function ServicesPage() {
               </select>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-              }}
-            >
+            <div className="flex flex-col gap-1">
               <label>Код</label>
               <input
                 placeholder="Ж: S0001 (хоосон бол автоматаар үүснэ)"
@@ -523,22 +565,11 @@ export default function ServicesPage() {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, code: e.target.value }))
                 }
-                style={{
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  padding: "6px 8px",
-                }}
+                className="rounded border border-gray-300 px-2 py-1.5"
               />
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-                gridColumn: "1 / -1",
-              }}
-            >
+            <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
               <label>Тайлбар</label>
               <textarea
                 placeholder="Ж: Энгийн цоорхой пломбдолт, мэдээ алдуулалттай"
@@ -550,50 +581,22 @@ export default function ServicesPage() {
                   }))
                 }
                 rows={2}
-                style={{
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  padding: "6px 8px",
-                  resize: "vertical",
-                }}
+                className="rounded border border-gray-300 px-2 py-1.5 resize-y"
               />
             </div>
 
             {/* branch selection */}
-            <div
-              style={{
-                gridColumn: "1 / -1",
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-              }}
-            >
+            <div className="sm:col-span-2 lg:col-span-3 flex flex-col gap-1">
               <label>Салбарууд</label>
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 8,
-                }}
-              >
+              <div className="flex flex-wrap gap-2">
                 {branches.map((b) => (
                   <label
                     key={b.id}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                      border: "1px solid #d1d5db",
-                      borderRadius: 999,
-                      padding: "3px 8px",
-                      fontSize: 12,
-                      background: form.branchIds.includes(b.id)
-                        ? "#eff6ff"
-                        : "#ffffff",
-                      color: form.branchIds.includes(b.id)
-                        ? "#1d4ed8"
-                        : "#374151",
-                    }}
+                    className={`inline-flex items-center gap-1 border rounded-full px-2 py-0.5 text-xs cursor-pointer ${
+                      form.branchIds.includes(b.id)
+                        ? "bg-blue-50 border-blue-300 text-blue-700"
+                        : "bg-white border-gray-300 text-gray-700"
+                    }`}
                   >
                     <input
                       type="checkbox"
@@ -606,14 +609,7 @@ export default function ServicesPage() {
               </div>
             </div>
 
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                marginTop: 4,
-              }}
-            >
+            <label className="inline-flex items-center gap-1.5 mt-1">
               <input
                 type="checkbox"
                 checked={form.isActive}
@@ -625,65 +621,82 @@ export default function ServicesPage() {
             </label>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 8,
-              alignItems: "center",
-            }}
-          >
+          <div className="flex justify-end gap-2 items-center">
             {formError && (
-              <div
-                style={{
-                  color: "#b91c1c",
-                  fontSize: 12,
-                  marginRight: "auto",
-                }}
-              >
-                {formError}
-              </div>
+              <div className="text-red-700 text-xs mr-auto">{formError}</div>
             )}
             <button
               type="submit"
               disabled={submitting}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 6,
-                border: "none",
-                background: "#2563eb",
-                color: "#ffffff",
-                cursor: submitting ? "default" : "pointer",
-                fontSize: 13,
-              }}
+              className="px-3 py-1.5 rounded border-none bg-blue-600 text-white text-sm cursor-pointer disabled:opacity-60"
             >
               {submitting ? "Хадгалж байна..." : "Бүртгэх"}
             </button>
           </div>
         </form>
+
+        {/* Category duration settings */}
+        <div className="mt-5 border-t border-gray-100 pt-4">
+          <h3 className="text-sm font-semibold mb-2">
+            Категорийн хугацаа (минут)
+          </h3>
+          <div className="space-y-2">
+            {ALL_CATEGORIES.map((cat) => {
+              const inputVal =
+                durationInputs[cat] !== undefined
+                  ? durationInputs[cat]
+                  : String(categorySettings[cat] ?? 30);
+              const isSaving = !!durationSaving[cat];
+              const errMsg = durationErrors[cat];
+              const isSaved = !!durationSaved[cat];
+
+              return (
+                <div
+                  key={cat}
+                  className="flex items-center gap-3 text-sm flex-wrap"
+                >
+                  <span className="w-52 text-gray-700">
+                    {SERVICE_CATEGORY_LABELS[cat]}
+                  </span>
+                  <input
+                    type="number"
+                    min={30}
+                    value={inputVal}
+                    onChange={(e) =>
+                      setDurationInputs((prev) => ({
+                        ...prev,
+                        [cat]: e.target.value,
+                      }))
+                    }
+                    className="w-20 rounded border border-gray-300 px-2 py-1 text-sm"
+                  />
+                  <span className="text-gray-500 text-xs">мин</span>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveDuration(cat)}
+                    disabled={isSaving}
+                    className="px-2.5 py-1 rounded border border-gray-300 bg-white text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60 cursor-pointer"
+                  >
+                    {isSaving ? "..." : "Хадгалах"}
+                  </button>
+                  {isSaved && (
+                    <span className="text-green-600 text-xs">✓ Хадгаллаа</span>
+                  )}
+                  {errMsg && (
+                    <span className="text-red-600 text-xs">{errMsg}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </section>
 
       {/* Filters card */}
-      <section
-        style={{
-          marginBottom: 16,
-          padding: 12,
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-          background: "#f9fafb",
-        }}
-      >
-        <h2 style={{ marginTop: 0, fontSize: 16 }}>Шүүлтүүр</h2>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: 10,
-            fontSize: 13,
-            marginBottom: 8,
-          }}
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <section className="mb-4 p-3 rounded-lg border border-gray-200 bg-gray-50">
+        <h2 className="text-base font-semibold mt-0 mb-2">Шүүлтүүр</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-sm mb-2">
+          <div className="flex flex-col gap-1">
             <label>Категори</label>
             <select
               value={filterCategory}
@@ -692,11 +705,7 @@ export default function ServicesPage() {
                   e.target.value ? (e.target.value as ServiceCategory) : ""
                 )
               }
-              style={{
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                padding: "6px 8px",
-              }}
+              className="rounded border border-gray-300 px-2 py-1.5"
             >
               <option value="">Бүгд</option>
               {Object.entries(SERVICE_CATEGORY_LABELS).map(
@@ -709,7 +718,7 @@ export default function ServicesPage() {
             </select>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div className="flex flex-col gap-1">
             <label>Салбар</label>
             <select
               value={filterBranchId === "" ? "" : String(filterBranchId)}
@@ -718,11 +727,7 @@ export default function ServicesPage() {
                   e.target.value ? Number(e.target.value) : ""
                 )
               }
-              style={{
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                padding: "6px 8px",
-              }}
+              className="rounded border border-gray-300 px-2 py-1.5"
             >
               <option value="">Бүгд</option>
               {branches.map((b) => (
@@ -733,14 +738,7 @@ export default function ServicesPage() {
             </select>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              marginTop: 18,
-            }}
-          >
+          <div className="flex items-center gap-1.5 mt-5">
             <input
               type="checkbox"
               id="onlyActive"
@@ -758,58 +756,32 @@ export default function ServicesPage() {
             setFilterSearch(e.target.value);
             setPage(1);
           }}
-          style={{
-            width: "100%",
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            padding: "6px 8px",
-            fontSize: 13,
-          }}
+          className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
         />
       </section>
 
       {loading && (
-        <div style={{ color: "#4b5563", fontSize: 13 }}>Ачааллаж байна...</div>
+        <div className="text-gray-600 text-sm">Ачааллаж байна...</div>
       )}
       {!loading && error && (
-        <div style={{ color: "#b91c1c", fontSize: 13, marginBottom: 12 }}>
-          {error}
-        </div>
+        <div className="text-red-700 text-sm mb-3">{error}</div>
       )}
 
       {/* Services list */}
       {!loading && !error && (
         <section>
-          <h2 style={{ fontSize: 16, marginBottom: 8 }}>
+          <h2 className="text-base font-semibold mb-2">
             Бүртгэлтэй үйлчилгээ
           </h2>
           {editError && (
-            <div style={{ color: "#b91c1c", fontSize: 12, marginBottom: 8 }}>
-              {editError}
-            </div>
+            <div className="text-red-700 text-xs mb-2">{editError}</div>
           )}
           {filteredServices.length === 0 ? (
-            <div style={{ color: "#9ca3af", fontSize: 13 }}>
-              Үйлчилгээ алга.
-            </div>
+            <div className="text-gray-400 text-sm">Үйлчилгээ алга.</div>
           ) : (
             <>
-              <div
-                style={{
-                  maxHeight: 520,
-                  overflow: "auto",
-                  borderRadius: 8,
-                  border: "1px solid #e5e7eb",
-                  background: "#ffffff",
-                }}
-              >
-                <table
-                  style={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                    fontSize: 14,
-                  }}
-                >
+              <div className="max-h-[520px] overflow-auto rounded-lg border border-gray-200 bg-white">
+                <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr>
                       {[
@@ -824,16 +796,9 @@ export default function ServicesPage() {
                       ].map((label) => (
                         <th
                           key={label}
-                          style={{
-                            position: "sticky",
-                            top: 0,
-                            background: "#f9fafb",
-                            textAlign:
-                              label === "Үнэ (₮)" ? "right" : "left",
-                            borderBottom: "1px solid #ddd",
-                            padding: 8,
-                            zIndex: 1,
-                          }}
+                          className={`sticky top-0 bg-gray-50 border-b border-gray-300 p-2 z-10 ${
+                            label === "Үнэ (₮)" ? "text-right" : "text-left"
+                          }`}
                         >
                           {label}
                         </th>
@@ -858,23 +823,11 @@ export default function ServicesPage() {
                           <tr>
                             <td
                               colSpan={8}
-                              style={{
-                                background: "#f3f4f6",
-                                borderBottom: "1px solid #e5e7eb",
-                                padding: 8,
-                                fontWeight: 600,
-                                cursor: "pointer",
-                                fontSize: 13,
-                              }}
+                              className="bg-gray-100 border-b border-gray-200 p-2 font-semibold cursor-pointer text-sm"
                               onClick={() => toggleCategory(category)}
                             >
                               {isCollapsed ? "▶" : "▼"} {label}{" "}
-                              <span
-                                style={{
-                                  color: "#6b7280",
-                                  fontWeight: 400,
-                                }}
-                              >
+                              <span className="text-gray-500 font-normal">
                                 ({list.length})
                               </span>
                             </td>
@@ -887,59 +840,35 @@ export default function ServicesPage() {
                               if (isEditing) {
                                 return (
                                   <tr key={s.id}>
-                                    <td
-                                      style={{
-                                        borderBottom: "1px solid #f0f0f0",
-                                        padding: 8,
-                                      }}
-                                    >
-                                      {(safePage - 1) * pageSize +
-                                        index +
-                                        1}
+                                    <td className="border-b border-gray-100 p-2">
+                                      {(safePage - 1) * pageSize + index + 1}
                                     </td>
-                                    <td
-                                      style={{
-                                        borderBottom: "1px solid #f0f0f0",
-                                        padding: 8,
-                                      }}
-                                    >
+                                    <td className="border-b border-gray-100 p-2">
                                       <input
                                         name="code"
                                         value={editForm.code}
                                         onChange={handleEditChange}
-                                        style={{ width: "100%" }}
+                                        className="w-full border border-gray-300 rounded px-1.5 py-0.5"
                                         placeholder="Код"
                                       />
                                     </td>
-                                    <td
-                                      style={{
-                                        borderBottom: "1px solid #f0f0f0",
-                                        padding: 8,
-                                      }}
-                                    >
+                                    <td className="border-b border-gray-100 p-2">
                                       <input
                                         name="name"
                                         value={editForm.name}
                                         onChange={handleEditChange}
-                                        style={{ width: "100%" }}
+                                        className="w-full border border-gray-300 rounded px-1.5 py-0.5"
                                         placeholder="Нэр"
                                       />
                                     </td>
-                                    <td
-                                      style={{
-                                        borderBottom: "1px solid #f0f0f0",
-                                        padding: 8,
-                                      }}
-                                    >
+                                    <td className="border-b border-gray-100 p-2">
                                       <select
                                         name="category"
                                         value={editForm.category}
                                         onChange={handleEditChange}
-                                        style={{ width: "100%" }}
+                                        className="w-full border border-gray-300 rounded px-1.5 py-0.5"
                                       >
-                                        <option value="">
-                                          Категори
-                                        </option>
+                                        <option value="">Категори</option>
                                         {Object.entries(
                                           SERVICE_CATEGORY_LABELS
                                         ).map(([value, label]) => (
@@ -952,51 +881,22 @@ export default function ServicesPage() {
                                         ))}
                                       </select>
                                     </td>
-                                    <td
-                                      style={{
-                                        borderBottom: "1px solid #f0f0f0",
-                                        padding: 8,
-                                        textAlign: "right",
-                                      }}
-                                    >
+                                    <td className="border-b border-gray-100 p-2 text-right">
                                       <input
                                         name="price"
                                         type="number"
                                         value={editForm.price}
                                         onChange={handleEditChange}
-                                        style={{
-                                          width: "100%",
-                                          textAlign: "right",
-                                        }}
+                                        className="w-full border border-gray-300 rounded px-1.5 py-0.5 text-right"
                                         placeholder="Үнэ"
                                       />
                                     </td>
-                                    <td
-                                      style={{
-                                        borderBottom: "1px solid #f0f0f0",
-                                        padding: 8,
-                                      }}
-                                    >
-                                      <div
-                                        style={{
-                                          display: "flex",
-                                          flexWrap: "wrap",
-                                          gap: 4,
-                                        }}
-                                      >
+                                    <td className="border-b border-gray-100 p-2">
+                                      <div className="flex flex-wrap gap-1">
                                         {branches.map((b) => (
                                           <label
                                             key={b.id}
-                                            style={{
-                                              display: "inline-flex",
-                                              alignItems: "center",
-                                              gap: 4,
-                                              border:
-                                                "1px solid #ddd",
-                                              borderRadius: 4,
-                                              padding: "2px 6px",
-                                              fontSize: 12,
-                                            }}
+                                            className="inline-flex items-center gap-1 border border-gray-300 rounded px-1.5 py-0.5 text-xs cursor-pointer"
                                           >
                                             <input
                                               type="checkbox"
@@ -1012,52 +912,29 @@ export default function ServicesPage() {
                                         ))}
                                       </div>
                                     </td>
-                                    <td
-                                      style={{
-                                        borderBottom: "1px solid #f0f0f0",
-                                        padding: 8,
-                                        textAlign: "center",
-                                      }}
-                                    >
-                                      <label
-                                        style={{ fontSize: 13 }}
-                                      >
+                                    <td className="border-b border-gray-100 p-2 text-center">
+                                      <label className="text-sm">
                                         <input
                                           type="checkbox"
                                           name="isActive"
-                                          checked={
-                                            editForm.isActive
-                                          }
+                                          checked={editForm.isActive}
                                           onChange={handleEditChange}
                                         />{" "}
                                         Идэвхтэй
                                       </label>
                                     </td>
-                                    <td
-                                      style={{
-                                        borderBottom: "1px solid #f0f0f0",
-                                        padding: 8,
-                                        whiteSpace: "nowrap",
-                                      }}
-                                    >
+                                    <td className="border-b border-gray-100 p-2 whitespace-nowrap">
                                       <button
                                         type="button"
                                         onClick={() => saveEdit(s.id)}
-                                        style={{
-                                          marginRight: 8,
-                                          padding: "2px 6px",
-                                          fontSize: 12,
-                                        }}
+                                        className="mr-2 px-1.5 py-0.5 text-xs border border-gray-300 rounded cursor-pointer hover:bg-gray-50"
                                       >
                                         Хадгалах
                                       </button>
                                       <button
                                         type="button"
                                         onClick={cancelEdit}
-                                        style={{
-                                          padding: "2px 6px",
-                                          fontSize: 12,
-                                        }}
+                                        className="px-1.5 py-0.5 text-xs border border-gray-300 rounded cursor-pointer hover:bg-gray-50"
                                       >
                                         Цуцлах
                                       </button>
@@ -1068,116 +945,44 @@ export default function ServicesPage() {
 
                               return (
                                 <tr key={s.id}>
-                                  <td
-                                    style={{
-                                      borderBottom:
-                                        "1px solid #f0f0f0",
-                                      padding: 8,
-                                    }}
-                                  >
-                                    {(safePage - 1) * pageSize +
-                                      index +
-                                      1}
+                                  <td className="border-b border-gray-100 p-2">
+                                    {(safePage - 1) * pageSize + index + 1}
                                   </td>
-                                  <td
-                                    style={{
-                                      borderBottom:
-                                        "1px solid #f0f0f0",
-                                      padding: 8,
-                                    }}
-                                  >
+                                  <td className="border-b border-gray-100 p-2">
                                     {s.code || "-"}
                                   </td>
-                                  <td
-                                    style={{
-                                      borderBottom:
-                                        "1px solid #f0f0f0",
-                                      padding: 8,
-                                    }}
-                                  >
+                                  <td className="border-b border-gray-100 p-2">
                                     {s.name}
                                   </td>
-                                  <td
-                                    style={{
-                                      borderBottom:
-                                        "1px solid #f0f0f0",
-                                      padding: 8,
-                                    }}
-                                  >
-                                    {SERVICE_CATEGORY_LABELS[
-                                      s.category
-                                    ] || s.category}
+                                  <td className="border-b border-gray-100 p-2">
+                                    {SERVICE_CATEGORY_LABELS[s.category] ||
+                                      s.category}
                                   </td>
-                                  <td
-                                    style={{
-                                      borderBottom:
-                                        "1px solid #f0f0f0",
-                                      padding: 8,
-                                      textAlign: "right",
-                                    }}
-                                  >
-                                    {s.price.toLocaleString(
-                                      "mn-MN"
-                                    )}
+                                  <td className="border-b border-gray-100 p-2 text-right">
+                                    {s.price.toLocaleString("mn-MN")}
                                   </td>
-                                  <td
-                                    style={{
-                                      borderBottom:
-                                        "1px solid #f0f0f0",
-                                      padding: 8,
-                                    }}
-                                  >
+                                  <td className="border-b border-gray-100 p-2">
                                     {s.serviceBranches?.length
                                       ? s.serviceBranches
-                                          .map(
-                                            (sb) =>
-                                              sb.branch.name
-                                          )
+                                          .map((sb) => sb.branch.name)
                                           .join(", ")
                                       : "-"}
                                   </td>
-                                  <td
-                                    style={{
-                                      borderBottom:
-                                        "1px solid #f0f0f0",
-                                      padding: 8,
-                                      textAlign: "center",
-                                    }}
-                                  >
-                                    {s.isActive
-                                      ? "Идэвхтэй"
-                                      : "Идэвхгүй"}
+                                  <td className="border-b border-gray-100 p-2 text-center">
+                                    {s.isActive ? "Идэвхтэй" : "Идэвхгүй"}
                                   </td>
-                                  <td
-                                    style={{
-                                      borderBottom:
-                                        "1px solid #f0f0f0",
-                                      padding: 8,
-                                      whiteSpace: "nowrap",
-                                    }}
-                                  >
+                                  <td className="border-b border-gray-100 p-2 whitespace-nowrap">
                                     <button
                                       type="button"
                                       onClick={() => startEdit(s)}
-                                      style={{
-                                        marginRight: 8,
-                                        padding: "2px 6px",
-                                        fontSize: 12,
-                                      }}
+                                      className="mr-2 px-1.5 py-0.5 text-xs border border-gray-300 rounded cursor-pointer hover:bg-gray-50"
                                     >
                                       Засах
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() =>
-                                        deleteService(s.id)
-                                      }
-                                      style={{
-                                        padding: "2px 6px",
-                                        fontSize: 12,
-                                        color: "#b91c1c",
-                                        borderColor: "#b91c1c",
-                                      }}
+                                      onClick={() => deleteService(s.id)}
+                                      className="px-1.5 py-0.5 text-xs border border-red-700 rounded text-red-700 cursor-pointer hover:bg-red-50"
                                     >
                                       Устгах
                                     </button>
@@ -1193,11 +998,7 @@ export default function ServicesPage() {
                       <tr>
                         <td
                           colSpan={8}
-                          style={{
-                            textAlign: "center",
-                            color: "#888",
-                            padding: 12,
-                          }}
+                          className="text-center text-gray-400 p-3"
                         >
                           Өгөгдөл алга
                         </td>
@@ -1209,35 +1010,21 @@ export default function ServicesPage() {
 
               {/* Pagination */}
               {filteredServices.length > pageSize && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    fontSize: 13,
-                    color: "#4b5563",
-                  }}
-                >
+                <div className="mt-2 flex justify-between items-center text-sm text-gray-600">
                   <span>
                     Нийт {filteredServices.length} үйлчилгээ — {safePage}/
                     {totalPages} хуудас
                   </span>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                       disabled={safePage === 1}
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: 4,
-                        border: "1px solid #d1d5db",
-                        background:
-                          safePage === 1 ? "#f9fafb" : "#ffffff",
-                        color: "#111827",
-                        cursor:
-                          safePage === 1 ? "default" : "pointer",
-                      }}
+                      className={`px-2 py-1 rounded border border-gray-300 text-gray-800 ${
+                        safePage === 1
+                          ? "bg-gray-50 cursor-default"
+                          : "bg-white cursor-pointer hover:bg-gray-50"
+                      }`}
                     >
                       Өмнөх
                     </button>
@@ -1247,18 +1034,11 @@ export default function ServicesPage() {
                         setPage((p) => Math.min(totalPages, p + 1))
                       }
                       disabled={safePage === totalPages}
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: 4,
-                        border: "1px solid #d1d5db",
-                        background:
-                          safePage === totalPages ? "#f9fafb" : "#ffffff",
-                        color: "#111827",
-                        cursor:
-                          safePage === totalPages
-                            ? "default"
-                            : "pointer",
-                      }}
+                      className={`px-2 py-1 rounded border border-gray-300 text-gray-800 ${
+                        safePage === totalPages
+                          ? "bg-gray-50 cursor-default"
+                          : "bg-white cursor-pointer hover:bg-gray-50"
+                      }`}
                     >
                       Дараах
                     </button>
