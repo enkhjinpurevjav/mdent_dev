@@ -173,7 +173,9 @@ function DrillDownRows({
             <td className="px-3 py-2 text-xs text-gray-700">
               {line.paymentMethodLabel || "-"}
             </td>
-            <td className="px-3 py-2 text-xs text-gray-500">{line.serviceCategory}</td>
+            <td className="px-3 py-2 text-xs text-gray-500">
+  {SERVICE_CATEGORY_LABELS[line.serviceCategory] ?? line.serviceCategory}
+</td>
             <td className="px-3 py-2 text-center">
               <div className="group relative inline-block">
                 <button
