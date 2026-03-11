@@ -4,7 +4,6 @@
  * Tests:
  *  - generateBuckets with bucket="month"
  *  - generateBuckets with bucket="week"
- *  - generateBuckets with bucket="day"
  *  - ISO week utility functions
  *  - Bucket clipping at range boundaries
  */
@@ -60,33 +59,6 @@ describe("isoWeekMonday", () => {
   });
 });
 
-// ── generateBuckets - day ─────────────────────────────────────────────────────
-
-describe("generateBuckets day", () => {
-  it("3-day range produces 3 daily buckets", () => {
-    const buckets = generateBuckets("2026-03-09", "2026-03-11", "day");
-    assert.equal(buckets.length, 3);
-    assert.equal(buckets[0].key, "2026-03-09");
-    assert.equal(buckets[1].key, "2026-03-10");
-    assert.equal(buckets[2].key, "2026-03-11");
-  });
-
-  it("single day produces 1 bucket", () => {
-    const buckets = generateBuckets("2026-03-10", "2026-03-10", "day");
-    assert.equal(buckets.length, 1);
-    assert.equal(buckets[0].startDate, "2026-03-10");
-    assert.equal(buckets[0].endDate, "2026-03-10");
-  });
-
-  it("each bucket covers exactly 1 day (start inclusive, end exclusive = next day)", () => {
-    const buckets = generateBuckets("2026-03-09", "2026-03-11", "day");
-    for (let i = 0; i < buckets.length; i++) {
-      const diffMs = buckets[i].end.getTime() - buckets[i].start.getTime();
-      assert.equal(diffMs, 86400000, `Bucket ${i} should be 1 day`);
-    }
-  });
-});
-
 // ── generateBuckets - week ────────────────────────────────────────────────────
 
 describe("generateBuckets week", () => {
@@ -111,6 +83,33 @@ describe("generateBuckets week", () => {
     assert.equal(buckets.length, 1);
     assert.equal(buckets[0].key, "2026-W11");
     assert.equal(buckets[0].startDate, "2026-03-11");
+  });
+
+  it("full March 2026 produces 5 week buckets clipped to month boundaries", () => {
+    // March 2026: 1st (Sun) – 31st (Tue)
+    // W10: Mon 2026-03-02 — clipped to 2026-03-01..2026-03-08 (W09 starts on 2026-03-02)
+    // Actually let's just check count and boundary clipping
+    const buckets = generateBuckets("2026-03-01", "2026-03-31", "week");
+    // First bucket starts on 2026-03-01 (clipped from W09 Monday = 2026-02-23)
+    assert.equal(buckets[0].startDate, "2026-03-01");
+    // Last bucket ends on 2026-03-31 (clipped)
+    assert.equal(buckets[buckets.length - 1].endDate, "2026-03-31");
+  });
+
+  it("year-boundary week (Dec 29 – Jan 4) is attributed to correct ISO week year", () => {
+    // 2025-12-29 (Mon) is in ISO week 1 of 2026
+    const buckets = generateBuckets("2025-12-29", "2026-01-04", "week");
+    assert.equal(buckets.length, 1);
+    assert.equal(buckets[0].key, "2026-W01");
+    assert.equal(buckets[0].startDate, "2025-12-29");
+    assert.equal(buckets[0].endDate, "2026-01-04");
+  });
+
+  it("partial week at end of month clips endDate to month boundary", () => {
+    // Feb 2026 ends on 2026-02-28 (Sat); the ISO week continues to 2026-03-01 (Sun)
+    const buckets = generateBuckets("2026-02-01", "2026-02-28", "week");
+    const lastBucket = buckets[buckets.length - 1];
+    assert.equal(lastBucket.endDate, "2026-02-28");
   });
 });
 

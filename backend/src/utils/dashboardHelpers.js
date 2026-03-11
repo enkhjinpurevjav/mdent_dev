@@ -73,14 +73,14 @@ function toYMD(d) {
  * Generate bucket descriptors for the given overall range and bucket type.
  *
  * Each bucket has:
- *   - key: string  (e.g. "2026-03", "2026-W09", "2026-03-09")
+ *   - key: string  (e.g. "2026-03", "2026-W09")
  *   - label: string (same as key for backend; frontend formats it)
  *   - start: Date  (inclusive, UTC midnight)
  *   - end: Date    (exclusive, UTC midnight of next day after bucket)
  *
  * @param {string} startDateStr  YYYY-MM-DD
  * @param {string} endDateStr    YYYY-MM-DD (inclusive)
- * @param {"month"|"week"|"day"} bucket
+ * @param {"month"|"week"} bucket
  * @returns {Array<{key: string, label: string, start: Date, end: Date, startDate: string, endDate: string}>}
  */
 export function generateBuckets(startDateStr, endDateStr, bucket) {
@@ -91,22 +91,7 @@ export function generateBuckets(startDateStr, endDateStr, bucket) {
 
   const buckets = [];
 
-  if (bucket === "day") {
-    let cur = new Date(overallStart);
-    while (cur < overallEndExclusive) {
-      const next = addUTCDays(cur, 1);
-      const key = toYMD(cur);
-      buckets.push({
-        key,
-        label: key,
-        start: new Date(cur),
-        end: new Date(next),
-        startDate: toYMD(cur),
-        endDate: toYMD(cur), // inclusive end
-      });
-      cur = next;
-    }
-  } else if (bucket === "week") {
+  if (bucket === "week") {
     // ISO week buckets – start at the Monday of the week containing overallStart
     // Each bucket is clipped to [overallStart, overallEndExclusive)
     let cur = isoWeekMonday(overallStart);

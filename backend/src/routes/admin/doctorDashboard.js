@@ -11,7 +11,7 @@
  * Query params:
  *   startDate=YYYY-MM-DD  (browser-timezone start, treated as UTC midnight)
  *   endDate=YYYY-MM-DD    (browser-timezone end inclusive, treated as UTC midnight)
- *   bucket=month|week|day
+ *   bucket=month|week
  */
 
 import express from "express";
@@ -249,9 +249,9 @@ router.get("/doctors/:doctorId/dashboard", async (req, res) => {
     });
   }
 
-  const VALID_BUCKETS = ["month", "week", "day"];
+  const VALID_BUCKETS = ["month", "week"];
   if (!VALID_BUCKETS.includes(String(bucket))) {
-    return res.status(400).json({ error: "bucket must be one of: month, week, day" });
+    return res.status(400).json({ error: "bucket must be one of: month, week" });
   }
 
   const DOCTOR_ID = Number(doctorId);
@@ -270,6 +270,12 @@ router.get("/doctors/:doctorId/dashboard", async (req, res) => {
     });
     const homeBleachingDeductAmountMnt =
       Number(homeBleachingDeductSetting?.value || 0) || 0;
+
+    // ── 1b. Fetch doctor's commission config (for goal & commission pcts) ────
+    const doctorConfig = await prisma.doctorCommissionConfig.findUnique({
+      where: { doctorId: DOCTOR_ID },
+    });
+    const monthlyGoalAmountMnt = Number(doctorConfig?.monthlyGoalAmountMnt || 0) || 0;
 
     // ── 2. Fetch invoices for doctor in overall range ────────────────────────
     const invoices = await prisma.invoice.findMany({
@@ -295,7 +301,7 @@ router.get("/doctors/:doctorId/dashboard", async (req, res) => {
       },
     });
 
-    const cfg = invoices[0]?.encounter?.doctor?.commissionConfig || null;
+    const cfg = doctorConfig || invoices[0]?.encounter?.doctor?.commissionConfig || null;
 
     // ── 3. Fetch completed appointments for doctor in overall range ──────────
     const completedAppointments = await prisma.appointment.findMany({
@@ -316,6 +322,11 @@ router.get("/doctors/:doctorId/dashboard", async (req, res) => {
       String(startDate),
       String(endDate),
       String(bucket)
+    );
+
+    // ── 4b. Compute total days in the overall date range (used for weekly goal proration) ──
+    const daysInRange = Math.round(
+      (overallEnd.getTime() - overallStart.getTime()) / 86400000
     );
 
     // ── 5. Compute metrics per bucket ────────────────────────────────────────
@@ -343,6 +354,26 @@ router.get("/doctors/:doctorId/dashboard", async (req, res) => {
         (a) => a.scheduledAt >= b.start && a.scheduledAt < b.end
       ).length;
 
+      // Goal achievement % for this bucket
+      let goalAchievementPct = 0;
+      if (String(bucket) === "month") {
+        // Yearly mode: each bucket is a full month → compare to monthly goal
+        goalAchievementPct =
+          monthlyGoalAmountMnt > 0
+            ? Math.round((sales / monthlyGoalAmountMnt) * 10000) / 100
+            : 0;
+      } else {
+        // Monthly mode: bucket is a week clipped to month boundaries
+        // Prorate the monthly goal by days in this bucket vs total days in range
+        const daysInBucket = Math.round(
+          (b.end.getTime() - b.start.getTime()) / 86400000
+        );
+        const weeklyGoal =
+          daysInRange > 0 ? monthlyGoalAmountMnt * (daysInBucket / daysInRange) : 0;
+        goalAchievementPct =
+          weeklyGoal > 0 ? Math.round((sales / weeklyGoal) * 10000) / 100 : 0;
+      }
+
       return {
         key: b.key,
         label: b.label,
@@ -352,6 +383,7 @@ router.get("/doctors/:doctorId/dashboard", async (req, res) => {
         income: Math.round(income),
         completedAppointments: completedCount,
         servicesCount,
+        goalAchievementPct,
       };
     });
 
@@ -390,9 +422,7 @@ router.get("/doctors/:doctorId/dashboard", async (req, res) => {
       },
       meta: {
         doctorId: DOCTOR_ID,
-        modeHints: {
-          hidePiesForBucketDay: String(bucket) === "day",
-        },
+        monthlyGoalAmountMnt,
       },
     });
   } catch (error) {

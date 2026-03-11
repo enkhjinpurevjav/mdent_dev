@@ -1593,7 +1593,7 @@ function formatScheduleDate(ymd: string): string {
       }}
       className={`text-left px-2.5 py-1.5 rounded-md border-0 ${activeTab === "dashboard" ? "bg-blue-50" : "bg-transparent"} ${activeTab === "dashboard" ? "text-blue-700" : "text-gray-500"} ${activeTab === "dashboard" ? "font-medium" : "font-normal"} cursor-pointer`}
     >
-      Дашбоард
+      Гүйцэтгэл
     </button>
 
     <button

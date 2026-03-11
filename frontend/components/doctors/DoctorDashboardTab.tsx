@@ -19,7 +19,6 @@ import {
   formatBucketLabel,
   formatMntTick,
   getYearOptions,
-  getWeekOptionsForYear,
 } from "../../utils/dashboardDateUtils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -33,6 +32,7 @@ interface SeriesItem {
   income: number;
   completedAppointments: number;
   servicesCount: number;
+  goalAchievementPct: number;
 }
 
 interface PieData {
@@ -44,7 +44,7 @@ interface DashboardResponse {
   range: { startDate: string; endDate: string; bucket: string };
   series: SeriesItem[];
   pies: PieData;
-  meta: { doctorId: number; modeHints: { hidePiesForBucketDay: boolean } };
+  meta: { doctorId: number; monthlyGoalAmountMnt: number };
 }
 
 interface Props {
@@ -71,24 +71,16 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
   const [mode, setMode] = useState<DashboardMode>("monthly");
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
-  const [selectedWeekKey, setSelectedWeekKey] = useState<string>(() => {
-    const weeks = getWeekOptionsForYear(currentYear);
-    return weeks[weeks.length - 1] ?? `${currentYear}-W01`;
-  });
 
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Week options for the selected year (weekly mode)
-  const weekOptions = getWeekOptionsForYear(selectedYear);
-
   const fetchDashboard = useCallback(async () => {
     const range = computeDateRange(
       mode,
       selectedYear,
-      mode === "monthly" ? selectedMonth : null,
-      mode === "weekly" ? selectedWeekKey : null
+      mode === "monthly" ? selectedMonth : null
     );
     if (!range) return;
 
@@ -111,7 +103,7 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [doctorId, mode, selectedYear, selectedMonth, selectedWeekKey]);
+  }, [doctorId, mode, selectedYear, selectedMonth]);
 
   useEffect(() => {
     void fetchDashboard();
@@ -120,7 +112,6 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
   // ── Derived chart data ─────────────────────────────────────────────────────
 
   const bucket = (data?.range?.bucket ?? "month") as BucketType;
-  const hidePies = data?.meta?.modeHints?.hidePiesForBucketDay ?? false;
 
   const chartData = (data?.series ?? []).map((s) => ({
     ...s,
@@ -139,7 +130,7 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
     ? [
         { name: "Хүүхэд (<16)", value: data.pies.ageGroup.kidUnder16 },
         { name: "Насанд хүрэгч (≥16)", value: data.pies.ageGroup.adult16Plus },
-        { name: "Тодорхойгүй нас", value: data.pies.ageGroup.unknownAge },
+        { name: "Нас тодорхойгүй", value: data.pies.ageGroup.unknownAge },
       ]
     : [];
 
@@ -159,7 +150,6 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
           >
             <option value="yearly">Жилээр</option>
             <option value="monthly">Сараар</option>
-            <option value="weekly">7 хоногоор</option>
           </select>
         </div>
 
@@ -193,29 +183,12 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
           </div>
         )}
 
-        {/* Week (weekly mode only) */}
-        {mode === "weekly" && (
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500">7 хоног</label>
-            <select
-              value={selectedWeekKey}
-              onChange={(e) => setSelectedWeekKey(e.target.value)}
-              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {weekOptions.map((w) => (
-                <option key={w} value={w}>{w}</option>
-              ))}
-            </select>
+        {/* Loading indicator */}
+        {loading && (
+          <div className="flex items-end pb-1">
+            <span className="text-xs text-gray-400">Уншиж байна…</span>
           </div>
         )}
-
-        <button
-          type="button"
-          onClick={() => void fetchDashboard()}
-          className="px-4 py-1.5 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          Харуулах
-        </button>
       </div>
 
       {/* ── Error state ──────────────────────────────────────────────────── */}
@@ -223,11 +196,6 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
         <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
-      )}
-
-      {/* ── Loading state ────────────────────────────────────────────────── */}
-      {loading && (
-        <div className="text-sm text-gray-400 py-8 text-center">Уншиж байна…</div>
       )}
 
       {/* ── Charts ──────────────────────────────────────────────────────── */}
@@ -247,8 +215,6 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
                 <XAxis
                   dataKey="xLabel"
                   tick={{ fontSize: 11, fill: "#6b7280" }}
-                  angle={bucket === "day" ? -40 : 0}
-                  textAnchor={bucket === "day" ? "end" : "middle"}
                   interval={0}
                 />
                 <YAxis
@@ -269,10 +235,10 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
             </ResponsiveContainer>
           </div>
 
-          {/* C2: Completed appointments */}
+          {/* C-goal: Goal achievement % */}
           <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">
-              Дууссан үзлэгийн тоо
+              Гүйцэтгэл (%)
             </h3>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart
@@ -283,15 +249,47 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
                 <XAxis
                   dataKey="xLabel"
                   tick={{ fontSize: 11, fill: "#6b7280" }}
-                  angle={bucket === "day" ? -40 : 0}
-                  textAnchor={bucket === "day" ? "end" : "middle"}
+                  interval={0}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  tickFormatter={(v: number) => `${v}%`}
+                  width={48}
+                />
+                <Tooltip
+                  formatter={(value: number) => [`${value.toFixed(1)}%`, "Гүйцэтгэл"]}
+                />
+                <Bar
+                  dataKey="goalAchievementPct"
+                  name="Гүйцэтгэл (%)"
+                  fill="#f97316"
+                  radius={[3, 3, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* C2: Completed appointments */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">
+              Гүйцэтгэсэн үзлэгийн тоо
+            </h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart
+                data={chartData}
+                margin={{ top: 4, right: 16, left: 0, bottom: 40 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="xLabel"
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
                   interval={0}
                 />
                 <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} width={40} />
                 <Tooltip formatter={(value: number) => [`${value}`, "Үзлэг"]} />
                 <Bar
                   dataKey="completedAppointments"
-                  name="Дууссан үзлэг"
+                  name="Гүйцэтгэсэн үзлэг"
                   fill="#f59e0b"
                   radius={[3, 3, 0, 0]}
                 />
@@ -302,7 +300,7 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
           {/* C3: Services count */}
           <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">
-              Үйлчилгээний тоо (хувь нэмэрт орсон)
+              Гүйцэтгэсэн үйлчилгээний тоо
             </h3>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart
@@ -313,8 +311,6 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
                 <XAxis
                   dataKey="xLabel"
                   tick={{ fontSize: 11, fill: "#6b7280" }}
-                  angle={bucket === "day" ? -40 : 0}
-                  textAnchor={bucket === "day" ? "end" : "middle"}
                   interval={0}
                 />
                 <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} width={40} />
@@ -329,88 +325,86 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
             </ResponsiveContainer>
           </div>
 
-          {/* Pies: only for monthly/yearly (not weekly/day bucket) */}
-          {!hidePies && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Gender pie */}
-              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                  Хүйсний харьцаа
-                </h3>
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie
-                      data={genderPieData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      label={({ name, percent }) =>
-                        `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
-                      }
-                      labelLine={false}
-                    >
-                      {genderPieData.map((_, i) => (
-                        <Cell key={i} fill={GENDER_COLORS[i % GENDER_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v: number) => [`${v}`, "Тоо"]} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex gap-4 justify-center mt-1 text-xs text-gray-500">
-                  {genderPieData.map((d, i) => (
-                    <span key={d.name} className="flex items-center gap-1">
-                      <span
-                        className="inline-block w-3 h-3 rounded-full"
-                        style={{ background: GENDER_COLORS[i % GENDER_COLORS.length] }}
-                      />
-                      {d.name} ({d.value})
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Age group pie */}
-              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                  Насны бүлэг
-                </h3>
-                <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie
-                      data={agePieData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      label={({ name, percent }) =>
-                        `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
-                      }
-                      labelLine={false}
-                    >
-                      {agePieData.map((_, i) => (
-                        <Cell key={i} fill={AGE_COLORS[i % AGE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v: number) => [`${v}`, "Тоо"]} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex gap-4 justify-center mt-1 text-xs text-gray-500 flex-wrap">
-                  {agePieData.map((d, i) => (
-                    <span key={d.name} className="flex items-center gap-1">
-                      <span
-                        className="inline-block w-3 h-3 rounded-full"
-                        style={{ background: AGE_COLORS[i % AGE_COLORS.length] }}
-                      />
-                      {d.name} ({d.value})
-                    </span>
-                  ))}
-                </div>
+          {/* Pies: gender & age group */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Gender pie */}
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                Хүйсийн харьцаа
+              </h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={genderPieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    label={({ name, percent }) =>
+                      `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
+                    }
+                    labelLine={false}
+                  >
+                    {genderPieData.map((_, i) => (
+                      <Cell key={i} fill={GENDER_COLORS[i % GENDER_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: number) => [`${v}`, "Тоо"]} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex gap-4 justify-center mt-1 text-xs text-gray-500">
+                {genderPieData.map((d, i) => (
+                  <span key={d.name} className="flex items-center gap-1">
+                    <span
+                      className="inline-block w-3 h-3 rounded-full"
+                      style={{ background: GENDER_COLORS[i % GENDER_COLORS.length] }}
+                    />
+                    {d.name} ({d.value})
+                  </span>
+                ))}
               </div>
             </div>
-          )}
+
+            {/* Age group pie */}
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                Насны бүлэг
+              </h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={agePieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    label={({ name, percent }) =>
+                      `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
+                    }
+                    labelLine={false}
+                  >
+                    {agePieData.map((_, i) => (
+                      <Cell key={i} fill={AGE_COLORS[i % AGE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: number) => [`${v}`, "Тоо"]} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex gap-4 justify-center mt-1 text-xs text-gray-500 flex-wrap">
+                {agePieData.map((d, i) => (
+                  <span key={d.name} className="flex items-center gap-1">
+                    <span
+                      className="inline-block w-3 h-3 rounded-full"
+                      style={{ background: AGE_COLORS[i % AGE_COLORS.length] }}
+                    />
+                    {d.name} ({d.value})
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
