@@ -85,6 +85,28 @@ export default function ReceptionProfilePage() {
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
 
+  // schedule table pagination
+  const [schedulePage, setSchedulePage] = useState(1);
+  const schedulePageSize = 10;
+
+  // History (Хуваарийн түүх) state
+  const [historyFrom, setHistoryFrom] = useState("");
+  const [historyTo, setHistoryTo] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyItems, setHistoryItems] = useState<ReceptionScheduleDay[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const historyPageSize = 15;
+
+  // Bulk schedule (mode 2) state
+  const [bulkDateFrom, setBulkDateFrom] = useState("");
+  const [bulkDateTo, setBulkDateTo] = useState("");
+  const [bulkBranchId, setBulkBranchId] = useState("");
+  const [bulkShiftByDate, setBulkShiftByDate] = useState<Record<string, ShiftType>>({});
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [bulkSuccess, setBulkSuccess] = useState<string | null>(null);
+
   // schedule editor form state (create only)
   const [scheduleForm, setScheduleForm] = useState<{
     date: string;
@@ -650,6 +672,117 @@ export default function ReceptionProfilePage() {
     }
   };
 
+  function getDatesInRange(from: string, to: string): string[] {
+    if (!from || !to) return [];
+    const result: string[] = [];
+    const [fy, fm, fd] = from.split("-").map(Number);
+    const [ty, tm, td] = to.split("-").map(Number);
+    const start = new Date(fy, fm - 1, fd);
+    const end = new Date(ty, tm - 1, td);
+    if (start > end) return [];
+    const cur = new Date(start);
+    while (cur <= end) {
+      const y = cur.getFullYear();
+      const m = String(cur.getMonth() + 1).padStart(2, "0");
+      const d = String(cur.getDate()).padStart(2, "0");
+      result.push(`${y}-${m}-${d}`);
+      cur.setDate(cur.getDate() + 1);
+    }
+    return result;
+  }
+
+  function formatScheduleDate(ymd: string): string {
+    if (!ymd) return "";
+    const [y, m, d] = ymd.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    const weekdays = ["Ням", "Даваа", "Мягмар", "Лхагва", "Пүрэв", "Баасан", "Бямба"];
+    const weekday = weekdays[dt.getDay()];
+    return `${y}/${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")} ${weekday}`;
+  }
+
+  const loadHistory = async () => {
+    if (!id) return;
+    if (!historyFrom || !historyTo) {
+      setHistoryError("Эхлэх болон дуусах огноог сонгоно уу.");
+      return;
+    }
+    setHistoryLoading(true);
+    setHistoryError(null);
+    setHistoryItems([]);
+    setHistoryPage(1);
+    try {
+      const res = await fetch(
+        `/api/users/${id}/reception-schedule?from=${historyFrom}&to=${historyTo}`
+      );
+      const data = await res.json();
+      if (res.ok && Array.isArray(data)) {
+        setHistoryItems(data);
+      } else {
+        setHistoryError(
+          (data && data.error) || "Хуваарийн түүхийг ачааллаж чадсангүй"
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      setHistoryError("Сүлжээгээ шалгана уу");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleBulkSaveSchedule = async () => {
+    if (!id) return;
+    if (!bulkBranchId) {
+      setBulkError("Салбар сонгоно уу.");
+      return;
+    }
+    if (!bulkDateFrom || !bulkDateTo) {
+      setBulkError("Эхлэх болон дуусах огноог сонгоно уу.");
+      return;
+    }
+    if (Object.keys(bulkShiftByDate).length === 0) {
+      setBulkError("Дор хаяа нэг өдрийн ээлж сонгоно уу.");
+      return;
+    }
+
+    setBulkSaving(true);
+    setBulkError(null);
+    setBulkSuccess(null);
+
+    try {
+      const res = await fetch(`/api/users/${id}/reception-schedule/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          branchId: Number(bulkBranchId),
+          dateFrom: bulkDateFrom,
+          dateTo: bulkDateTo,
+          shiftTypeByDate: bulkShiftByDate,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setBulkError(data?.error || "Олон өдрийн хуваарь хадгалах үед алдаа гарлаа.");
+        return;
+      }
+
+      setBulkSuccess(`Амжилттай: ${data.created} шинэ, ${data.updated} шинэчлэгдсэн.`);
+      setBulkShiftByDate({});
+      setBulkDateFrom("");
+      setBulkDateTo("");
+      setBulkBranchId("");
+      await reloadSchedule();
+      setTimeout(() => setBulkSuccess(null), 4000);
+    } catch (err) {
+      console.error(err);
+      setBulkError("Сүлжээгээ шалгана уу");
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
   const headerName = reception ? formatStaffShortName(reception) : "";
 
   const mainBranchName = useMemo(() => {
@@ -1122,6 +1255,7 @@ export default function ReceptionProfilePage() {
                 )}
 
                 {!scheduleLoading && !scheduleError && schedule.length > 0 && (
+                  <>
                   <div className="overflow-x-auto rounded-lg border border-gray-200">
                   <table className="w-full border-collapse text-sm">
                     <thead>
@@ -1144,7 +1278,7 @@ export default function ReceptionProfilePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {schedule.map((s, idx) => {
+                      {schedule.slice((schedulePage - 1) * schedulePageSize, schedulePage * schedulePageSize).map((s, idx) => {
                         const isRowEditing = editingScheduleId === s.id;
 
                         return (
@@ -1272,6 +1406,247 @@ export default function ReceptionProfilePage() {
                     </tbody>
                   </table>
                   </div>
+                  {/* Pagination controls */}
+                  {Math.ceil(schedule.length / schedulePageSize) > 1 && (
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-[13px] text-gray-500">
+                        Нийт {schedule.length} бичлэг — {schedulePage}/{Math.ceil(schedule.length / schedulePageSize)} хуудас
+                      </span>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          disabled={schedulePage === 1}
+                          onClick={() => setSchedulePage((p) => p - 1)}
+                          className="px-3 py-1 rounded-md border border-gray-300 bg-white text-[13px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          ‹ Өмнөх
+                        </button>
+                        <button
+                          type="button"
+                          disabled={schedulePage >= Math.ceil(schedule.length / schedulePageSize)}
+                          onClick={() => setSchedulePage((p) => p + 1)}
+                          className="px-3 py-1 rounded-md border border-gray-300 bg-white text-[13px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          Дараах ›
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  </>
+                )}
+              </div>
+
+              {/* Mode 2: Bulk schedule */}
+              <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                <h2 className="text-base mt-0 mb-2">Олон өдрийн хуваарь оруулах (Mode 2)</h2>
+                <div className="text-gray-500 text-[13px] mb-2.5">
+                  Огнооны мужид дахь өдөр бүрт ээлж сонгож нэг удаад хуваарилна.
+                  Амралтын өдөр зөвхөн «Амралтын өдөр» ээлж боломжтой.
+                </div>
+
+                <div className="flex flex-wrap gap-3 items-end mb-3">
+                  <label className="flex flex-col gap-1 text-[13px]">
+                    Эхлэх огноо
+                    <input
+                      type="date"
+                      value={bulkDateFrom}
+                      onChange={(e) => {
+                        setBulkDateFrom(e.target.value);
+                        setBulkShiftByDate({});
+                      }}
+                      className="rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-[13px]">
+                    Дуусах огноо
+                    <input
+                      type="date"
+                      value={bulkDateTo}
+                      onChange={(e) => {
+                        setBulkDateTo(e.target.value);
+                        setBulkShiftByDate({});
+                      }}
+                      className="rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-[13px]">
+                    Салбар
+                    <select
+                      value={bulkBranchId}
+                      onChange={(e) => setBulkBranchId(e.target.value)}
+                      className="rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
+                    >
+                      <option value="">Сонгох</option>
+                      {receptionAssignedBranches.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                {bulkDateFrom && bulkDateTo && getDatesInRange(bulkDateFrom, bulkDateTo).length > 0 && (
+                  <div className="flex flex-col gap-1.5 mb-3 max-h-[320px] overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {getDatesInRange(bulkDateFrom, bulkDateTo).map((ymd) => {
+                      const [y, m, d] = ymd.split("-").map(Number);
+                      const dow = new Date(y, m - 1, d).getDay();
+                      const isWeekend = dow === 0 || dow === 6;
+                      const selectedShift = bulkShiftByDate[ymd] ?? "";
+
+                      return (
+                        <div key={ymd} className="flex items-center gap-3 text-[13px]">
+                          <span className={`w-40 shrink-0 ${isWeekend ? "text-blue-600 font-medium" : ""}`}>
+                            {formatScheduleDate(ymd)}
+                          </span>
+                          <select
+                            value={selectedShift}
+                            onChange={(e) => {
+                              const val = e.target.value as ShiftType | "";
+                              setBulkShiftByDate((prev) => {
+                                const next = { ...prev };
+                                if (val === "") {
+                                  delete next[ymd];
+                                } else {
+                                  next[ymd] = val as ShiftType;
+                                }
+                                return next;
+                              });
+                            }}
+                            className="rounded border border-gray-300 px-1.5 py-0.5 text-[13px] bg-white"
+                          >
+                            <option value="">— Алгасах —</option>
+                            {isWeekend ? (
+                              <option value="WEEKEND_FULL">Амралтын өдөр (10:00–19:00)</option>
+                            ) : (
+                              <>
+                                <option value="AM">Өглөө ээлж (09:00–15:00)</option>
+                                <option value="PM">Орой ээлж (15:00–21:00)</option>
+                                <option value="WEEKEND_FULL">Бүтэн ажлын өдөр (09:00–21:00)</option>
+                              </>
+                            )}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {bulkError && (
+                  <div className="text-red-500 text-[13px] mb-2">{bulkError}</div>
+                )}
+                {bulkSuccess && (
+                  <div className="text-green-600 text-[13px] mb-2">{bulkSuccess}</div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleBulkSaveSchedule}
+                  disabled={bulkSaving || Object.keys(bulkShiftByDate).length === 0}
+                  className="px-4 py-2 rounded-lg border-0 bg-violet-600 text-white cursor-pointer font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {bulkSaving ? "Хадгалж байна..." : `${Object.keys(bulkShiftByDate).length} өдрийн хуваарь хадгалах`}
+                </button>
+              </div>
+
+              {/* Schedule history */}
+              <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                <h2 className="text-base mt-0 mb-2">Хуваарийн түүх</h2>
+                <div className="text-gray-500 text-[13px] mb-2.5">
+                  Өнгөрсөн (эсвэл ирээдүйн) тодорхой хугацааны ажлын хуваарийг харах.
+                </div>
+
+                <div className="flex flex-wrap gap-3 items-end mb-3">
+                  <label className="flex flex-col gap-1 text-[13px]">
+                    Эхлэх огноо
+                    <input
+                      type="date"
+                      value={historyFrom}
+                      onChange={(e) => setHistoryFrom(e.target.value)}
+                      className="rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-[13px]">
+                    Дуусах огноо
+                    <input
+                      type="date"
+                      value={historyTo}
+                      onChange={(e) => setHistoryTo(e.target.value)}
+                      className="rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={loadHistory}
+                    disabled={historyLoading}
+                    className="px-4 py-2 rounded-lg border-0 bg-teal-700 text-white cursor-pointer h-[38px] font-bold text-[13px]"
+                  >
+                    {historyLoading ? "Ачааллаж байна..." : "Харах"}
+                  </button>
+                </div>
+
+                {historyError && (
+                  <div className="text-red-500 mb-2 text-[13px]">{historyError}</div>
+                )}
+
+                {!historyLoading && historyItems.length === 0 && !historyError && (
+                  <div className="text-gray-400 text-[13px]">
+                    Хуваарийн түүх хараахан ачаалаагүй эсвэл өгөгдөл олдсонгүй.
+                  </div>
+                )}
+
+                {historyItems.length > 0 && (
+                  <>
+                  <table className="w-full border-collapse mt-2 text-sm">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="text-left border-b border-gray-300 p-2">Огноо</th>
+                        <th className="text-left border-b border-gray-300 p-2">Салбар</th>
+                        <th className="text-left border-b border-gray-300 p-2">Цаг</th>
+                        <th className="text-left border-b border-gray-300 p-2">Тэмдэглэл</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historyItems.slice((historyPage - 1) * historyPageSize, historyPage * historyPageSize).map((s) => (
+                        <tr key={s.id}>
+                          <td className="border-b border-gray-100 p-2">{formatScheduleDate(s.date)}</td>
+                          <td className="border-b border-gray-100 p-2">{s.branch?.name || "-"}</td>
+                          <td className="border-b border-gray-100 p-2">{s.startTime} - {s.endTime}</td>
+                          <td className="border-b border-gray-100 p-2">{s.note || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {Math.ceil(historyItems.length / historyPageSize) > 1 && (
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-[13px] text-gray-500">
+                        Нийт {historyItems.length} бичлэг — {historyPage}/{Math.ceil(historyItems.length / historyPageSize)} хуудас
+                      </span>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          disabled={historyPage === 1}
+                          onClick={() => setHistoryPage((p) => p - 1)}
+                          className="px-3 py-1 rounded-md border border-gray-300 bg-white text-[13px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          ‹ Өмнөх
+                        </button>
+                        <button
+                          type="button"
+                          disabled={historyPage >= Math.ceil(historyItems.length / historyPageSize)}
+                          onClick={() => setHistoryPage((p) => p + 1)}
+                          className="px-3 py-1 rounded-md border border-gray-300 bg-white text-[13px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          Дараах ›
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  </>
                 )}
               </div>
             </div>
