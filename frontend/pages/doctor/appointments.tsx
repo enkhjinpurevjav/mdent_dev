@@ -76,6 +76,16 @@ function minutesFromHHMM(t: string): number {
   return (h || 0) * 60 + (m || 0);
 }
 
+function buildSlots(startMin: number, endMin: number): string[] {
+  const slots: string[] = [];
+  for (let m = startMin; m <= endMin; m += 30) {
+    const hh = String(Math.floor(m / 60)).padStart(2, "0");
+    const mm = String(m % 60).padStart(2, "0");
+    slots.push(`${hh}:${mm}`);
+  }
+  return slots;
+}
+
 function getStatusColor(status: string): string {
   switch (status) {
     case "ongoing":
@@ -119,7 +129,9 @@ function groupByDate(appts: DoctorAppointment[]): Grouped[] {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, items]) => ({
       date,
-      items: items.sort((x, y) => (x.scheduledAt ?? "").localeCompare(y.scheduledAt ?? "")),
+      items: items.sort((x, y) =>
+        (x.scheduledAt ?? "").localeCompare(y.scheduledAt ?? "")
+      ),
     }));
 }
 
@@ -148,7 +160,9 @@ export default function DoctorAppointmentsPage() {
   const [doctorId, setDoctorId] = useState<number | null>(null);
 
   const [appointments, setAppointments] = useState<DoctorAppointment[]>([]);
-  const [scheduleToday, setScheduleToday] = useState<DoctorScheduleDay | null>(null);
+  const [scheduleToday, setScheduleToday] = useState<DoctorScheduleDay | null>(
+    null
+  );
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -162,12 +176,13 @@ export default function DoctorAppointmentsPage() {
     (async () => {
       try {
         const res = await fetch("/api/auth/me", { credentials: "include" });
-        const data = (await res.json().catch(() => null)) as DoctorMeResponse | null;
+        const data = (await res.json().catch(() => null)) as
+          | DoctorMeResponse
+          | null;
         const id = data?.user?.id;
         if (!res.ok || !id) throw new Error("Auth failed");
         if (!cancelled) setDoctorId(id);
       } catch {
-        // if doctor portal has role gating elsewhere, this might never show
         if (!cancelled) setDoctorId(null);
       }
     })();
@@ -182,9 +197,12 @@ export default function DoctorAppointmentsPage() {
 
     try {
       // 1) appointments (range)
-      const apptRes = await fetch(`/api/doctor/appointments?from=${from}&to=${to}`, {
-        credentials: "include",
-      });
+      const apptRes = await fetch(
+        `/api/doctor/appointments?from=${from}&to=${to}`,
+        {
+          credentials: "include",
+        }
+      );
       const apptJson = await apptRes.json().catch(() => null);
 
       if (!apptRes.ok) {
@@ -203,9 +221,12 @@ export default function DoctorAppointmentsPage() {
 
       // 2) schedule for today only (if we know doctorId)
       if (doctorId) {
-        const schedRes = await fetch(`/api/users/${doctorId}/schedule?from=${today}&to=${today}`, {
-          credentials: "include",
-        });
+        const schedRes = await fetch(
+          `/api/users/${doctorId}/schedule?from=${today}&to=${today}`,
+          {
+            credentials: "include",
+          }
+        );
         const schedJson = await schedRes.json().catch(() => null);
 
         if (schedRes.ok && Array.isArray(schedJson) && schedJson.length > 0) {
@@ -252,44 +273,89 @@ export default function DoctorAppointmentsPage() {
 
   const grouped = useMemo(() => groupByDate(appointments), [appointments]);
 
-  // ---- today timeline bounds ----
+  // ---- today timeline bounds (schedule -> appointments -> clinic fallback) ----
   const timeline = useMemo(() => {
     const fallback = defaultClinicHours(today);
-    const startTime = scheduleToday?.startTime || fallback.startTime;
-    const endTime = scheduleToday?.endTime || fallback.endTime;
 
-    const startMin = minutesFromHHMM(startTime);
-    const endMin = minutesFromHHMM(endTime);
+    // A) Prefer schedule if present
+    if (scheduleToday?.startTime && scheduleToday?.endTime) {
+      const startTime = scheduleToday.startTime;
+      const endTime = scheduleToday.endTime;
 
-    // guard
-    const safeEndMin = Math.max(endMin, startMin + 30);
+      const startMin = minutesFromHHMM(startTime);
+      const endMin = minutesFromHHMM(endTime);
+      const safeEndMin = Math.max(endMin, startMin + 30);
 
-    const slots = [];
-    for (let m = startMin; m <= safeEndMin; m += 30) {
-      const hh = String(Math.floor(m / 60)).padStart(2, "0");
-      const mm = String(m % 60).padStart(2, "0");
-      slots.push(`${hh}:${mm}`);
+      return {
+        title: `Өнөөдрийн цагийн хуваарь (${startTime}–${endTime})`,
+        startMin,
+        endMin: safeEndMin,
+        slots: buildSlots(startMin, safeEndMin),
+      };
     }
 
+    // B) No schedule: derive from today's appointments (if any)
+    if (todayAppointments.length > 0) {
+      const windows = todayAppointments.map((a) => {
+        const s = new Date(a.scheduledAt);
+        const e = a.endAt ? new Date(a.endAt) : new Date(s.getTime() + 30 * 60_000);
+        return {
+          start: s.getHours() * 60 + s.getMinutes(),
+          end: e.getHours() * 60 + e.getMinutes(),
+        };
+      });
+
+      let startMin = Math.min(...windows.map((w) => w.start));
+      let endMin = Math.max(...windows.map((w) => w.end));
+
+      // snap to 30-min grid
+      startMin = Math.floor(startMin / 30) * 30;
+      endMin = Math.ceil(endMin / 30) * 30;
+
+      // optional padding
+      startMin = Math.max(0, startMin - 30);
+      endMin = Math.min(24 * 60, endMin + 30);
+
+      // clamp to clinic hours
+      const clinicStart = minutesFromHHMM(fallback.startTime);
+      const clinicEnd = minutesFromHHMM(fallback.endTime);
+      startMin = Math.max(clinicStart, startMin);
+      endMin = Math.min(clinicEnd, endMin);
+
+      const safeEndMin = Math.max(endMin, startMin + 30);
+
+      return {
+        title: "Өнөөдрийн цагийн хуваарь",
+        startMin,
+        endMin: safeEndMin,
+        slots: buildSlots(startMin, safeEndMin),
+      };
+    }
+
+    // C) No schedule + no appointments: clinic fallback + warning
+    const startMin = minutesFromHHMM(fallback.startTime);
+    const endMin = minutesFromHHMM(fallback.endTime);
+    const safeEndMin = Math.max(endMin, startMin + 30);
+
     return {
-      title: scheduleToday
-        ? `Өнөөдрийн цагийн хуваа��ь (${startTime}–${endTime})`
-        : "Өнөөдрийн цагийн хуваарь (Хуваарь тохируулаагүй)",
+      title: "Өнөөдрийн цагийн хуваарь (Хуваарь тохируулаагүй)",
       startMin,
       endMin: safeEndMin,
-      slots,
+      slots: buildSlots(startMin, safeEndMin),
     };
-  }, [scheduleToday, today]);
+  }, [scheduleToday, today, todayAppointments]);
 
   // compute left/width percentages for appointment blocks
   function blockStyle(a: DoctorAppointment): React.CSSProperties {
     const start = new Date(a.scheduledAt);
-    const end = a.endAt ? new Date(a.endAt) : new Date(start.getTime() + 30 * 60_000);
+    const end = a.endAt
+      ? new Date(a.endAt)
+      : new Date(start.getTime() + 30 * 60_000);
 
     const startMin = start.getHours() * 60 + start.getMinutes();
     const endMin = end.getHours() * 60 + end.getMinutes();
 
-    const total = timeline.endMin - timeline.startMin;
+    const total = timeline.endMin - timeline.startMin || 1;
     const left = ((startMin - timeline.startMin) / total) * 100;
     const width = ((endMin - startMin) / total) * 100;
 
@@ -326,17 +392,46 @@ export default function DoctorAppointmentsPage() {
         </div>
 
         {/* timeline header */}
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${timeline.slots.length}, minmax(60px, 1fr))`, gap: 0 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${timeline.slots.length}, minmax(60px, 1fr))`,
+            gap: 0,
+          }}
+        >
           {timeline.slots.map((t) => (
-            <div key={t} style={{ fontSize: 12, color: "#94a3b8", borderLeft: "1px solid #eef2f7", paddingLeft: 6 }}>
+            <div
+              key={t}
+              style={{
+                fontSize: 12,
+                color: "#94a3b8",
+                borderLeft: "1px solid #eef2f7",
+                paddingLeft: 6,
+              }}
+            >
               {t}
             </div>
           ))}
         </div>
 
         {/* timeline body */}
-        <div style={{ position: "relative", height: 110, marginTop: 6, borderRadius: 12, background: "#f8fafc", overflowX: "auto" }}>
-          <div style={{ position: "relative", minWidth: Math.max(600, timeline.slots.length * 70), height: "100%" }}>
+        <div
+          style={{
+            position: "relative",
+            height: 110,
+            marginTop: 6,
+            borderRadius: 12,
+            background: "#f8fafc",
+            overflowX: "auto",
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              minWidth: Math.max(600, timeline.slots.length * 70),
+              height: "100%",
+            }}
+          >
             {/* vertical grid lines */}
             {timeline.slots.map((t, idx) => (
               <div
@@ -354,12 +449,28 @@ export default function DoctorAppointmentsPage() {
 
             {/* blocks */}
             {todayAppointments.map((a) => (
-              <div key={a.id} style={blockStyle(a)} title={`${formatPatient(a)} ${isoToLocalHHMM(a.scheduledAt)}-${isoToLocalHHMM(a.endAt || null)}`}>
-                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 2, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>
+              <div
+                key={a.id}
+                style={blockStyle(a)}
+                title={`${formatPatient(a)} ${isoToLocalHHMM(
+                  a.scheduledAt
+                )}-${isoToLocalHHMM(a.endAt || null)}`}
+              >
+                <div
+                  style={{
+                    fontWeight: 800,
+                    fontSize: 13,
+                    marginBottom: 2,
+                    whiteSpace: "nowrap",
+                    textOverflow: "ellipsis",
+                    overflow: "hidden",
+                  }}
+                >
                   {formatPatient(a)} #{a.id}
                 </div>
                 <div style={{ fontSize: 12, opacity: 0.9 }}>
-                  {isoToLocalHHMM(a.scheduledAt)} – {isoToLocalHHMM(a.endAt || null)}
+                  {isoToLocalHHMM(a.scheduledAt)} –{" "}
+                  {isoToLocalHHMM(a.endAt || null)}
                 </div>
                 <div style={{ fontSize: 12, marginTop: 2, opacity: 0.9 }}>
                   {formatStatus(a.status)}
@@ -369,7 +480,17 @@ export default function DoctorAppointmentsPage() {
             ))}
 
             {todayAppointments.length === 0 && !loading && !error && (
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 13 }}>
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#94a3b8",
+                  fontSize: 13,
+                }}
+              >
                 Өнөөдрийн цаг алга
               </div>
             )}
@@ -387,24 +508,55 @@ export default function DoctorAppointmentsPage() {
           marginBottom: 12,
         }}
       >
-        <div style={{ display: "flex", gap: 10, alignItems: "end", flexWrap: "wrap" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            alignItems: "end",
+            flexWrap: "wrap",
+          }}
+        >
+          <label
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              fontSize: 13,
+            }}
+          >
             Эхлэх өдөр:
             <input
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontSize: 14 }}
+              style={{
+                border: "1px solid #d1d5db",
+                borderRadius: 10,
+                padding: "8px 10px",
+                fontSize: 14,
+              }}
             />
           </label>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13 }}>
+          <label
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              fontSize: 13,
+            }}
+          >
             Дуусах өдөр:
             <input
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              style={{ border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontSize: 14 }}
+              style={{
+                border: "1px solid #d1d5db",
+                borderRadius: 10,
+                padding: "8px 10px",
+                fontSize: 14,
+              }}
             />
           </label>
 
@@ -429,15 +581,33 @@ export default function DoctorAppointmentsPage() {
         </div>
 
         {error && (
-          <div style={{ marginTop: 10, background: "#fee2e2", color: "#dc2626", padding: 10, borderRadius: 10, fontSize: 13 }}>
+          <div
+            style={{
+              marginTop: 10,
+              background: "#fee2e2",
+              color: "#dc2626",
+              padding: 10,
+              borderRadius: 10,
+              fontSize: 13,
+            }}
+          >
             {error}
           </div>
         )}
       </div>
 
       {/* Grouped list */}
-      <div style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", padding: 12 }}>
-        <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>Цагууд</div>
+      <div
+        style={{
+          background: "white",
+          borderRadius: 14,
+          border: "1px solid #e5e7eb",
+          padding: 12,
+        }}
+      >
+        <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>
+          Цагууд
+        </div>
 
         {!loading && !error && grouped.length === 0 && (
           <div style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontSize: 13 }}>
