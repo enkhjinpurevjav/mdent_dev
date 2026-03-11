@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import StaffAvatar from "../../../components/StaffAvatar";
 
 type Branch = {
   id: number;
@@ -279,7 +278,7 @@ export default function ReceptionProfilePage() {
         }));
 
         setIsEditingProfile(false);
-        setActiveTab("profile");
+        // do not force activeTab here; let query-param effect decide
 
         setLoading(false);
       } catch (err) {
@@ -697,7 +696,13 @@ export default function ReceptionProfilePage() {
     <main className="max-w-[1100px] mx-auto my-10 p-6 font-sans">
       <button
         type="button"
-        onClick={() => router.push("/users/reception")}
+        onClick={() => {
+          if (typeof window !== "undefined" && window.history.length <= 1) {
+            router.push("/users/reception");
+          } else {
+            router.back();
+          }
+        }}
         className="mb-4 px-2 py-1 rounded border border-gray-300 bg-gray-50 cursor-pointer text-[13px]"
       >
         ← Буцах
@@ -710,17 +715,7 @@ export default function ReceptionProfilePage() {
             {headerName}
           </div>
 
-          {/* Portrait */}
-          <StaffAvatar
-            name={reception.name}
-            ovog={reception.ovog}
-            email={reception.email}
-            idPhotoPath={reception.idPhotoPath}
-            variant="sidebar"
-            className="mb-2.5"
-          />
-
-          <div className="text-[13px] text-gray-500">
+          <div className="text-[13px] text-gray-500 space-y-0.5 mb-1">
             <div>Утас: {reception.phone || "-"}</div>
             <div>И-мэйл: {reception.email || "-"}</div>
             <div>Үндсэн салбар: {mainBranchName || "-"}</div>
@@ -974,22 +969,24 @@ export default function ReceptionProfilePage() {
                   onSubmit={handleSaveSchedule}
                   className="flex flex-col gap-[10px] max-w-[600px]"
                 >
-                  <label className="flex flex-col gap-1">
+                  <label className="flex flex-col gap-1 text-[13px] text-gray-600">
                     Огноо
                     <input
                       type="date"
                       name="date"
                       value={scheduleForm.date}
                       onChange={handleScheduleFormChange}
+                      className="rounded-md border border-gray-300 px-2 py-1.5 text-[13px] bg-white"
                     />
                   </label>
 
-                  <label className="flex flex-col gap-1">
+                  <label className="flex flex-col gap-1 text-[13px] text-gray-600">
                     Салбар
                     <select
                       name="branchId"
                       value={scheduleForm.branchId}
                       onChange={handleScheduleFormChange}
+                      className="rounded-md border border-gray-300 px-2 py-1.5 text-[13px] bg-white"
                     >
                       <option value="">Сонгох</option>
                       {receptionAssignedBranches.map((b) => (
@@ -1000,12 +997,13 @@ export default function ReceptionProfilePage() {
                     </select>
                   </label>
 
-                  <label className="flex flex-col gap-1">
+                  <label className="flex flex-col gap-1 text-[13px] text-gray-600">
                     Ээлж
                     <select
                       name="shiftType"
                       value={scheduleForm.shiftType}
                       onChange={handleScheduleFormChange}
+                      className="rounded-md border border-gray-300 px-2 py-1.5 text-[13px] bg-white"
                     >
                       <option value="AM">Өглөө ээлж</option>
                       <option value="PM">Орой ээлж</option>
@@ -1014,28 +1012,30 @@ export default function ReceptionProfilePage() {
                   </label>
 
                   <div className="flex gap-3 flex-wrap">
-                    <label className="flex flex-col gap-1">
+                    <label className="flex flex-col gap-1 text-[13px] text-gray-600">
                       Эхлэх цаг
                       <input
                         type="time"
                         name="startTime"
                         value={scheduleForm.startTime}
                         onChange={handleScheduleFormChange}
+                        className="rounded-md border border-gray-300 px-2 py-1.5 text-[13px] bg-white"
                       />
                     </label>
 
-                    <label className="flex flex-col gap-1">
+                    <label className="flex flex-col gap-1 text-[13px] text-gray-600">
                       Дуусах цаг
                       <input
                         type="time"
                         name="endTime"
                         value={scheduleForm.endTime}
                         onChange={handleScheduleFormChange}
+                        className="rounded-md border border-gray-300 px-2 py-1.5 text-[13px] bg-white"
                       />
                     </label>
                   </div>
 
-                  <label className="flex flex-col gap-1">
+                  <label className="flex flex-col gap-1 text-[13px] text-gray-600">
                     Тэмдэглэл
                     <textarea
                       name="note"
@@ -1043,6 +1043,7 @@ export default function ReceptionProfilePage() {
                       value={scheduleForm.note}
                       onChange={handleScheduleFormChange}
                       placeholder="Жишээ нь: 30 минут хоцорч эхэлнэ"
+                      className="rounded-md border border-gray-300 px-2 py-1.5 text-[13px] resize-none"
                     />
                   </label>
 
@@ -1089,40 +1090,41 @@ export default function ReceptionProfilePage() {
                 )}
 
                 {!scheduleLoading && !scheduleError && schedule.length > 0 && (
-                  <table className="w-full border-collapse mt-2 text-sm">
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                  <table className="w-full border-collapse text-sm">
                     <thead>
                       <tr className="bg-gray-50">
-                        <th className="text-left border-b border-gray-300 p-2">
+                        <th className="text-left border-b border-gray-200 px-3 py-2 font-semibold text-gray-600">
                           Огноо
                         </th>
-                        <th className="text-left border-b border-gray-300 p-2">
+                        <th className="text-left border-b border-gray-200 px-3 py-2 font-semibold text-gray-600">
                           Салбар
                         </th>
-                        <th className="text-left border-b border-gray-300 p-2">
+                        <th className="text-left border-b border-gray-200 px-3 py-2 font-semibold text-gray-600">
                           Цаг
                         </th>
-                        <th className="text-left border-b border-gray-300 p-2">
+                        <th className="text-left border-b border-gray-200 px-3 py-2 font-semibold text-gray-600">
                           Тэмдэглэл
                         </th>
-                        <th className="text-left border-b border-gray-300 p-2">
+                        <th className="text-left border-b border-gray-200 px-3 py-2 font-semibold text-gray-600">
                           Үйлдэл
                         </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {schedule.map((s) => {
+                      {schedule.map((s, idx) => {
                         const isRowEditing = editingScheduleId === s.id;
 
                         return (
-                          <tr key={s.id}>
-                            <td className="border-b border-gray-100 p-2">
+                          <tr key={s.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                            <td className="border-b border-gray-100 px-3 py-2">
                               {isRowEditing ? (
                                 <input
                                   type="date"
                                   name="date"
                                   value={inlineForm.date}
                                   onChange={handleInlineChange}
-                                  className="text-xs p-1"
+                                  className="text-xs p-1 rounded border border-gray-300"
                                 />
                               ) : (
                                 new Date(s.date).toLocaleDateString("mn-MN", {
@@ -1134,13 +1136,13 @@ export default function ReceptionProfilePage() {
                               )}
                             </td>
 
-                            <td className="border-b border-gray-100 p-2">
+                            <td className="border-b border-gray-100 px-3 py-2">
                               {isRowEditing ? (
                                 <select
                                   name="branchId"
                                   value={inlineForm.branchId}
                                   onChange={handleInlineChange}
-                                  className="text-xs p-1"
+                                  className="text-xs p-1 rounded border border-gray-300 bg-white"
                                 >
                                   <option value="">Сонгох</option>
                                   {receptionAssignedBranches.map((b) => (
@@ -1154,7 +1156,7 @@ export default function ReceptionProfilePage() {
                               )}
                             </td>
 
-                            <td className="border-b border-gray-100 p-2">
+                            <td className="border-b border-gray-100 px-3 py-2">
                               {isRowEditing ? (
                                 <div className="flex gap-1">
                                   <input
@@ -1162,7 +1164,7 @@ export default function ReceptionProfilePage() {
                                     name="startTime"
                                     value={inlineForm.startTime}
                                     onChange={handleInlineChange}
-                                    className="text-xs p-1"
+                                    className="text-xs p-1 rounded border border-gray-300"
                                   />
                                   <span>-</span>
                                   <input
@@ -1170,7 +1172,7 @@ export default function ReceptionProfilePage() {
                                     name="endTime"
                                     value={inlineForm.endTime}
                                     onChange={handleInlineChange}
-                                    className="text-xs p-1"
+                                    className="text-xs p-1 rounded border border-gray-300"
                                   />
                                 </div>
                               ) : (
@@ -1180,28 +1182,28 @@ export default function ReceptionProfilePage() {
                               )}
                             </td>
 
-                            <td className="border-b border-gray-100 p-2">
+                            <td className="border-b border-gray-100 px-3 py-2">
                               {isRowEditing ? (
                                 <textarea
                                   name="note"
                                   rows={1}
                                   value={inlineForm.note}
                                   onChange={handleInlineChange}
-                                  className="text-xs p-1 w-full"
+                                  className="text-xs p-1 w-full rounded border border-gray-300 resize-none"
                                 />
                               ) : (
                                 s.note || "-"
                               )}
                             </td>
 
-                            <td className="border-b border-gray-100 p-2">
+                            <td className="border-b border-gray-100 px-3 py-2">
                               {isRowEditing ? (
                                 <div className="flex gap-1">
                                   <button
                                     type="button"
                                     onClick={handleInlineSaveSchedule}
                                     disabled={scheduleSaving}
-                                    className="px-2 py-1 rounded border border-green-400 bg-green-100 cursor-pointer text-xs"
+                                    className="px-2 py-1 rounded border border-green-400 bg-green-100 text-green-700 cursor-pointer text-xs"
                                   >
                                     {scheduleSaving ? "Хадгалж..." : "Хадгалах"}
                                   </button>
@@ -1237,6 +1239,7 @@ export default function ReceptionProfilePage() {
                       })}
                     </tbody>
                   </table>
+                  </div>
                 )}
               </div>
             </div>
