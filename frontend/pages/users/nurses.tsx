@@ -306,35 +306,35 @@ export default function NursesPage() {
   }, []);
 
   return (
-    <main className="max-w-[900px] mx-auto my-10 p-6 font-sans">
-      <h1>Сувилагч</h1>
+    <main className="max-w-7xl px-4 lg:px-8 my-4 font-sans">
+      <h1 className="text-2xl font-bold mt-1 mb-2">Сувилагч</h1>
       <p className="text-gray-500 mb-4">
         Сувилагч ажилчдыг бүртгэх, салбарт хуваарьлах, жагсаалтаар харах.
       </p>
 
       <UsersTabs />
 
-      <section className="grid [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))] gap-3 mb-4">
-        <div className="bg-gradient-to-r from-blue-50 to-white rounded-xl border border-blue-100 p-3 shadow">
-          <div className="text-xs uppercase text-blue-700 font-bold tracking-wide mb-1">
-            Нийт сувилагч
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <div className="rounded-2xl p-4 bg-blue-100 shadow-sm">
+          <div className="text-xs font-semibold tracking-wide text-blue-700 uppercase mb-1.5">
+            НИЙТ СУВИЛАГЧ
           </div>
-          <div className="text-[26px] font-bold text-gray-900 mb-1">
+          <div className="text-3xl font-bold mb-1">
             {summary ? summary.total : "—"}
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-600">
             Системд бүртгэлтэй нийт сувилагч ажилчдын тоо.
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-green-100 to-white rounded-xl border border-green-200 p-3 shadow">
-          <div className="text-xs uppercase text-green-700 font-bold tracking-wide mb-1">
-            Өнөөдөр ажиллаж буй сувилагч
+        <div className="rounded-2xl p-4 bg-green-100 shadow-sm">
+          <div className="text-xs font-semibold tracking-wide text-green-700 uppercase mb-1.5">
+            ӨНӨӨДӨР АЖИЛЛАЖ БУЙ СУВИЛАГЧ
           </div>
-          <div className="text-[26px] font-bold text-gray-900 mb-1">
+          <div className="text-3xl font-bold mb-1">
             {summary ? summary.workingToday : "—"}
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-600">
             Өнөөдрийн ажлын хуваарьт орсон сувилагчдын тоо.
           </div>
         </div>
@@ -348,58 +348,81 @@ export default function NursesPage() {
         }}
       />
 
-      {loading && <div>Ачааллаж байна...</div>}
-      {!loading && error && <div className="text-red-600">{error}</div>}
+      {loading && <p className="text-gray-500 text-sm">Ачааллаж байна...</p>}
+      {!loading && error && <p className="text-red-600 text-sm">{error}</p>}
 
       {!loading && !error && (
-        <table className="w-full border-collapse mt-2 text-sm">
-          <thead>
-            <tr>
-              <th className="text-left border-b border-gray-200 p-2">#</th>
-              <th className="text-left border-b border-gray-200 p-2">Овог</th>
-              <th className="text-left border-b border-gray-200 p-2">Нэр</th>
-              <th className="text-left border-b border-gray-200 p-2">И-мэйл</th>
-              <th className="text-left border-b border-gray-200 p-2">РД</th>
-              <th className="text-left border-b border-gray-200 p-2">Утас</th>
-              <th className="text-left border-b border-gray-200 p-2">Салбар</th>
-              <th className="text-left border-b border-gray-200 p-2">Профайл</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u, index) => (
-              <tr key={u.id}>
-                <td className="border-b border-gray-100 p-2">{index + 1}</td>
-                <td className="border-b border-gray-100 p-2">{u.ovog || "-"}</td>
-                <td className="border-b border-gray-100 p-2">{u.name || "-"}</td>
-                <td className="border-b border-gray-100 p-2">{u.email}</td>
-                <td className="border-b border-gray-100 p-2">{u.regNo || "-"}</td>
-                <td className="border-b border-gray-100 p-2">{u.phone || "-"}</td>
-                <td className="border-b border-gray-100 p-2">
-                  {Array.isArray(u.branches) && u.branches.length > 0
-                    ? u.branches.map((b) => b.name).join(", ")
-                    : u.branch
-                    ? u.branch.name
-                    : "-"}
-                </td>
-                <td className="border-b border-gray-100 p-2 whitespace-nowrap">
-                  <a
-                    href={`/users/nurse/${u.id}`}
-                    className="px-1.5 py-0.5 text-xs rounded border border-blue-600 text-blue-600 no-underline"
-                  >
-                    Профайл
-                  </a>
-                </td>
-              </tr>
-            ))}
-            {users.length === 0 && (
+        <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <table className="w-full border-collapse text-sm">
+            <thead className="bg-gray-50">
               <tr>
-                <td colSpan={8} className="text-center text-gray-400 p-3">
-                  Өгөгдөл алга
-                </td>
+                {["#", "Овог", "Нэр", "И-мэйл", "РД", "Утас", "Салбар", "Үйлдэл"].map((label) => (
+                  <th
+                    key={label}
+                    className="sticky top-0 z-10 text-left border-b border-gray-200 py-2 px-3 font-semibold text-gray-700 whitespace-nowrap bg-gray-50"
+                  >
+                    {label}
+                  </th>
+                ))}
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {(() => {
+                const btnCls = "inline-flex items-center justify-center w-7 h-7 rounded border border-gray-200 bg-gray-50 text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors";
+                const tooltipCls = "pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100";
+                return users.map((u, index) => {
+                  const baseUrl = `/users/nurse/${u.id}`;
+                  return (
+                    <tr key={u.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100">
+                      <td className="border-b border-gray-100 py-2 px-3">{index + 1}</td>
+                      <td className="border-b border-gray-100 py-2 px-3">{u.ovog || "-"}</td>
+                      <td className="border-b border-gray-100 py-2 px-3">{u.name || "-"}</td>
+                      <td className="border-b border-gray-100 py-2 px-3">{u.email}</td>
+                      <td className="border-b border-gray-100 py-2 px-3">{u.regNo || "-"}</td>
+                      <td className="border-b border-gray-100 py-2 px-3">{u.phone || "-"}</td>
+                      <td className="border-b border-gray-100 py-2 px-3">
+                        {Array.isArray(u.branches) && u.branches.length > 0
+                          ? u.branches.map((b) => b.name).join(", ")
+                          : u.branch
+                          ? u.branch.name
+                          : "-"}
+                      </td>
+                      <td className="border-b border-gray-100 py-2 px-3">
+                        <div className="flex items-center gap-1">
+                          {/* Профайл */}
+                          <div className="group relative inline-block">
+                            <a href={baseUrl} aria-label="Профайл" className={btnCls}>
+                              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
+                              </svg>
+                            </a>
+                            <span className={tooltipCls}>Профайл</span>
+                          </div>
+                          {/* Ажлын хуваарь */}
+                          <div className="group relative inline-block">
+                            <a href={`${baseUrl}?tab=schedule`} aria-label="Ажлын хуваарь" className={btnCls}>
+                              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clipRule="evenodd" />
+                              </svg>
+                            </a>
+                            <span className={tooltipCls}>Ажлын хуваарь</span>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                });
+              })()}
+              {users.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="text-center text-gray-400 py-6 text-sm">
+                    Өгөгдөл алга
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </main>
   );
