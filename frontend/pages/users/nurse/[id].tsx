@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import StaffAvatar from "../../../components/StaffAvatar";
 
 type Branch = {
   id: number;
@@ -64,6 +63,17 @@ export default function NurseProfilePage() {
   const [activeTab, setActiveTab] = useState<NurseTabKey>("profile");
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
+  useEffect(() => {
+    const tabParam = router.query.tab as string | undefined;
+    if (!tabParam) return;
+    const allowed: NurseTabKey[] = ["profile", "schedule"];
+    if (allowed.includes(tabParam as NurseTabKey)) {
+      setActiveTab(tabParam as NurseTabKey);
+      setIsEditingProfile(false);
+      setError(null);
+    }
+  }, [router.query.tab]);
+
   const [form, setForm] = useState({
     name: "",
     ovog: "",
@@ -80,6 +90,28 @@ export default function NurseProfilePage() {
   const [schedule, setSchedule] = useState<NurseScheduleDay[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+
+  // schedule table pagination
+  const [schedulePage, setSchedulePage] = useState(1);
+  const schedulePageSize = 10;
+
+  // History (Хуваарийн түүх) state
+  const [historyFrom, setHistoryFrom] = useState("");
+  const [historyTo, setHistoryTo] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyItems, setHistoryItems] = useState<NurseScheduleDay[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const historyPageSize = 15;
+
+  // Bulk schedule (mode 2) state
+  const [bulkDateFrom, setBulkDateFrom] = useState("");
+  const [bulkDateTo, setBulkDateTo] = useState("");
+  const [bulkBranchId, setBulkBranchId] = useState("");
+  const [bulkShiftByDate, setBulkShiftByDate] = useState<Record<string, ShiftType>>({});
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [bulkSuccess, setBulkSuccess] = useState<string | null>(null);
 
   // schedule editor form state (create only)
   const [scheduleForm, setScheduleForm] = useState<{
@@ -266,7 +298,7 @@ export default function NurseProfilePage() {
         }));
 
         setIsEditingProfile(false);
-        setActiveTab("profile");
+        // do not force activeTab here; let query-param effect decide
 
         setLoading(false);
       } catch (err) {
@@ -439,7 +471,7 @@ export default function NurseProfilePage() {
         return;
       }
 
-      router.push("/users/nurse");
+      router.push("/users/nurses");
     } catch (err) {
       console.error(err);
       alert("Сүлжээгээ шалгана уу");
@@ -640,6 +672,117 @@ export default function NurseProfilePage() {
 
   const headerName = nurse ? formatStaffShortName(nurse) : "";
 
+  function getDatesInRange(from: string, to: string): string[] {
+    if (!from || !to) return [];
+    const result: string[] = [];
+    const [fy, fm, fd] = from.split("-").map(Number);
+    const [ty, tm, td] = to.split("-").map(Number);
+    const start = new Date(fy, fm - 1, fd);
+    const end = new Date(ty, tm - 1, td);
+    if (start > end) return [];
+    const cur = new Date(start);
+    while (cur <= end) {
+      const y = cur.getFullYear();
+      const m = String(cur.getMonth() + 1).padStart(2, "0");
+      const d = String(cur.getDate()).padStart(2, "0");
+      result.push(`${y}-${m}-${d}`);
+      cur.setDate(cur.getDate() + 1);
+    }
+    return result;
+  }
+
+  function formatScheduleDate(ymd: string): string {
+    if (!ymd) return "";
+    const [y, m, d] = ymd.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    const weekdays = ["Ням", "Даваа", "Мягмар", "Лхагва", "Пүрэв", "Баасан", "Бямба"];
+    const weekday = weekdays[dt.getDay()];
+    return `${y}/${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")} ${weekday}`;
+  }
+
+  const loadHistory = async () => {
+    if (!id) return;
+    if (!historyFrom || !historyTo) {
+      setHistoryError("Эхлэх болон дуусах огноог сонгоно уу.");
+      return;
+    }
+    setHistoryLoading(true);
+    setHistoryError(null);
+    setHistoryItems([]);
+    setHistoryPage(1);
+    try {
+      const res = await fetch(
+        `/api/users/${id}/nurse-schedule?from=${historyFrom}&to=${historyTo}`
+      );
+      const data = await res.json();
+      if (res.ok && Array.isArray(data)) {
+        setHistoryItems(data);
+      } else {
+        setHistoryError(
+          (data && data.error) || "Хуваарийн түүхийг ачааллаж чадсангүй"
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      setHistoryError("Сүлжээгээ шалгана уу");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleBulkSaveSchedule = async () => {
+    if (!id) return;
+    if (!bulkBranchId) {
+      setBulkError("Салбар сонгоно уу.");
+      return;
+    }
+    if (!bulkDateFrom || !bulkDateTo) {
+      setBulkError("Эхлэх болон дуусах огноог сонгоно уу.");
+      return;
+    }
+    if (Object.keys(bulkShiftByDate).length === 0) {
+      setBulkError("Дор хаяж нэг өдрийн ээлж сонгоно уу.");
+      return;
+    }
+
+    setBulkSaving(true);
+    setBulkError(null);
+    setBulkSuccess(null);
+
+    try {
+      const res = await fetch(`/api/users/${id}/nurse-schedule/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          branchId: Number(bulkBranchId),
+          dateFrom: bulkDateFrom,
+          dateTo: bulkDateTo,
+          shiftTypeByDate: bulkShiftByDate,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setBulkError(data?.error || "Олон өдрийн хуваарь хадгалах үед алдаа гарлаа.");
+        return;
+      }
+
+      setBulkSuccess(`Амжилттай: ${data.created} шинэ, ${data.updated} шинэчлэгдсэн.`);
+      setBulkShiftByDate({});
+      setBulkDateFrom("");
+      setBulkDateTo("");
+      setBulkBranchId("");
+      await reloadSchedule();
+      setTimeout(() => setBulkSuccess(null), 4000);
+    } catch (err) {
+      console.error(err);
+      setBulkError("Сүлжээгээ шалгана уу");
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
   const mainBranchName = useMemo(() => {
     if (!nurse?.branchId) return null;
     return branches.find((b) => b.id === nurse.branchId)?.name || null;
@@ -681,10 +824,16 @@ export default function NurseProfilePage() {
   }
 
   return (
-    <main className="max-w-[1100px] mx-auto my-10 p-6 font-sans">
+    <main className="p-6 font-sans">
       <button
         type="button"
-        onClick={() => router.push("/users/nurse")}
+        onClick={() => {
+          if (typeof window !== "undefined" && window.history.length <= 1) {
+            router.push("/users/nurses");
+          } else {
+            router.back();
+          }
+        }}
         className="mb-4 px-2 py-1 rounded border border-gray-300 bg-gray-50 cursor-pointer text-[13px]"
       >
         ← Буцах
@@ -697,17 +846,7 @@ export default function NurseProfilePage() {
             {headerName}
           </div>
 
-          {/* Portrait */}
-          <StaffAvatar
-            name={nurse.name}
-            ovog={nurse.ovog}
-            email={nurse.email}
-            idPhotoPath={nurse.idPhotoPath}
-            variant="sidebar"
-            className="mb-2.5"
-          />
-
-          <div className="text-[13px] text-gray-500">
+          <div className="text-[13px] text-gray-500 space-y-0.5 mb-1">
             <div>Утас: {nurse.phone || "-"}</div>
             <div>И-мэйл: {nurse.email || "-"}</div>
             <div>Үндсэн салбар: {mainBranchName || "-"}</div>
@@ -756,32 +895,6 @@ export default function NurseProfilePage() {
 
         {/* RIGHT CONTENT */}
         <div className="flex flex-col gap-4">
-
-{/* Top summary cards (only on profile tab) */}
-{activeTab === "profile" && (
-  <div className="grid [grid-template-columns:repeat(auto-fit,minmax(180px,1fr))] gap-3">
-    <div className="rounded-xl border border-gray-200 p-3 bg-gray-50">
-      <div className="text-xs uppercase text-gray-500 mb-1">
-        ӨНӨӨДРИЙН ОРЛОГО
-      </div>
-      <div className="text-sm font-medium mb-1">
-        Coming soon
-      </div>
-      <div className="text-xs text-gray-500">(Logic later)</div>
-    </div>
-
-    <div className="rounded-xl border border-gray-200 p-3 bg-gray-50">
-      <div className="text-xs uppercase text-gray-500 mb-1">
-        ЭНЭ САРЫН ОРЛОГО
-      </div>
-      <div className="text-sm font-medium mb-1">
-        Coming soon
-      </div>
-      <div className="text-xs text-gray-500">(Logic later)</div>
-    </div>
-  </div>
-)}
-
           {/* PROFILE TAB */}
           {activeTab === "profile" && (
             <>
@@ -859,48 +972,80 @@ export default function NurseProfilePage() {
                 ) : (
                   <form
                     onSubmit={handleSave}
-                    className="flex flex-col gap-3 max-w-[600px]"
                   >
-                    {(
-                      [
-                        { label: "Овог", name: "ovog", type: "text" },
-                        { label: "Нэр", name: "name", type: "text" },
-                        { label: "И-мэйл", name: "email", type: "email" },
-                        { label: "РД", name: "regNo", type: "text" },
-                        { label: "Утас", name: "phone", type: "text" },
-                      ] as const
-                    ).map((f) => (
-                      <div key={f.name}>
-                        <div className="text-gray-500 mb-0.5 text-[13px]">
-                          {f.label}
-                        </div>
+                    {/* Fields grid */}
+                    <div className="grid [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))] gap-3 text-[13px]">
+                      <div>
+                        <div className="text-gray-500 mb-0.5">Овог</div>
                         <input
-                          name={f.name}
-                          type={f.type}
-                          value={(form as any)[f.name]}
+                          name="ovog"
+                          type="text"
+                          value={form.ovog}
                           onChange={handleChange}
                           className="w-full rounded-md border border-gray-300 px-1.5 py-1"
                         />
                       </div>
-                    ))}
 
-                    <div>
-                      <div className="text-gray-500 mb-0.5 text-[13px]">
-                        Үндсэн салбар
+                      <div>
+                        <div className="text-gray-500 mb-0.5">Нэр</div>
+                        <input
+                          name="name"
+                          type="text"
+                          value={form.name}
+                          onChange={handleChange}
+                          className="w-full rounded-md border border-gray-300 px-1.5 py-1"
+                        />
                       </div>
-                      <select
-                        name="branchId"
-                        value={form.branchId}
-                        onChange={handleChange}
-                        className="w-full rounded-md border border-gray-300 px-1.5 py-1 bg-white"
-                      >
-                        <option value="">Сонгохгүй</option>
-                        {branches.map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.name}
-                          </option>
-                        ))}
-                      </select>
+
+                      <div>
+                        <div className="text-gray-500 mb-0.5">И-мэйл</div>
+                        <input
+                          name="email"
+                          type="email"
+                          value={form.email}
+                          onChange={handleChange}
+                          className="w-full rounded-md border border-gray-300 px-1.5 py-1"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="text-gray-500 mb-0.5">РД</div>
+                        <input
+                          name="regNo"
+                          type="text"
+                          value={form.regNo}
+                          onChange={handleChange}
+                          className="w-full rounded-md border border-gray-300 px-1.5 py-1"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="text-gray-500 mb-0.5">Утас</div>
+                        <input
+                          name="phone"
+                          type="text"
+                          value={form.phone}
+                          onChange={handleChange}
+                          className="w-full rounded-md border border-gray-300 px-1.5 py-1"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="text-gray-500 mb-0.5">Үндсэн салбар</div>
+                        <select
+                          name="branchId"
+                          value={form.branchId}
+                          onChange={handleChange}
+                          className="w-full rounded-md border border-gray-300 px-1.5 py-1 bg-white"
+                        >
+                          <option value="">Сонгохгүй</option>
+                          {branches.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
                     <div className="mt-4 flex gap-2 justify-end">
@@ -985,24 +1130,26 @@ export default function NurseProfilePage() {
 
                 <form
                   onSubmit={handleSaveSchedule}
-                  className="flex flex-col gap-2.5 max-w-[600px]"
+                  className="flex flex-col gap-[10px] max-w-[600px]"
                 >
-                  <label className="flex flex-col gap-1">
+                  <label className="flex flex-col gap-1 text-[13px] text-gray-600">
                     Огноо
                     <input
                       type="date"
                       name="date"
                       value={scheduleForm.date}
                       onChange={handleScheduleFormChange}
+                      className="rounded-md border border-gray-300 px-2 py-1.5 text-[13px] bg-white"
                     />
                   </label>
 
-                  <label className="flex flex-col gap-1">
+                  <label className="flex flex-col gap-1 text-[13px] text-gray-600">
                     Салбар
                     <select
                       name="branchId"
                       value={scheduleForm.branchId}
                       onChange={handleScheduleFormChange}
+                      className="rounded-md border border-gray-300 px-2 py-1.5 text-[13px] bg-white"
                     >
                       <option value="">Сонгох</option>
                       {nurseAssignedBranches.map((b) => (
@@ -1013,12 +1160,13 @@ export default function NurseProfilePage() {
                     </select>
                   </label>
 
-                  <label className="flex flex-col gap-1">
+                  <label className="flex flex-col gap-1 text-[13px] text-gray-600">
                     Ээлж
                     <select
                       name="shiftType"
                       value={scheduleForm.shiftType}
                       onChange={handleScheduleFormChange}
+                      className="rounded-md border border-gray-300 px-2 py-1.5 text-[13px] bg-white"
                     >
                       <option value="AM">Өглөө ээлж</option>
                       <option value="PM">Орой ээлж</option>
@@ -1027,28 +1175,30 @@ export default function NurseProfilePage() {
                   </label>
 
                   <div className="flex gap-3 flex-wrap">
-                    <label className="flex flex-col gap-1">
+                    <label className="flex flex-col gap-1 text-[13px] text-gray-600">
                       Эхлэх цаг
                       <input
                         type="time"
                         name="startTime"
                         value={scheduleForm.startTime}
                         onChange={handleScheduleFormChange}
+                        className="rounded-md border border-gray-300 px-2 py-1.5 text-[13px] bg-white"
                       />
                     </label>
 
-                    <label className="flex flex-col gap-1">
+                    <label className="flex flex-col gap-1 text-[13px] text-gray-600">
                       Дуусах цаг
                       <input
                         type="time"
                         name="endTime"
                         value={scheduleForm.endTime}
                         onChange={handleScheduleFormChange}
+                        className="rounded-md border border-gray-300 px-2 py-1.5 text-[13px] bg-white"
                       />
                     </label>
                   </div>
 
-                  <label className="flex flex-col gap-1">
+                  <label className="flex flex-col gap-1 text-[13px] text-gray-600">
                     Тэмдэглэл
                     <textarea
                       name="note"
@@ -1056,19 +1206,20 @@ export default function NurseProfilePage() {
                       value={scheduleForm.note}
                       onChange={handleScheduleFormChange}
                       placeholder="Жишээ нь: 30 минут хоцорч эхэлнэ"
+                      className="rounded-md border border-gray-300 px-2 py-1.5 text-[13px] resize-none"
                     />
                   </label>
 
                   <button
                     type="submit"
                     disabled={scheduleSaving || !isCreatingSchedule}
-                    className="mt-1 px-4 py-2 rounded-md border-0 bg-violet-700 text-white cursor-pointer self-start font-bold text-[13px]"
+                    className="mt-1 px-4 py-2 rounded-md border-0 bg-violet-600 text-white cursor-pointer self-start font-bold text-[13px]"
                   >
                     {scheduleSaving ? "Хуваарь хадгалж байна..." : "Хуваарь хадгалах"}
                   </button>
 
                   {scheduleSaveError && (
-                    <div className="text-red-600 mt-1">
+                    <div className="text-red-500 mt-1">
                       {scheduleSaveError}
                     </div>
                   )}
@@ -1092,7 +1243,7 @@ export default function NurseProfilePage() {
                 {scheduleLoading && <div>Ажлын хуваарь ачааллаж байна...</div>}
 
                 {!scheduleLoading && scheduleError && (
-                  <div className="text-red-600">{scheduleError}</div>
+                  <div className="text-red-500">{scheduleError}</div>
                 )}
 
                 {!scheduleLoading && !scheduleError && schedule.length === 0 && (
@@ -1102,40 +1253,42 @@ export default function NurseProfilePage() {
                 )}
 
                 {!scheduleLoading && !scheduleError && schedule.length > 0 && (
-                  <table className="w-full border-collapse mt-2 text-sm">
+                  <>
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                  <table className="w-full border-collapse text-sm">
                     <thead>
                       <tr className="bg-gray-50">
-                        <th className="text-left border-b border-gray-200 p-2">
+                        <th className="text-left border-b border-gray-200 px-3 py-2 font-semibold text-gray-600">
                           Огноо
                         </th>
-                        <th className="text-left border-b border-gray-200 p-2">
+                        <th className="text-left border-b border-gray-200 px-3 py-2 font-semibold text-gray-600">
                           Салбар
                         </th>
-                        <th className="text-left border-b border-gray-200 p-2">
+                        <th className="text-left border-b border-gray-200 px-3 py-2 font-semibold text-gray-600">
                           Цаг
                         </th>
-                        <th className="text-left border-b border-gray-200 p-2">
+                        <th className="text-left border-b border-gray-200 px-3 py-2 font-semibold text-gray-600">
                           Тэмдэглэл
                         </th>
-                        <th className="text-left border-b border-gray-200 p-2">
+                        <th className="text-left border-b border-gray-200 px-3 py-2 font-semibold text-gray-600">
                           Үйлдэл
                         </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {schedule.map((s) => {
+                      {schedule.slice((schedulePage - 1) * schedulePageSize, schedulePage * schedulePageSize).map((s, idx) => {
                         const isRowEditing = editingScheduleId === s.id;
 
                         return (
-                          <tr key={s.id}>
-                            <td className="border-b border-gray-100 p-2">
+                          <tr key={s.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                            <td className="border-b border-gray-100 px-3 py-2">
                               {isRowEditing ? (
                                 <input
                                   type="date"
                                   name="date"
                                   value={inlineForm.date}
                                   onChange={handleInlineChange}
-                                  className="text-xs p-1"
+                                  className="text-xs p-1 rounded border border-gray-300"
                                 />
                               ) : (
                                 new Date(s.date).toLocaleDateString("mn-MN", {
@@ -1147,13 +1300,13 @@ export default function NurseProfilePage() {
                               )}
                             </td>
 
-                            <td className="border-b border-gray-100 p-2">
+                            <td className="border-b border-gray-100 px-3 py-2">
                               {isRowEditing ? (
                                 <select
                                   name="branchId"
                                   value={inlineForm.branchId}
                                   onChange={handleInlineChange}
-                                  className="text-xs p-1"
+                                  className="text-xs p-1 rounded border border-gray-300 bg-white"
                                 >
                                   <option value="">Сонгох</option>
                                   {nurseAssignedBranches.map((b) => (
@@ -1167,7 +1320,7 @@ export default function NurseProfilePage() {
                               )}
                             </td>
 
-                            <td className="border-b border-gray-100 p-2">
+                            <td className="border-b border-gray-100 px-3 py-2">
                               {isRowEditing ? (
                                 <div className="flex gap-1">
                                   <input
@@ -1175,7 +1328,7 @@ export default function NurseProfilePage() {
                                     name="startTime"
                                     value={inlineForm.startTime}
                                     onChange={handleInlineChange}
-                                    className="text-xs p-1"
+                                    className="text-xs p-1 rounded border border-gray-300"
                                   />
                                   <span>-</span>
                                   <input
@@ -1183,7 +1336,7 @@ export default function NurseProfilePage() {
                                     name="endTime"
                                     value={inlineForm.endTime}
                                     onChange={handleInlineChange}
-                                    className="text-xs p-1"
+                                    className="text-xs p-1 rounded border border-gray-300"
                                   />
                                 </div>
                               ) : (
@@ -1193,28 +1346,28 @@ export default function NurseProfilePage() {
                               )}
                             </td>
 
-                            <td className="border-b border-gray-100 p-2">
+                            <td className="border-b border-gray-100 px-3 py-2">
                               {isRowEditing ? (
                                 <textarea
                                   name="note"
                                   rows={1}
                                   value={inlineForm.note}
                                   onChange={handleInlineChange}
-                                  className="text-xs p-1 w-full"
+                                  className="text-xs p-1 w-full rounded border border-gray-300 resize-none"
                                 />
                               ) : (
                                 s.note || "-"
                               )}
                             </td>
 
-                            <td className="border-b border-gray-100 p-2">
+                            <td className="border-b border-gray-100 px-3 py-2">
                               {isRowEditing ? (
                                 <div className="flex gap-1">
                                   <button
                                     type="button"
                                     onClick={handleInlineSaveSchedule}
                                     disabled={scheduleSaving}
-                                    className="px-2 py-1 rounded border border-green-400 bg-green-100 cursor-pointer text-xs"
+                                    className="px-2 py-1 rounded border border-green-400 bg-green-100 text-green-700 cursor-pointer text-xs"
                                   >
                                     {scheduleSaving ? "Хадгалж..." : "Хадгалах"}
                                   </button>
@@ -1250,6 +1403,248 @@ export default function NurseProfilePage() {
                       })}
                     </tbody>
                   </table>
+                  </div>
+                  {/* Pagination controls */}
+                  {Math.ceil(schedule.length / schedulePageSize) > 1 && (
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-[13px] text-gray-500">
+                        Нийт {schedule.length} бичлэг — {schedulePage}/{Math.ceil(schedule.length / schedulePageSize)} хуудас
+                      </span>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          disabled={schedulePage === 1}
+                          onClick={() => setSchedulePage((p) => p - 1)}
+                          className="px-3 py-1 rounded-md border border-gray-300 bg-white text-[13px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          ‹ Өмнөх
+                        </button>
+                        <button
+                          type="button"
+                          disabled={schedulePage >= Math.ceil(schedule.length / schedulePageSize)}
+                          onClick={() => setSchedulePage((p) => p + 1)}
+                          className="px-3 py-1 rounded-md border border-gray-300 bg-white text-[13px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          Дараах ›
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  </>
+                )}
+              </div>
+
+              {/* Mode 2: Bulk schedule */}
+              <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                <h2 className="text-base mt-0 mb-2">Олон өдрийн хуваарь оруулах (Mode 2)</h2>
+                <div className="text-gray-500 text-[13px] mb-2.5">
+                  Огнооны мужид дахь өдөр бүрт ээлж сонгож нэг удаад хуваарилна.
+                  Амралтын өдөр зөвхөн «Амралтын өдөр» ээлж боломжтой.
+                </div>
+
+                <div className="flex flex-wrap gap-3 items-end mb-3">
+                  <label className="flex flex-col gap-1 text-[13px]">
+                    Эхлэх огноо
+                    <input
+                      type="date"
+                      value={bulkDateFrom}
+                      onChange={(e) => {
+                        setBulkDateFrom(e.target.value);
+                        setBulkShiftByDate({});
+                      }}
+                      className="rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-[13px]">
+                    Дуусах огноо
+                    <input
+                      type="date"
+                      value={bulkDateTo}
+                      onChange={(e) => {
+                        setBulkDateTo(e.target.value);
+                        setBulkShiftByDate({});
+                      }}
+                      className="rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-[13px]">
+                    Салбар
+                    <select
+                      value={bulkBranchId}
+                      onChange={(e) => setBulkBranchId(e.target.value)}
+                      className="rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
+                    >
+                      <option value="">Сонгох</option>
+                      {nurseAssignedBranches.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                {bulkDateFrom && bulkDateTo && getDatesInRange(bulkDateFrom, bulkDateTo).length > 0 && (
+                  <div className="flex flex-col gap-1.5 mb-3 max-h-[320px] overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {getDatesInRange(bulkDateFrom, bulkDateTo).map((ymd) => {
+                      const [y, m, d] = ymd.split("-").map(Number);
+                      const dow = new Date(y, m - 1, d).getDay();
+                      const isWeekend = dow === 0 || dow === 6;
+                      const selectedShift = bulkShiftByDate[ymd] ?? "";
+
+                      return (
+                        <div key={ymd} className="flex items-center gap-3 text-[13px]">
+                          <span className={`w-40 shrink-0 ${isWeekend ? "text-blue-600 font-medium" : ""}`}>
+                            {formatScheduleDate(ymd)}
+                          </span>
+                          <select
+                            value={selectedShift}
+                            onChange={(e) => {
+                              const val = e.target.value as ShiftType | "";
+                              setBulkShiftByDate((prev) => {
+                                const next = { ...prev };
+                                if (val === "") {
+                                  delete next[ymd];
+                                } else {
+                                  next[ymd] = val as ShiftType;
+                                }
+                                return next;
+                              });
+                            }}
+                            className="rounded border border-gray-300 px-1.5 py-0.5 text-[13px] bg-white"
+                          >
+                            <option value="">— Алгасах —</option>
+                            {isWeekend ? (
+                              <option value="WEEKEND_FULL">Амралтын өдөр (10:00–19:00)</option>
+                            ) : (
+                              <>
+                                <option value="AM">Өглөө ээлж (09:00–15:00)</option>
+                                <option value="PM">Орой ээлж (15:00–21:00)</option>
+                                <option value="WEEKEND_FULL">Бүтэн ажлын өдөр (09:00–21:00)</option>
+                              </>
+                            )}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {bulkError && (
+                  <div className="text-red-500 text-[13px] mb-2">{bulkError}</div>
+                )}
+                {bulkSuccess && (
+                  <div className="text-green-600 text-[13px] mb-2">{bulkSuccess}</div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleBulkSaveSchedule}
+                  disabled={bulkSaving || Object.keys(bulkShiftByDate).length === 0}
+                  className="px-4 py-2 rounded-lg border-0 bg-violet-600 text-white cursor-pointer font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {bulkSaving ? "Хадгалж байна..." : `${Object.keys(bulkShiftByDate).length} өдрийн хуваарь хадгалах`}
+                </button>
+              </div>
+
+              {/* Schedule history */}
+              <div className="rounded-xl border border-gray-200 p-4 bg-white">
+                <h2 className="text-base mt-0 mb-2">Хуваарийн түүх</h2>
+                <div className="text-gray-500 text-[13px] mb-2.5">
+                  Өнгөрсөн (эсвэл ирээдүйн) тодорхой хугацааны ажлын хуваарийг харах.
+                </div>
+
+                <div className="flex flex-wrap gap-3 items-end mb-3">
+                  <label className="flex flex-col gap-1 text-[13px]">
+                    Эхлэх огноо
+                    <input
+                      type="date"
+                      value={historyFrom}
+                      onChange={(e) => setHistoryFrom(e.target.value)}
+                      className="rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-[13px]">
+                    Дуусах огноо
+                    <input
+                      type="date"
+                      value={historyTo}
+                      onChange={(e) => setHistoryTo(e.target.value)}
+                      className="rounded-md border border-gray-300 px-1.5 py-1 text-[13px] bg-white"
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={loadHistory}
+                    disabled={historyLoading}
+                    className="px-4 py-2 rounded-lg border-0 bg-teal-700 text-white cursor-pointer h-[38px] font-bold text-[13px]"
+                  >
+                    {historyLoading ? "Ачааллаж байна..." : "Харах"}
+                  </button>
+                </div>
+
+                {historyError && (
+                  <div className="text-red-500 mb-2 text-[13px]">{historyError}</div>
+                )}
+
+                {!historyLoading && historyItems.length === 0 && !historyError && (
+                  <div className="text-gray-400 text-[13px]">
+                    Хуваарийн түүх хараахан ачаалаагүй эсвэл өгөгдөл олдсонгүй.
+                  </div>
+                )}
+
+                {historyItems.length > 0 && (
+                  <>
+                  <table className="w-full border-collapse mt-2 text-sm">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="text-left border-b border-gray-300 p-2">Огноо</th>
+                        <th className="text-left border-b border-gray-300 p-2">Салбар</th>
+                        <th className="text-left border-b border-gray-300 p-2">Цаг</th>
+                        <th className="text-left border-b border-gray-300 p-2">Тэмдэглэл</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historyItems.slice((historyPage - 1) * historyPageSize, historyPage * historyPageSize).map((s) => (
+                        <tr key={s.id}>
+                          <td className="border-b border-gray-100 p-2">{formatScheduleDate(s.date)}</td>
+                          <td className="border-b border-gray-100 p-2">{s.branch?.name || "-"}</td>
+                          <td className="border-b border-gray-100 p-2">{s.startTime} - {s.endTime}</td>
+                          <td className="border-b border-gray-100 p-2">{s.note || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {Math.ceil(historyItems.length / historyPageSize) > 1 && (
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-[13px] text-gray-500">
+                        Нийт {historyItems.length} бичлэг — {historyPage}/{Math.ceil(historyItems.length / historyPageSize)} хуудас
+                      </span>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          disabled={historyPage === 1}
+                          onClick={() => setHistoryPage((p) => p - 1)}
+                          className="px-3 py-1 rounded-md border border-gray-300 bg-white text-[13px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          ‹ Өмнөх
+                        </button>
+                        <button
+                          type="button"
+                          disabled={historyPage >= Math.ceil(historyItems.length / historyPageSize)}
+                          onClick={() => setHistoryPage((p) => p + 1)}
+                          className="px-3 py-1 rounded-md border border-gray-300 bg-white text-[13px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          Дараах ›
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  </>
                 )}
               </div>
             </div>
