@@ -1,5 +1,6 @@
 import type { AppProps } from "next/app";
 import AdminLayout from "../components/AdminLayout";
+import DoctorLayout from "../components/DoctorLayout";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { getMe } from "../utils/auth";
@@ -13,6 +14,10 @@ function isPublicPath(pathname: string) {
   return PUBLIC_ROUTES.some(
     (p) => pathname === p || pathname.startsWith(p + "/")
   );
+}
+
+function isDoctorPath(pathname: string) {
+  return pathname === "/doctor" || pathname.startsWith("/doctor/");
 }
 
 export default function MyApp({ Component, pageProps }: AppProps) {
@@ -29,11 +34,16 @@ export default function MyApp({ Component, pageProps }: AppProps) {
     getMe().then((user) => {
       if (!user) {
         router.replace(`/login?redirect=${encodeURIComponent(router.asPath)}`);
-      } else {
-        setAuthChecked(true);
+        return;
       }
+      // Doctor portal: only doctors allowed
+      if (isDoctorPath(router.pathname) && user.role !== "doctor") {
+        router.replace("/");
+        return;
+      }
+      setAuthChecked(true);
     });
-  }, [router.pathname]);
+  }, [router]);
 
   // Don't render protected pages until auth is confirmed
   if (!isPublicPath(router.pathname) && !authChecked) {
@@ -42,6 +52,14 @@ export default function MyApp({ Component, pageProps }: AppProps) {
 
   if (isPublicRoute) {
     return <Component {...pageProps} />;
+  }
+
+  if (isDoctorPath(router.pathname)) {
+    return (
+      <DoctorLayout>
+        <Component {...pageProps} />
+      </DoctorLayout>
+    );
   }
 
   return (
