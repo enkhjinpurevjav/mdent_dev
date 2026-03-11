@@ -824,6 +824,166 @@ router.delete("/:id/nurse-schedule/:scheduleId", async (req, res) => {
 });
 
 /**
+ * POST /api/users/:id/nurse-schedule/bulk
+ * Body:
+ * {
+ *   branchId: number,
+ *   dateFrom: "YYYY-MM-DD",
+ *   dateTo: "YYYY-MM-DD",
+ *   shiftTypeByDate: Record<string, "AM" | "PM" | "WEEKEND_FULL">
+ * }
+ *
+ * Bulk-upserts schedule entries for each date present in shiftTypeByDate.
+ * Dates outside [dateFrom, dateTo] are ignored.
+ *
+ * Shift → time rules:
+ *   Weekday: AM → 09:00–15:00 | PM → 15:00–21:00 | WEEKEND_FULL → 09:00–21:00
+ *   Weekend: WEEKEND_FULL → 10:00–19:00 (AM/PM not allowed on weekends)
+ *
+ * Returns: { created: number, updated: number }
+ */
+router.post("/:id/nurse-schedule/bulk", async (req, res) => {
+  const nurseId = Number(req.params.id);
+  if (!nurseId || Number.isNaN(nurseId)) {
+    return res.status(400).json({ error: "Invalid nurse id" });
+  }
+
+  const { branchId, dateFrom, dateTo, shiftTypeByDate } = req.body || {};
+
+  if (!branchId || !dateFrom || !dateTo || !shiftTypeByDate) {
+    return res.status(400).json({
+      error: "branchId, dateFrom, dateTo, shiftTypeByDate are required",
+    });
+  }
+
+  const bid = Number(branchId);
+  if (Number.isNaN(bid)) {
+    return res.status(400).json({ error: "Invalid branchId" });
+  }
+
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(dateFrom) || !dateRegex.test(dateTo)) {
+    return res
+      .status(400)
+      .json({ error: "dateFrom and dateTo must be YYYY-MM-DD" });
+  }
+
+  const fromDate = new Date(dateFrom);
+  const toDate = new Date(dateTo);
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+    return res.status(400).json({ error: "Invalid dateFrom or dateTo" });
+  }
+  if (fromDate > toDate) {
+    return res
+      .status(400)
+      .json({ error: "dateFrom must be on or before dateTo" });
+  }
+
+  // Cap range at 62 days to prevent abuse
+  const diffMs = toDate.getTime() - fromDate.getTime();
+  const diffDays = Math.round(diffMs / 86400000);
+  if (diffDays > 62) {
+    return res.status(400).json({ error: "Date range cannot exceed 62 days" });
+  }
+
+  if (typeof shiftTypeByDate !== "object" || Array.isArray(shiftTypeByDate)) {
+    return res.status(400).json({ error: "shiftTypeByDate must be an object" });
+  }
+
+  const validShifts = new Set(["AM", "PM", "WEEKEND_FULL"]);
+
+  function shiftToTimes(shiftType, isWeekend) {
+    if (isWeekend) {
+      if (shiftType !== "WEEKEND_FULL") return null;
+      return { startTime: "10:00", endTime: "19:00" };
+    }
+    switch (shiftType) {
+      case "AM":
+        return { startTime: "09:00", endTime: "15:00" };
+      case "PM":
+        return { startTime: "15:00", endTime: "21:00" };
+      case "WEEKEND_FULL":
+        return { startTime: "09:00", endTime: "21:00" };
+      default:
+        return null;
+    }
+  }
+
+  try {
+    const nurse = await ensureNurseOr404(nurseId, res);
+    if (!nurse) return;
+
+    const branch = await prisma.branch.findUnique({
+      where: { id: bid },
+      select: { id: true },
+    });
+    if (!branch) {
+      return res.status(400).json({ error: "Branch not found" });
+    }
+
+    let created = 0;
+    let updated = 0;
+
+    for (const [dateStr, shiftType] of Object.entries(shiftTypeByDate)) {
+      if (!dateRegex.test(dateStr)) continue;
+
+      if (!validShifts.has(shiftType)) {
+        return res.status(400).json({
+          error: `Invalid shiftType "${shiftType}" for date ${dateStr}`,
+        });
+      }
+
+      const entryDate = new Date(dateStr);
+      if (Number.isNaN(entryDate.getTime())) continue;
+
+      if (entryDate < fromDate || entryDate > toDate) continue;
+
+      const [y, m, d] = dateStr.split("-").map(Number);
+      const dayOfWeek = new Date(y, m - 1, d).getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+      const times = shiftToTimes(shiftType, isWeekend);
+      if (!times) {
+        return res.status(400).json({
+          error: `AM and PM shifts are not allowed on weekends (date: ${dateStr}). Use WEEKEND_FULL instead.`,
+        });
+      }
+
+      const day = new Date(y, m - 1, d, 0, 0, 0, 0);
+
+      const existing = await prisma.nurseSchedule.findFirst({
+        where: { nurseId, branchId: bid, date: day },
+        select: { id: true },
+      });
+
+      if (existing) {
+        await prisma.nurseSchedule.update({
+          where: { id: existing.id },
+          data: { startTime: times.startTime, endTime: times.endTime, note: null },
+        });
+        updated += 1;
+      } else {
+        await prisma.nurseSchedule.create({
+          data: {
+            nurseId,
+            branchId: bid,
+            date: day,
+            startTime: times.startTime,
+            endTime: times.endTime,
+          },
+        });
+        created += 1;
+      }
+    }
+
+    return res.status(200).json({ created, updated });
+  } catch (err) {
+    console.error("POST /api/users/:id/nurse-schedule/bulk error:", err);
+    return res.status(500).json({ error: "Failed to bulk-save nurse schedule" });
+  }
+});
+
+/**
  * GET /api/users/:id
  * Returns a single user with:
  * - legacy branch
