@@ -76,6 +76,7 @@ const navItems: NavItem[] = [
       },
       { label: "Материал", href: "/hr/materials", icon: "📦" },
       { label: "Тайлан харах", href: "/hr/reports", icon: "📊" },
+      { label: "Ирцийн тайлан", href: "/admin/attendance", icon: "🕑" },
     ],
   },
 
