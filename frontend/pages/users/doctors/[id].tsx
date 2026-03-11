@@ -452,6 +452,26 @@ export default function DoctorProfilePage() {
 
   const [activeTab, setActiveTab] = useState<DoctorTabKey>("profile");
 
+
+
+useEffect(() => {
+  const tabParam = router.query.tab as string | undefined;
+  if (!tabParam) return;
+
+  const allowed: DoctorTabKey[] = [
+    "profile",
+    "dashboard",
+    "schedule",
+    "appointments",
+    "sales",
+    "history",
+  ];
+
+  if (allowed.includes(tabParam as DoctorTabKey)) {
+    setActiveTab(tabParam as DoctorTabKey);
+  }
+}, [router.query.tab]);
+
   // ✅ NEW: patient-like edit toggle for the profile info card
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
