@@ -565,6 +565,8 @@ useEffect(() => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyItems, setHistoryItems] = useState<DoctorScheduleDay[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const historyPageSize = 15;
 
   // Bulk schedule (mode 2) state
   const [bulkDateFrom, setBulkDateFrom] = useState("");
@@ -1400,6 +1402,7 @@ useEffect(() => {
       }
 
       setHistoryItems(data);
+      setHistoryPage(1);
     } catch (err) {
       console.error(err);
       setHistoryError("Сүлжээгээ шалгана уу");
@@ -2845,6 +2848,7 @@ function formatScheduleDate(ymd: string): string {
                 )}
 
                 {historyItems.length > 0 && (
+                  <>
                   <table
                     className="w-full border-collapse mt-2 text-sm"
                   >
@@ -2865,7 +2869,7 @@ function formatScheduleDate(ymd: string): string {
                       </tr>
                     </thead>
                     <tbody>
-                      {historyItems.map((s) => (
+                      {historyItems.slice((historyPage - 1) * historyPageSize, historyPage * historyPageSize).map((s) => (
                         <tr key={s.id}>
                           <td className="border-b border-gray-100 p-2">
                             {formatScheduleDate(s.date)}
@@ -2883,6 +2887,32 @@ function formatScheduleDate(ymd: string): string {
                       ))}
                     </tbody>
                   </table>
+                  {Math.ceil(historyItems.length / historyPageSize) > 1 && (
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-[13px] text-gray-500">
+                        Нийт {historyItems.length} бичлэг — {historyPage}/{Math.ceil(historyItems.length / historyPageSize)} хуудас
+                      </span>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          disabled={historyPage === 1}
+                          onClick={() => setHistoryPage((p) => p - 1)}
+                          className="px-3 py-1 rounded-md border border-gray-300 bg-white text-[13px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          ‹ Өмнөх
+                        </button>
+                        <button
+                          type="button"
+                          disabled={historyPage >= Math.ceil(historyItems.length / historyPageSize)}
+                          onClick={() => setHistoryPage((p) => p + 1)}
+                          className="px-3 py-1 rounded-md border border-gray-300 bg-white text-[13px] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          Дараах ›
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  </>
                 )}
               </Card>
             </div>
