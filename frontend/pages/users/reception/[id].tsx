@@ -693,7 +693,7 @@ export default function ReceptionProfilePage() {
   }
 
   return (
-    <main className="max-w-[1100px] mx-auto my-10 p-6 font-sans">
+    <main className="p-6 font-sans">
       <button
         type="button"
         onClick={() => {
