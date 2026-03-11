@@ -549,6 +549,30 @@ export default function AdminLayout({ children }: Props) {
           })}
         </nav>
 
+        {/* Bottom-pinned attendance link */}
+        <div style={{ padding: "8px 8px 0" }}>
+          <Link href="/attendance" legacyBehavior>
+            <a
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 12px",
+                margin: "2px 4px",
+                borderRadius: 12,
+                textDecoration: "none",
+                fontSize: 14,
+                color: isActive("/attendance") ? "#0f172a" : "#1f2937",
+                background: isActive("/attendance") ? "#e5f0ff" : "transparent",
+                fontWeight: isActive("/attendance") ? 600 : 500,
+              }}
+            >
+              <span style={{ width: 20, textAlign: "center" }}>🕘</span>
+              <span>Ирц бүртгэл</span>
+            </a>
+          </Link>
+        </div>
+
         {/* Sidebar footer */}
         <div
           style={{
@@ -921,6 +945,31 @@ export default function AdminLayout({ children }: Props) {
               );
             })}
           </nav>
+
+          {/* Bottom-pinned attendance link */}
+          <div style={{ padding: "8px 8px 0" }}>
+            <Link href="/attendance" legacyBehavior>
+              <a
+                onClick={() => setNavOpen(false)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 12px",
+                  margin: "2px 4px",
+                  borderRadius: 12,
+                  textDecoration: "none",
+                  fontSize: 14,
+                  color: isActive("/attendance") ? "#0f172a" : "#1f2937",
+                  background: isActive("/attendance") ? "#e5f0ff" : "transparent",
+                  fontWeight: isActive("/attendance") ? 600 : 500,
+                }}
+              >
+                <span style={{ width: 20, textAlign: "center" }}>🕘</span>
+                <span>Ирц бүртгэл</span>
+              </a>
+            </Link>
+          </div>
 
           {/* Footer */}
           <div

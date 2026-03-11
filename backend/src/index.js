@@ -46,6 +46,7 @@ import publicRouter from "./routes/public.js";
 import ebarimtRouter from "./routes/ebarimt.js";
 import uploadsRouter from "./routes/uploads.js";
 import authRouter from "./routes/auth.js";
+import attendanceRouter from "./routes/attendance.js";
 import { authenticateJWT, requireRole } from "./middleware/auth.js";
 import rateLimit from "express-rate-limit";
 
@@ -212,6 +213,9 @@ app.use("/api/ebarimt", ebarimtRouter);
 
 // File upload routes
 app.use("/api/uploads", uploadsRouter);
+
+// Attendance routes (all authenticated staff)
+app.use("/api/attendance", attendanceRouter);
 
 // Optional central error handler
 app.use((err, _req, res, _next) => {

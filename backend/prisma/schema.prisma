@@ -138,6 +138,11 @@ model Branch {
   address   String?
   createdAt DateTime @default(now())
 
+  // Geolocation for attendance geofence
+  geoLat      Float?
+  geoLng      Float?
+  geoRadiusM  Int    @default(150)
+
   users              User[]
   patients           Patient[]
   doctorSchedules    DoctorSchedule[]
@@ -177,6 +182,9 @@ model Branch {
   disinfectionLogs DisinfectionLog[] @relation("BranchDisinfectionLogs")
   sterilizationReturns SterilizationReturn[] @relation("BranchSterilizationReturns")
   sterilizationDisposals   SterilizationDisposal[]   @relation("BranchSterilizationDisposals")
+
+  // Attendance
+  attendanceSessions AttendanceSession[]
 }
 
 model EmployeeBenefit {
@@ -682,6 +690,9 @@ model User {
   nurseCommissionConfig NurseCommissionConfig?
 
   passwordResetTokens PasswordResetToken[]
+
+  // Attendance sessions
+  attendanceSessions AttendanceSession[]
 }
 
 // ==========================================================
@@ -1678,4 +1689,30 @@ model PasswordResetToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+
+// ==========================================================
+// ATTENDANCE SESSIONS
+// ==========================================================
+model AttendanceSession {
+  id       Int    @id @default(autoincrement())
+  userId   Int
+  user     User   @relation(fields: [userId], references: [id])
+  branchId Int
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  checkInAt         DateTime
+  checkOutAt        DateTime?
+  checkInLat        Float
+  checkInLng        Float
+  checkInAccuracyM  Int
+  checkOutLat       Float?
+  checkOutLng       Float?
+  checkOutAccuracyM Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, checkInAt])
+  @@index([branchId, checkInAt])
 }
