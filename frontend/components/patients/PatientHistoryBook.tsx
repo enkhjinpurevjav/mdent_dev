@@ -126,6 +126,7 @@ type Props = {
   patientBook: PatientBook;
   visitCard?: VisitCard | null;
   encounters: Encounter[];
+  isDoctor?: boolean;
 };
 
 const PatientHistoryBook: React.FC<Props> = ({
@@ -133,6 +134,7 @@ const PatientHistoryBook: React.FC<Props> = ({
   patientBook,
   visitCard,
   encounters,
+  isDoctor = false,
 }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [filterStartDate, setFilterStartDate] = useState("");
@@ -644,6 +646,7 @@ const PatientHistoryBook: React.FC<Props> = ({
     <div>
       {/* Print and filter controls (hide in print) */}
       <div className="no-print" style={{ marginBottom: 16 }}>
+        {!isDoctor && (
         <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
           <button
             onClick={() => window.print()}
@@ -673,6 +676,7 @@ const PatientHistoryBook: React.FC<Props> = ({
             {showFilters ? "Шүүлтүүр хаах" : "Шүүлтүүр нээх"}
           </button>
         </div>
+        )}
 
         {showFilters && (
           <div
@@ -775,7 +779,7 @@ const PatientHistoryBook: React.FC<Props> = ({
           border: "1px solid #e5e7eb",
         }}
       >
-        {showHeader && (
+        {showHeader && !isDoctor && (
           <>
             {/* Logo and header */}
 <div
@@ -964,6 +968,7 @@ const PatientHistoryBook: React.FC<Props> = ({
                     Эмчилгээ
                   </th>
                   <th
+                    className={isDoctor ? "hidden md:table-cell" : undefined}
                     style={{
                       border: "1px solid #000",
                       padding: "4px 6px",
@@ -975,6 +980,7 @@ const PatientHistoryBook: React.FC<Props> = ({
                     Индикатор
                   </th>
                   <th
+                    className={isDoctor ? "hidden md:table-cell" : undefined}
                     style={{
                       border: "1px solid #000",
                       padding: "4px 6px",
@@ -1053,6 +1059,7 @@ const PatientHistoryBook: React.FC<Props> = ({
                       {row.treatment.length === 0 && "-"}
                     </td>
                     <td
+                      className={isDoctor ? "hidden md:table-cell" : undefined}
                       style={{
                         border: "1px solid #000",
                         padding: "4px 6px",
@@ -1062,6 +1069,7 @@ const PatientHistoryBook: React.FC<Props> = ({
                       {row.indicators.length > 0 ? row.indicators.join(", ") : "-"}
                     </td>
                     <td
+                      className={isDoctor ? "hidden md:table-cell" : undefined}
                       style={{
                         border: "1px solid #000",
                         padding: "4px 6px",
