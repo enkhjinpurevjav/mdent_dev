@@ -5,6 +5,12 @@ import { copyXrayMediaToCanonical } from "../utils/imagingMediaCopy.js";
 
 const router = express.Router();
 
+/** Format a Prisma user relation object into the { id, name, ovog } shape used by the frontend. */
+function formatAuditUser(user) {
+  if (!user) return null;
+  return { id: user.id, name: user.name || null, ovog: user.ovog || null };
+}
+
 /**
  * Allowed appointment statuses (must match frontend + DB values)
  *
@@ -583,10 +589,15 @@ router.post("/", async (req, res) => {
         },
         doctor: true,
         branch: true,
+        createdBy: { select: { id: true, name: true, ovog: true } },
       },
     });
 
-    res.status(201).json(appt);
+    res.status(201).json({
+      ...appt,
+      createdByUser: formatAuditUser(appt.createdBy),
+      updatedByUser: null,
+    });
   } catch (err) {
     console.error("Error creating appointment:", err);
     res.status(500).json({ error: "failed to create appointment" });
@@ -726,6 +737,8 @@ router.patch("/:id", async (req, res) => {
         patient: { include: { patientBook: true } },
         doctor: true,
         branch: true,
+        createdBy: { select: { id: true, name: true, ovog: true } },
+        updatedBy: { select: { id: true, name: true, ovog: true } },
       },
     });
 
@@ -762,7 +775,11 @@ router.patch("/:id", async (req, res) => {
       }
     }
 
-    return res.json(appt);
+    return res.json({
+      ...appt,
+      createdByUser: formatAuditUser(appt.createdBy),
+      updatedByUser: formatAuditUser(appt.updatedBy),
+    });
   } catch (err) {
     console.error("Error updating appointment:", err);
     if (err.code === "P2025") {
