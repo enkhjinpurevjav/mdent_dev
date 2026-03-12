@@ -385,7 +385,7 @@ export default function DoctorAppointmentsPage() {
       const safeEndMin = Math.max(endMin, startMin + 30);
 
       return {
-        title: `Өнөөдрийн цагийн хуваарь (${startTime}–${endTime})`,
+        title: `Өнөөдрийн цаг захиалга (${startTime}–${endTime})`,
         startMin,
         endMin: safeEndMin,
         slots: buildSlots(startMin, safeEndMin),
@@ -729,7 +729,7 @@ export default function DoctorAppointmentsPage() {
         }}
       >
         <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 8, color: "#374151" }}>
-          Цагууд
+          Цаг захиалгууд
         </div>
 
         {!loading && !error && grouped.length === 0 && (
@@ -751,21 +751,17 @@ export default function DoctorAppointmentsPage() {
                   className="w-full min-w-0"
                   style={{
                     borderRadius: 12,
-                    padding: 12,
+                    padding: 8,
                     background: getStatusColor(a.status),
                     color: "#111827",
                   }}
                 >
-                  <div
-                    style={{
-                      fontWeight: 900,
-                      fontSize: 13,
-                      marginBottom: 4,
-                      whiteSpace: "nowrap",
-                      textOverflow: "ellipsis",
-                      overflow: "hidden",
-                    }}
-                  >
+                  <div style={{ fontSize: 11, lineHeight: 1.1, opacity: 0.9 }}>
+  {isoToLocalHHMM(a.scheduledAt)}
+</div>
+<div style={{ fontSize: 11, lineHeight: 1.1, opacity: 0.9 }}>
+  {formatStatusShort(a.status)}
+</div>
                     {formatPatient(a)}
                   </div>
                   <div style={{ fontSize: 12, opacity: 0.9 }}>
