@@ -330,9 +330,10 @@ export default function PatientProfilePage() {
   return (
     <>
       {/* Sticky top tabs bar — same dark navy as the app header */}
+      {/* Negative margins negate AdminLayout's 20px padding so the bar is flush and full-bleed */}
       {patient && pb && (
-        <div className="sticky top-0 z-50 border-b border-white/10" style={{ background: "#061325" }}>
-          <div className="max-w-7xl mx-auto px-4 lg:px-8">
+        <div className="sticky top-0 z-50 border-b border-white/10" style={{ background: "#061325", margin: "-20px -20px 0 -20px" }}>
+          <div style={{ padding: "0 20px" }}>
             <div className="flex items-center">
               {/* Horizontally scrollable tab pills */}
               <div className="flex-1 overflow-x-auto">
@@ -383,7 +384,7 @@ export default function PatientProfilePage() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-6 font-sans">
+      <main className="py-6 font-sans">
       {loading && <div>Ачааллаж байна...</div>}
       {!loading && error && <div className="text-red-600">{error}</div>}
 
