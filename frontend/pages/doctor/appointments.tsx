@@ -423,7 +423,7 @@ export default function DoctorAppointmentsPage() {
       const safeEndMin = Math.max(endMin, startMin + 30);
 
       return {
-        title: "Өнөөдрийн цагийн хуваарь",
+        title: "Өнөөдрийн цаг захиалга",
         startMin,
         endMin: safeEndMin,
         slots: buildSlots(startMin, safeEndMin),
@@ -436,7 +436,7 @@ export default function DoctorAppointmentsPage() {
     const safeEndMin = Math.max(endMin, startMin + 30);
 
     return {
-      title: "Өнөөдрийн цагийн хуваарь (Хуваарь тохируулаагүй)",
+      title: "Ажлын хуваарь оруулаагүй",
       startMin,
       endMin: safeEndMin,
       slots: buildSlots(startMin, safeEndMin),
@@ -729,7 +729,7 @@ export default function DoctorAppointmentsPage() {
         }}
       >
         <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 8, color: "#374151" }}>
-          Цаг захиалгууд
+          Нийт цаг захиалгууд
         </div>
 
         {!loading && !error && grouped.length === 0 && (
