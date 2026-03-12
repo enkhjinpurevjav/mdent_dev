@@ -43,6 +43,13 @@ export type Appointment = {
   endAt: string | null;
   status: string;
   notes: string | null;
+  // Audit metadata
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  createdByUserId?: number | null;
+  updatedByUserId?: number | null;
+  createdByUser?: { id: number; name: string | null; ovog: string | null } | null;
+  updatedByUser?: { id: number; name: string | null; ovog: string | null } | null;
   patient?: {
     id: number;
     name: string;

@@ -304,6 +304,8 @@ router.get("/", async (req, res) => {
     },
     doctor: true,
     branch: true,
+    createdBy: { select: { id: true, name: true, ovog: true } },
+    updatedBy: { select: { id: true, name: true, ovog: true } },
   },
 });
 
@@ -349,6 +351,17 @@ const rows = appointments.map((a) => {
     createdByUserId: a.createdByUserId || null,
     source: a.source || null,
     sourceEncounterId: a.sourceEncounterId || null,
+
+    // Audit metadata
+    createdAt: a.createdAt ? a.createdAt.toISOString() : null,
+    updatedAt: a.updatedAt ? a.updatedAt.toISOString() : null,
+    updatedByUserId: a.updatedByUserId || null,
+    createdByUser: a.createdBy
+      ? { id: a.createdBy.id, name: a.createdBy.name || null, ovog: a.createdBy.ovog || null }
+      : null,
+    updatedByUser: a.updatedBy
+      ? { id: a.updatedBy.id, name: a.updatedBy.name || null, ovog: a.updatedBy.ovog || null }
+      : null,
 
     patient: patient
       ? {
@@ -702,6 +715,9 @@ router.patch("/:id", async (req, res) => {
     if (Object.keys(data).length === 0) {
       return res.status(400).json({ error: "No fields provided to update" });
     }
+
+    // Track who last updated this appointment
+    data.updatedByUserId = req.user?.id || null;
 
     const appt = await prisma.appointment.update({
       where: { id },

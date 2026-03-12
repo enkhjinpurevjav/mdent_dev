@@ -97,6 +97,31 @@ export function formatDateYmdDots(date: Date): string {
   return `${y}.${m}.${d}`;
 }
 
+/** Format an ISO string as YYYY/MM/DD HH:MM (24h, local time). */
+export function formatAuditDateTime(iso: string | null | undefined): string {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+  const y = d.getFullYear();
+  const m = pad2(d.getMonth() + 1);
+  const day = pad2(d.getDate());
+  const hh = pad2(d.getHours());
+  const mm = pad2(d.getMinutes());
+  return `${y}/${m}/${day} ${hh}:${mm}`;
+}
+
+/** Format an audit user object as О.Нэр, or "-" if missing. */
+export function formatAuditUserName(
+  u?: { name: string | null; ovog: string | null } | null
+): string {
+  if (!u) return "-";
+  const name = (u.name || "").trim();
+  const ovog = (u.ovog || "").trim();
+  if (!name && !ovog) return "-";
+  if (ovog && name) return `${ovog.charAt(0).toUpperCase()}.${name}`;
+  return name || "-";
+}
+
 /** Format an ISO scheduledAt string as YYYY/MM/DD for completed visit history display. */
 export function formatHistoryDate(scheduledAt: string): string {
   const d = new Date(scheduledAt);
