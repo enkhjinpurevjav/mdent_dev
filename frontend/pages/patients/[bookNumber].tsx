@@ -16,6 +16,7 @@ import { usePatientProfile } from "../../hooks/usePatientProfile";
 import { useVisitCard } from "../../hooks/useVisitCard";
 import type { Encounter, Appointment, PatientProfileResponse } from "../../types/patients";
 import type { VisitCard } from "../../types/visitCard";
+import { getMe } from "../../utils/auth";
 
 export default function PatientProfilePage() {
   const router = useRouter();
@@ -25,6 +26,19 @@ export default function PatientProfilePage() {
   const { data, loading, error, refetch } = usePatientProfile();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("profile");
+
+  // Detect doctor role
+  const [isDoctor, setIsDoctor] = useState(false);
+  useEffect(() => {
+    getMe()
+      .then((user) => {
+        setIsDoctor(user?.role === "doctor");
+      })
+      .catch(() => {
+        // Default to non-doctor on error (safe fallback: shows full UI)
+        setIsDoctor(false);
+      });
+  }, []);
 
   const patientBookId = data?.patientBook?.id || null;
   
@@ -448,6 +462,7 @@ export default function PatientProfilePage() {
                         Үндсэн мэдээлэл
                       </h2>
                       {!editMode ? (
+                        !isDoctor && (
                         <button
                           type="button"
                           onClick={startEdit}
@@ -455,6 +470,7 @@ export default function PatientProfilePage() {
                         >
                           Засах
                         </button>
+                        )
                       ) : null}
                     </div>
 
@@ -809,10 +825,10 @@ export default function PatientProfilePage() {
                             <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
                               Эмч
                             </th>
-                            <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
+                            <th className={`text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700${isDoctor ? " hidden md:table-cell" : ""}`}>
                               Төлөв
                             </th>
-                            <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
+                            <th className={`text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700${isDoctor ? " hidden md:table-cell" : ""}`}>
                               Тэмдэглэл
                             </th>
                             <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
@@ -832,10 +848,10 @@ export default function PatientProfilePage() {
                               <td className="border-b border-gray-100 py-1.5 px-2">
                                 {formatDoctorName(a.doctor)}
                               </td>
-                              <td className="border-b border-gray-100 py-1.5 px-2">
+                              <td className={`border-b border-gray-100 py-1.5 px-2${isDoctor ? " hidden md:table-cell" : ""}`}>
                                 {formatStatus(a.status)}
                               </td>
-                              <td className="border-b border-gray-100 py-1.5 px-2">
+                              <td className={`border-b border-gray-100 py-1.5 px-2${isDoctor ? " hidden md:table-cell" : ""}`}>
                                 {displayOrDash(a.notes ?? null)}
                               </td>
                               <td className="border-b border-gray-100 py-1.5 px-2">
@@ -914,6 +930,7 @@ export default function PatientProfilePage() {
                   patientBook={pb}
                   visitCard={data?.visitCard}
                   encounters={encounters || []}
+                  isDoctor={isDoctor}
                 />
               )}
 
