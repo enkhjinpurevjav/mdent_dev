@@ -15,8 +15,9 @@ export function usePatientProfile() {
   // Shared fetch logic
   const fetchProfile = async (bookNum: string) => {
     const res = await fetch(
-      `/api/patients/profile/by-book/${encodeURIComponent(bookNum)}`
-    );
+  `/api/patients/profile/by-book/${encodeURIComponent(bookNum)}`,
+  { credentials: "include" }
+);
     const json = await res.json().catch(() => null);
 
     if (!res.ok) {
