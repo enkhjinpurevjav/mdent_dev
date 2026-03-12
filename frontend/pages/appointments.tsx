@@ -1649,7 +1649,7 @@ const workingDoctorsForFilter = scheduledDoctors.length
         setError("");
         const [branchesRes, doctorsRes] = await Promise.all([
           fetch("/api/branches"),
-          fetch("/api/doctors"),
+          fetch("/api/users?role=doctor"),
         ]);
         const branchesData = await branchesRes.json().catch(() => []);
         const doctorsData = await doctorsRes.json().catch(() => []);
@@ -3778,7 +3778,7 @@ const handleCancelDraft = (appointmentId: number) => {
           <label style={{ fontWeight: 600 }}>Салбар</label>
           <select
             value={exceptionalBranchId}
-            onChange={(e) => setExceptionalBranchId(e.target.value)}
+            onChange={(e) => { setExceptionalBranchId(e.target.value); setExceptionalDoctorId(""); }}
             style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px" }}
           >
             <option value="">Салбар сонгох</option>
@@ -3788,18 +3788,30 @@ const handleCancelDraft = (appointmentId: number) => {
           </select>
         </div>
 
-        {/* Doctor (full list) */}
+        {/* Doctor (filtered by selected branch) */}
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <label style={{ fontWeight: 600 }}>Эмч</label>
           <select
             value={exceptionalDoctorId}
             onChange={(e) => setExceptionalDoctorId(e.target.value)}
-            style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px" }}
+            disabled={!exceptionalBranchId}
+            style={{
+              borderRadius: 6,
+              border: "1px solid #d1d5db",
+              padding: "6px 8px",
+              background: !exceptionalBranchId ? "#f3f4f6" : undefined,
+            }}
           >
-            <option value="">Эмч сонгох</option>
-            {doctors.map((d) => (
-              <option key={d.id} value={d.id}>{formatDoctorName(d)}</option>
-            ))}
+            <option value="">{exceptionalBranchId ? "Эмч сонгох" : "Эхлээд салбар сонгоно уу"}</option>
+            {exceptionalBranchId && doctors
+              .filter((d) =>
+                Array.isArray(d.branches) &&
+                d.branches.some((b) => b.id === Number(exceptionalBranchId))
+              )
+              .map((d) => (
+                <option key={d.id} value={d.id}>{formatDoctorName(d)}</option>
+              ))
+            }
           </select>
         </div>
 

@@ -12,6 +12,7 @@ export type Doctor = {
   regNo: string | null;
   phone: string | null;
   calendarOrder?: number | null;
+  branches?: { id: number; name: string }[];
 };
 
 export type ScheduledDoctor = Doctor & {
