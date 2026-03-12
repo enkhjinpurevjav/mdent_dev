@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/router";
 import type { Appointment, Doctor } from "./types";
-import { formatStatus, formatDateYmdDots } from "./formatters";
+import { formatStatus, formatDateYmdDots, formatAuditDateTime, formatAuditUserName } from "./formatters";
 import ImagingCheckoutModal from "./ImagingCheckoutModal";
 
 type AppointmentDetailsModalProps = {
@@ -746,6 +746,14 @@ export default function AppointmentDetailsModal({
                   </div>
                   <div style={{ color: "#4b5563" }}>
                     <strong>Тэмдэглэл:</strong> {a.notes || "-"}
+                  </div>
+                  <div style={{ color: "#6b7280", fontSize: 12, marginTop: 4 }}>
+                    <strong>Үүсгэсэн:</strong>{" "}
+                    {`${formatAuditUserName(a.createdByUser)} ${formatAuditDateTime(a.createdAt)}`}
+                  </div>
+                  <div style={{ color: "#6b7280", fontSize: 12 }}>
+                    <strong>Шинэчилсэн:</strong>{" "}
+                    {`${formatAuditUserName(a.updatedByUser)} ${formatAuditDateTime(a.updatedAt)}`}
                   </div>
                 </div>
               );

@@ -660,8 +660,9 @@ model User {
   nurseSchedules NurseSchedule[]
   nurseBranches NurseBranch[]
 
-  appointments        Appointment[]
-  createdAppointments Appointment[] @relation("AppointmentCreator")
+  appointments          Appointment[]
+  createdAppointments   Appointment[] @relation("AppointmentCreator")
+  updatedAppointments   Appointment[] @relation("AppointmentUpdater")
   cancelledAppointments Appointment[] @relation("AppointmentCanceller")
   bookings            Booking[]
   employeeBenefits    EmployeeBenefit[]
@@ -814,10 +815,16 @@ model Appointment {
   cancelledAt       DateTime?
   cancelledByUserId Int?
 
+  // Audit timestamps and last-updated-by tracking
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  updatedByUserId   Int?
+
   patient         Patient    @relation(fields: [patientId], references: [id])
   doctor          User?      @relation(fields: [doctorId], references: [id])
   branch          Branch     @relation(fields: [branchId], references: [id])
   createdBy       User?      @relation("AppointmentCreator", fields: [createdByUserId], references: [id])
+  updatedBy       User?      @relation("AppointmentUpdater", fields: [updatedByUserId], references: [id])
   sourceEncounter Encounter? @relation("SourceEncounter", fields: [sourceEncounterId], references: [id])
   cancelledBy     User?      @relation("AppointmentCanceller", fields: [cancelledByUserId], references: [id])
 
