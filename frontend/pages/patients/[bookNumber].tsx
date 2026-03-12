@@ -344,10 +344,17 @@ export default function PatientProfilePage() {
   return (
     <>
       {/* Sticky top tabs bar — same dark navy as the app header */}
-      {/* Negative margins negate AdminLayout's 20px padding so the bar is flush and full-bleed */}
+      {/* In AdminLayout: negative margins negate the 20px padding so the bar is flush and full-bleed */}
+      {/* In DoctorLayout: sticky top-11 clears the fixed 44px header; no negative margins needed */}
       {patient && pb && (
-        <div className="sticky top-0 z-50 border-b border-white/10" style={{ background: "#061325", margin: "-20px -20px 0 -20px" }}>
-          <div style={{ padding: "0 20px" }}>
+        <div
+          className={`${isDoctor ? "sticky top-11" : "sticky top-0"} z-50 border-b border-white/10`}
+          style={isDoctor
+            ? { background: "#061325" }
+            : { background: "#061325", margin: "-20px -20px 0 -20px" }}
+        >
+          {/* In AdminLayout, re-add the 20px padding that was removed by the negative margins above */}
+          <div style={isDoctor ? {} : { padding: "0 20px" }}>
             <div className="flex items-center">
               {/* Horizontally scrollable tab pills */}
               <div className="flex-1 overflow-x-auto">
@@ -408,7 +415,8 @@ export default function PatientProfilePage() {
             <div className="flex flex-col gap-4">
               {activeTab === "profile" && (
                 <>
-                  {/* Summary cards row */}
+                  {/* Summary cards row — hidden for doctors on all screen sizes */}
+                  {!isDoctor && (
                   <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
                     {/* Encounters summary */}
                     <div className="rounded-xl border border-gray-200 p-3 bg-gray-50">
@@ -454,6 +462,7 @@ export default function PatientProfilePage() {
                       </div>
                     </div>
                   </div>
+                  )}
 
                   {/* Basic information section (editable) */}
                   <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-4">
