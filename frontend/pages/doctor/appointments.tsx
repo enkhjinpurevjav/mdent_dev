@@ -475,23 +475,23 @@ export default function DoctorAppointmentsPage() {
       {/* KPI Summary Row */}
       <div className="flex gap-2 overflow-x-auto sm:grid sm:grid-cols-3 sm:gap-3 mb-3" style={{ WebkitOverflowScrolling: "touch" }}>
         {/* Card 1: Өнөөдрийн цаг */}
-        <div className="min-w-[140px] shrink-0 sm:min-w-0 bg-gray-100 rounded-xl p-3" style={{ border: "1px solid rgba(19,26,41,0.18)" }}>
-          <div className="text-[11px] font-bold text-gray-600">Өнөөдрийн цаг</div>
-          <div className="text-[22px] font-extrabold text-gray-900 leading-tight">
+        <div className="min-w-[120px] shrink-0 sm:min-w-0 bg-gray-100 rounded-xl p-3" style={{ border: "1px solid rgba(19,26,41,0.18)" }}>
+          <div className="text-[11px] font-bold text-gray-600 whitespace-nowrap">Өнөөдрийн цаг</div>
+          <div className="text-[22px] font-extrabold text-gray-900 leading-tight whitespace-nowrap tabular-nums">
             {loading ? "..." : todayAppointments.length}
           </div>
         </div>
         {/* Card 2: Өнөөдрийн ₮ */}
         <div className="min-w-[140px] shrink-0 sm:min-w-0 bg-gray-100 rounded-xl p-3" style={{ border: "1px solid rgba(19,26,41,0.18)" }}>
-          <div className="text-[11px] font-bold text-gray-600">Өнөөдрийн ₮</div>
-          <div className="text-[22px] font-extrabold text-gray-900 leading-tight">
+          <div className="text-[11px] font-bold text-gray-600 whitespace-nowrap">Өнөөдрийн ₮</div>
+          <div className="text-[22px] font-extrabold text-gray-900 leading-tight whitespace-nowrap tabular-nums">
             {formatSalesValue(salesLoading, salesError, salesSummary, "todayTotal")}
           </div>
         </div>
         {/* Card 3: Сарын ₮ */}
         <div className="min-w-[140px] shrink-0 sm:min-w-0 bg-gray-100 rounded-xl p-3" style={{ border: "1px solid rgba(19,26,41,0.18)" }}>
-          <div className="text-[11px] font-bold text-gray-600">Сарын ₮</div>
-          <div className="text-[22px] font-extrabold text-gray-900 leading-tight">
+          <div className="text-[11px] font-bold text-gray-600 whitespace-nowrap">Сарын ₮</div>
+          <div className="text-[22px] font-extrabold text-gray-900 leading-tight whitespace-nowrap tabular-nums">
             {formatSalesValue(salesLoading, salesError, salesSummary, "monthTotal")}
           </div>
         </div>
