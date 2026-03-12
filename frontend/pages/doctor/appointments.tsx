@@ -111,8 +111,12 @@ function getStatusColor(status: string): string {
 }
 
 function formatPatient(a: DoctorAppointment): string {
-  const name = [a.patientOvog, a.patientName].filter(Boolean).join(" ");
-  return name || a.patientBookNumber || "—";
+  const n = (a.patientName || "").trim();
+  const o = (a.patientOvog || "").trim();
+  if (o && n) return `${o.charAt(0).toUpperCase()}.${n}`;
+  if (n) return n;
+  if (o) return o;
+  return a.patientBookNumber ? `#${a.patientBookNumber}` : "—";
 }
 
 const SLOT_PX = 60;
@@ -473,25 +477,25 @@ export default function DoctorAppointmentsPage() {
   return (
     <div className="font-sans antialiased" style={{ maxWidth: 820, margin: "0 auto", padding: "16px 12px 40px" }}>
       {/* KPI Summary Row */}
-      <div className="flex gap-2 overflow-x-auto sm:grid sm:grid-cols-3 sm:gap-3 mb-3" style={{ WebkitOverflowScrolling: "touch" }}>
+      <div className="flex gap-2 overflow-x-auto pb-2 sm:grid sm:grid-cols-3 sm:gap-3 mb-3" style={{ WebkitOverflowScrolling: "touch" }}>
         {/* Card 1: Өнөөдрийн цаг */}
-        <div className="min-w-[120px] shrink-0 sm:min-w-0 bg-gray-100 rounded-xl p-3" style={{ border: "1px solid rgba(19,26,41,0.18)" }}>
+        <div className="w-fit shrink-0 min-w-[108px] sm:w-full bg-gray-100 rounded-xl p-3" style={{ border: "1px solid rgba(19,26,41,0.18)" }}>
           <div className="text-[11px] font-bold text-gray-600 whitespace-nowrap">Өнөөдрийн цаг</div>
-          <div className="text-[22px] font-extrabold text-gray-900 leading-tight whitespace-nowrap tabular-nums">
+          <div className="text-[21px] sm:text-[26px] font-extrabold text-gray-900 leading-tight whitespace-nowrap tabular-nums">
             {loading ? "..." : todayAppointments.length}
           </div>
         </div>
         {/* Card 2: Өнөөдрийн ₮ */}
-        <div className="min-w-[140px] shrink-0 sm:min-w-0 bg-gray-100 rounded-xl p-3" style={{ border: "1px solid rgba(19,26,41,0.18)" }}>
+        <div className="w-fit shrink-0 min-w-[140px] sm:w-full bg-gray-100 rounded-xl p-3" style={{ border: "1px solid rgba(19,26,41,0.18)" }}>
           <div className="text-[11px] font-bold text-gray-600 whitespace-nowrap">Өнөөдрийн ₮</div>
-          <div className="text-[22px] font-extrabold text-gray-900 leading-tight whitespace-nowrap tabular-nums">
+          <div className="text-[21px] sm:text-[26px] font-extrabold text-gray-900 leading-tight whitespace-nowrap tabular-nums">
             {formatSalesValue(salesLoading, salesError, salesSummary, "todayTotal")}
           </div>
         </div>
         {/* Card 3: Сарын ₮ */}
-        <div className="min-w-[140px] shrink-0 sm:min-w-0 bg-gray-100 rounded-xl p-3" style={{ border: "1px solid rgba(19,26,41,0.18)" }}>
+        <div className="w-fit shrink-0 min-w-[140px] sm:w-full bg-gray-100 rounded-xl p-3" style={{ border: "1px solid rgba(19,26,41,0.18)" }}>
           <div className="text-[11px] font-bold text-gray-600 whitespace-nowrap">Сарын ₮</div>
-          <div className="text-[22px] font-extrabold text-gray-900 leading-tight whitespace-nowrap tabular-nums">
+          <div className="text-[21px] sm:text-[26px] font-extrabold text-gray-900 leading-tight whitespace-nowrap tabular-nums">
             {formatSalesValue(salesLoading, salesError, salesSummary, "monthTotal")}
           </div>
         </div>
@@ -507,7 +511,7 @@ export default function DoctorAppointmentsPage() {
           marginBottom: 12,
         }}
       >
-        <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 10 }}>
+        <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 10, color: "#374151" }}>
           {timeline.title}
         </div>
 
@@ -724,7 +728,7 @@ export default function DoctorAppointmentsPage() {
           padding: 12,
         }}
       >
-        <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>
+        <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 8, color: "#374151" }}>
           Цагууд
         </div>
 
@@ -768,6 +772,9 @@ export default function DoctorAppointmentsPage() {
                     }}
                   >
                     {formatPatient(a)}
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.9 }}>
+                    {isoToLocalHHMM(a.scheduledAt)}
                   </div>
                   <div style={{ fontSize: 12, opacity: 0.9 }}>
                     {formatStatusShort(a.status)}
