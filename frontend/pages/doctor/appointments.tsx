@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
+import AppointmentDetailsModal from "../../components/appointments/AppointmentDetailsModal";
+import type { Appointment } from "../../components/appointments/types";
 
 type DoctorMeResponse = {
   user?: { id: number; role?: string } | null;
@@ -187,6 +189,33 @@ function formatDateLabel(dateStr: string): string {
   }
 }
 
+function doctorApptToModalAppt(a: DoctorAppointment): Appointment {
+  return {
+    id: a.id,
+    patientId: a.patientId ?? null,
+    doctorId: a.doctorId ?? null,
+    branchId: (a.branchId ?? 0) as number,
+    scheduledAt: a.scheduledAt,
+    endAt: a.endAt ?? null,
+    status: a.status,
+    notes: a.notes ?? null,
+    patient: {
+      id: a.patientId ?? 0,
+      name: a.patientName ?? "",
+      ovog: a.patientOvog ?? null,
+      phone: null,
+      patientBook: a.patientBookNumber ? { bookNumber: a.patientBookNumber } : null,
+    },
+    branch: a.branchName ? { id: (a.branchId ?? 0) as number, name: a.branchName } : null,
+    doctorName: null,
+    doctorOvog: null,
+    patientName: a.patientName ?? null,
+    patientOvog: a.patientOvog ?? null,
+    patientPhone: null,
+    patientRegNo: null,
+  } as unknown as Appointment;
+}
+
 export default function DoctorAppointmentsPage() {
   const router = useRouter();
 
@@ -206,6 +235,12 @@ export default function DoctorAppointmentsPage() {
 
   // manual refresh button behavior like admin
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // modal state for appointment details
+  const [detailsModal, setDetailsModal] = useState<{
+    open: boolean;
+    appointment: DoctorAppointment | null;
+  }>({ open: false, appointment: null });
 
   // sales summary state
   const [salesSummary, setSalesSummary] = useState<{ todayTotal: number; monthTotal: number } | null>(null);
@@ -327,6 +362,19 @@ export default function DoctorAppointmentsPage() {
   useEffect(() => {
     loadAll();
   }, [loadAll, refreshKey]);
+
+  const handleDoctorStartEncounter = useCallback(async (a: Appointment) => {
+    const res = await fetch(`/api/doctor/appointments/${a.id}/encounter`, {
+      method: "POST",
+      credentials: "include",
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      alert(data?.error || "Үзлэг эхлүүлэхэд алдаа гарлаа.");
+      return;
+    }
+    router.push(`/doctor/encounters/${data.encounterId}?appointmentId=${a.id}`);
+  }, [router]);
 
   const todayAppointments = useMemo(() => {
     return appointments
@@ -579,10 +627,16 @@ export default function DoctorAppointmentsPage() {
               {todayAppointments.map((a) => (
                 <div
                   key={a.id}
-                  style={blockStyle(a)}
+                  style={{ ...blockStyle(a), cursor: "pointer" }}
                   title={`${formatPatient(a)} ${isoToLocalHHMM(a.scheduledAt)}-${isoToLocalHHMM(
                     a.endAt || null
                   )}`}
+                  onClick={() => setDetailsModal({ open: true, appointment: a })}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailsModal({ open: true, appointment: a }); }
+                  }}
                 >
                   <div
                     style={{
@@ -754,6 +808,13 @@ export default function DoctorAppointmentsPage() {
       padding: 8,
       background: getStatusColor(a.status),
       color: "#111827",
+      cursor: "pointer",
+    }}
+    onClick={() => setDetailsModal({ open: true, appointment: a })}
+    role="button"
+    tabIndex={0}
+    onKeyDown={(e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailsModal({ open: true, appointment: a }); }
     }}
   >
     {/* Name */}
@@ -783,17 +844,9 @@ export default function DoctorAppointmentsPage() {
 
     {a.status === "ongoing" && (
       <button
-        onClick={async () => {
-          const res = await fetch(`/api/doctor/appointments/${a.id}/encounter`, {
-            method: "POST",
-            credentials: "include",
-          });
-          const data = await res.json().catch(() => null);
-          if (!res.ok) {
-            alert(data?.error || "Үзлэг эхлүүлэхэд алдаа гарлаа.");
-            return;
-          }
-          router.push(`/doctor/encounters/${data.encounterId}?appointmentId=${a.id}`);
+        onClick={(e) => {
+          e.stopPropagation();
+          handleDoctorStartEncounter(doctorApptToModalAppt(a));
         }}
         style={{
           marginTop: 8,
@@ -817,6 +870,26 @@ export default function DoctorAppointmentsPage() {
           </div>
         ))}
       </div>
+
+      {detailsModal.open && detailsModal.appointment && (
+        <AppointmentDetailsModal
+          open={detailsModal.open}
+          onClose={() => setDetailsModal({ open: false, appointment: null })}
+          appointments={[doctorApptToModalAppt(detailsModal.appointment)]}
+          slotAppointmentCount={1}
+          doctorMode={true}
+          onStartEncounter={handleDoctorStartEncounter}
+          onStatusUpdated={(updated) => {
+            setAppointments((prev) =>
+              prev.map((a) =>
+                a.id === updated.id
+                  ? { ...a, status: updated.status, notes: updated.notes ?? null }
+                  : a
+              )
+            );
+          }}
+        />
+      )}
     </div>
   );
 }

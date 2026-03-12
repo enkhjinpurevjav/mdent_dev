@@ -16,6 +16,10 @@ type AppointmentDetailsModalProps = {
   onStatusUpdated?: (updated: Appointment) => void;
   onEditAppointment?: (a: Appointment) => void;
   onCreateAppointmentInSlot?: () => void;
+  /** When true, hides admin/reception-only buttons and "Эмч:" fields */
+  doctorMode?: boolean;
+  /** Override the default encounter-start behaviour (used by doctor portal) */
+  onStartEncounter?: (a: Appointment) => Promise<void> | void;
 };
 
 function formatDetailedTimeRange(start: Date, end: Date | null): string {
@@ -57,6 +61,8 @@ export default function AppointmentDetailsModal({
   onStatusUpdated,
   onEditAppointment,
   onCreateAppointmentInSlot,
+  doctorMode = false,
+  onStartEncounter: onStartEncounterProp,
 }: AppointmentDetailsModalProps) {
   const router = useRouter();
 
@@ -149,6 +155,11 @@ export default function AppointmentDetailsModal({
 };
 
   const handleStartEncounter = async (a: Appointment) => {
+    // If the caller provided a custom handler (e.g. doctor portal), delegate to it.
+    if (onStartEncounterProp) {
+      await onStartEncounterProp(a);
+      return;
+    }
     try {
       setError("");
       const res = await fetch(`/api/appointments/${a.id}/start-encounter`, {
@@ -265,6 +276,7 @@ export default function AppointmentDetailsModal({
             Цагийн дэлгэрэнгүй
           </h3>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {!doctorMode && (
             <button
               type="button"
               onClick={() => {
@@ -286,6 +298,7 @@ export default function AppointmentDetailsModal({
             >
               Шинэ цаг захиалах
             </button>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -304,6 +317,7 @@ export default function AppointmentDetailsModal({
         </div>
 
                 {/* Patient summary header */}
+        {!doctorMode && (
         <div
           style={{
             marginBottom: 4,
@@ -328,6 +342,7 @@ export default function AppointmentDetailsModal({
             return rawName || "-";
           })()}
         </div>
+        )}
 
         <div
           style={{
@@ -440,7 +455,7 @@ export default function AppointmentDetailsModal({
                     }}
                   >
                   
-                    {!isEditing && (
+                    {!isEditing && !doctorMode && (
   <div style={{ display: "flex", gap: 6 }}>
     <button
       type="button"
@@ -529,6 +544,7 @@ export default function AppointmentDetailsModal({
 
                       {/* Doctor + appointment branch */}
                       <div style={{ color: "#4b5563", marginTop: 4 }}>
+  {!doctorMode && (
   <div>
     <strong>Эмч:</strong>{" "}
     {(() => {
@@ -556,6 +572,7 @@ export default function AppointmentDetailsModal({
       return pureName;
     })()}
   </div>
+  )}
   <div>
                           <strong>Салбар:</strong>{" "}
                           {a.branch?.name ?? a.branchId}
