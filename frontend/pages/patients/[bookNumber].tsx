@@ -306,8 +306,8 @@ export default function PatientProfilePage() {
 
   const tabBtnClass = (tab: ActiveTab) =>
     activeTab === tab
-      ? "w-full text-left px-2.5 py-1.5 rounded-md border-0 bg-blue-50 text-blue-700 font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
-      : "w-full text-left px-2.5 py-1.5 rounded-md border-0 bg-transparent text-gray-500 cursor-pointer hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
+      ? "px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer border-0 bg-white/10 text-white whitespace-nowrap focus:outline-none"
+      : "px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer border-0 text-white/80 hover:text-white hover:bg-white/5 whitespace-nowrap focus:outline-none";
 
   const inputClass = "w-full rounded-md border border-gray-300 px-1.5 py-1 text-sm";
 
@@ -328,145 +328,68 @@ export default function PatientProfilePage() {
     "inline-flex items-center justify-center w-7 h-7 rounded border border-gray-300 bg-gray-50 text-gray-500 hover:bg-gray-100 cursor-pointer disabled:opacity-40 disabled:cursor-default";
 
   return (
-    <main className="max-w-7xl mx-auto px-4 lg:px-8 py-8 font-sans">
-      <button
-        type="button"
-        onClick={() => {
-          const returnTo = router.query.returnTo as string | undefined;
-          if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
-            router.push(returnTo);
-          } else {
-            router.back();
-          }
-        }}
-        className={smGhostBtnClass}
-      >
-        ← Буцах
-      </button>
+    <>
+      {/* Sticky top tabs bar — same dark navy as the app header */}
+      {patient && pb && (
+        <div className="sticky top-0 z-50 border-b border-white/10" style={{ background: "#061325" }}>
+          <div className="max-w-7xl mx-auto px-4 lg:px-8">
+            <div className="flex items-center">
+              {/* Horizontally scrollable tab pills */}
+              <div className="flex-1 overflow-x-auto">
+                <div className="flex items-center gap-1 py-2 min-w-max">
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab("profile"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
+                    className={tabBtnClass("profile")}
+                  >
+                    Профайл
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab("patient_history"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
+                    className={tabBtnClass("patient_history")}
+                  >
+                    Үйлчлүүлэгчийн карт
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab("appointments"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
+                    className={tabBtnClass("appointments")}
+                  >
+                    Цагууд
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab("visit_card"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
+                    className={tabBtnClass("visit_card")}
+                  >
+                    Карт бөглөх
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab("ortho_card"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
+                    className={tabBtnClass("ortho_card")}
+                  >
+                    Гажиг заслын карт
+                  </button>
+                </div>
+              </div>
+              {/* Patient label — hidden on very small screens */}
+              <div className="hidden sm:block shrink-0 ml-3 text-xs sm:text-sm text-white/70 truncate max-w-[40vw]">
+                {formatDisplayName(patient)} • #{pb.bookNumber}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
+      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-6 font-sans">
       {loading && <div>Ачааллаж байна...</div>}
       {!loading && error && <div className="text-red-600">{error}</div>}
 
       {!loading && !error && patient && pb && (
         <>
-          {/* Top layout: left profile panel + right content */}
-          <section className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 mb-6 items-start lg:items-stretch">
-            {/* Left: profile card + side menu */}
-            <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-4">
-              <div className="mb-1 text-lg font-semibold">
-                {formatDisplayName(patient)}
-              </div>
-              <div className="text-sm text-gray-500">
-                Картын дугаар: {pb.bookNumber}
-              </div>
-              {patient.regNo && (
-                <div className="text-sm text-gray-500">
-                  РД: {patient.regNo}
-                </div>
-              )}
-              <div className="text-sm text-gray-500">
-                Утас: {displayOrDash(patient.phone)}
-              </div>
-              <div className="text-sm text-gray-500">
-                Бүртгэсэн салбар: {patient.branch?.name || patient.branchId}
-              </div>
-              {patient.createdAt && (
-                <div className="text-xs text-gray-400 mt-1">
-                  Бүртгэсэн: {formatDate(patient.createdAt)}
-                </div>
-              )}
-              {(() => {
-                const wallet = -(data?.patientBalance ?? 0);
-                const absFormatted = new Intl.NumberFormat("mn-MN").format(Math.abs(wallet));
-                const prefix = wallet > 0 ? "+" : wallet < 0 ? "-" : "";
-                return (
-                  <div className="text-xs text-gray-400 mt-1">
-                    Хэтэвч: {prefix}{absFormatted}
-                  </div>
-                );
-              })()}
-
-              {/* Side menu */}
-              <div className="mt-4">
-                <div className="text-xs uppercase text-gray-400 mb-1">
-                  Цэс
-                </div>
-                <div className="flex flex-col gap-1 text-sm">
-                  {/* Профайл */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab("profile");
-                      setEditMode(false);
-                      setSaveError("");
-                      setSaveSuccess("");
-                    }}
-                    className={tabBtnClass("profile")}
-                  >
-                    Профайл
-                  </button>
-
-                  {/* Үйлчлүүлэгчийн карт */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab("patient_history");
-                      setEditMode(false);
-                      setSaveError("");
-                      setSaveSuccess("");
-                    }}
-                    className={tabBtnClass("patient_history")}
-                  >
-                    Үйлчлүүлэгчийн карт
-                  </button>
-
-                  {/* Цагууд */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab("appointments");
-                      setEditMode(false);
-                      setSaveError("");
-                      setSaveSuccess("");
-                    }}
-                    className={tabBtnClass("appointments")}
-                  >
-                    Цагууд
-                  </button>
-
-                  {/* Карт бөглөх */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab("visit_card");
-                      setEditMode(false);
-                      setSaveError("");
-                      setSaveSuccess("");
-                    }}
-                    className={tabBtnClass("visit_card")}
-                  >
-                    Карт бөглөх
-                  </button>
-
-                  {/* Гажиг заслын карт */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab("ortho_card");
-                      setEditMode(false);
-                      setSaveError("");
-                      setSaveSuccess("");
-                    }}
-                    className={tabBtnClass("ortho_card")}
-                  >
-                    Гажиг заслын карт
-                  </button>
-
-                </div>
-              </div>
-            </div>
-
-            {/* Right content area: depends on activeTab */}
+            {/* Content area: single full-width column */}
             <div className="flex flex-col gap-4">
               {activeTab === "profile" && (
                 <>
@@ -1626,11 +1549,6 @@ export default function PatientProfilePage() {
                 </div>
               )}
             </div>
-          </section>
-
-         
-
-          
         </>
       )}
 
@@ -1653,6 +1571,7 @@ export default function PatientProfilePage() {
         }}
         encounterId={materialsEncounterId}
       />
-    </main>
+      </main>
+    </>
   );
 }
