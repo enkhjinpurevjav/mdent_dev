@@ -327,36 +327,30 @@ export default function DoctorAppointmentsPage() {
       const visible = apptsRaw.filter((a) => a?.status !== "cancelled");
       setAppointments(visible);
 
-      // 2) schedule for today only (if we know doctorId)
-      if (doctorId) {
-        const schedRes = await fetch(
-          `/api/users/${doctorId}/schedule?from=${today}&to=${today}`,
-          {
-            credentials: "include",
-          }
-        );
-        const schedJson = await schedRes.json().catch(() => null);
+      // 2) schedule for today only — use the doctor-scoped endpoint (admin-only /api/users is not accessible to doctors)
+      const schedRes = await fetch(
+        `/api/doctor/schedule?date=${today}`,
+        { credentials: "include" }
+      );
+      const schedJson = await schedRes.json().catch(() => null);
 
-        if (schedRes.ok && Array.isArray(schedJson) && schedJson.length > 0) {
-          // If multiple entries exist (multiple branches), pick earliest start + latest end for today
-          const entries: DoctorScheduleDay[] = schedJson;
-          const picked = entries.reduce((acc, s) => {
-            if (!acc) return s;
-            const accStart = minutesFromHHMM(acc.startTime);
-            const accEnd = minutesFromHHMM(acc.endTime);
-            const sStart = minutesFromHHMM(s.startTime);
-            const sEnd = minutesFromHHMM(s.endTime);
-            return {
-              ...acc,
-              startTime: sStart < accStart ? s.startTime : acc.startTime,
-              endTime: sEnd > accEnd ? s.endTime : acc.endTime,
-            };
-          }, null as DoctorScheduleDay | null);
+      if (schedRes.ok && Array.isArray(schedJson) && schedJson.length > 0) {
+        // If multiple entries exist (multiple branches), pick earliest start + latest end for today
+        const entries: DoctorScheduleDay[] = schedJson;
+        const picked = entries.reduce((acc, s) => {
+          if (!acc) return s;
+          const accStart = minutesFromHHMM(acc.startTime);
+          const accEnd = minutesFromHHMM(acc.endTime);
+          const sStart = minutesFromHHMM(s.startTime);
+          const sEnd = minutesFromHHMM(s.endTime);
+          return {
+            ...acc,
+            startTime: sStart < accStart ? s.startTime : acc.startTime,
+            endTime: sEnd > accEnd ? s.endTime : acc.endTime,
+          };
+        }, null as DoctorScheduleDay | null);
 
-          setScheduleToday(picked);
-        } else {
-          setScheduleToday(null);
-        }
+        setScheduleToday(picked);
       } else {
         setScheduleToday(null);
       }
@@ -429,7 +423,7 @@ export default function DoctorAppointmentsPage() {
     return { laneAssignments: laneMap, overlappingIds: overlapSet };
   }, [todayAppointments]);
 
-  // ---- today timeline bounds (schedule -> appointments -> clinic fallback) ----
+  // ---- today timeline bounds (schedule -> clinic hours fallback) ----
   const timeline = useMemo(() => {
     const fallback = defaultClinicHours(today);
 
@@ -450,56 +444,18 @@ export default function DoctorAppointmentsPage() {
       };
     }
 
-    // B) No schedule: derive from today's appointments (if any)
-    if (todayAppointments.length > 0) {
-      const windows = todayAppointments.map((a) => {
-        const s = new Date(a.scheduledAt);
-        const e = a.endAt ? new Date(a.endAt) : new Date(s.getTime() + 30 * 60_000);
-        return {
-          start: s.getHours() * 60 + s.getMinutes(),
-          end: e.getHours() * 60 + e.getMinutes(),
-        };
-      });
-
-      let startMin = Math.min(...windows.map((w) => w.start));
-      let endMin = Math.max(...windows.map((w) => w.end));
-
-      // snap to 30-min grid
-      startMin = Math.floor(startMin / 30) * 30;
-      endMin = Math.ceil(endMin / 30) * 30;
-
-      // optional padding
-      startMin = Math.max(0, startMin - 30);
-      endMin = Math.min(24 * 60, endMin + 30);
-
-      // clamp to clinic hours
-      const clinicStart = minutesFromHHMM(fallback.startTime);
-      const clinicEnd = minutesFromHHMM(fallback.endTime);
-      startMin = Math.max(clinicStart, startMin);
-      endMin = Math.min(clinicEnd, endMin);
-
-      const safeEndMin = Math.max(endMin, startMin + 30);
-
-      return {
-        title: "Өнөөдрийн цаг захиалга",
-        startMin,
-        endMin: safeEndMin,
-        slots: buildSlots(startMin, safeEndMin),
-      };
-    }
-
-    // C) No schedule + no appointments: clinic fallback + warning
+    // B) No schedule: fall back to default clinic hours
     const startMin = minutesFromHHMM(fallback.startTime);
     const endMin = minutesFromHHMM(fallback.endTime);
     const safeEndMin = Math.max(endMin, startMin + 30);
 
     return {
-      title: "Ажлын хуваарь оруулаагүй",
+      title: "Өнөөдрийн цаг захиалга",
       startMin,
       endMin: safeEndMin,
       slots: buildSlots(startMin, safeEndMin),
     };
-  }, [scheduleToday, today, todayAppointments]);
+  }, [scheduleToday, today]);
 
   // compute left/width pixel values for appointment blocks
   function blockStyle(a: DoctorAppointment): React.CSSProperties {
@@ -851,29 +807,6 @@ export default function DoctorAppointmentsPage() {
     <div style={{ fontSize: 11, lineHeight: 1.1, opacity: 0.9 }}>
       {formatStatusShort(a.status)}
     </div>
-
-    {a.status === "ongoing" && (
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          handleDoctorStartEncounter(doctorApptToModalAppt(a));
-        }}
-        style={{
-          marginTop: 8,
-          width: "100%",
-          padding: "8px",
-          background: "#0f2044",
-          color: "white",
-          border: "none",
-          borderRadius: 10,
-          fontWeight: 900,
-          fontSize: 12,
-          cursor: "pointer",
-        }}
-      >
-        Үзлэг эхлүүлэх
-      </button>
-    )}
   </div>
 ))}
             </div>

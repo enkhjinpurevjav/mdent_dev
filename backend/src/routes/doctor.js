@@ -74,6 +74,18 @@ function mongoliaLocalDateString() {
   return localTime.toISOString().slice(0, 10);
 }
 
+/** Convert a Date (or DateTime from DB) to YYYY-MM-DD in Mongolia timezone (UTC+8). */
+function toMongoliaDateOnly(d) {
+  if (!d) return null;
+  try {
+    const mongoliaOffset = 8 * 60; // minutes
+    const shifted = new Date(new Date(d).getTime() + mongoliaOffset * 60_000);
+    return shifted.toISOString().slice(0, 10);
+  } catch {
+    return null;
+  }
+}
+
 // ─── Helper: load appointment and verify ownership ────────────────────────────
 
 /**
@@ -289,7 +301,72 @@ router.get("/appointments", async (req, res) => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// B) GET /api/doctor/sales-summary
+// B) GET /api/doctor/schedule
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/doctor/schedule?date=YYYY-MM-DD
+ *
+ * Returns the authenticated doctor's DoctorSchedule entries for the given date
+ * (defaults to today in Mongolia timezone if omitted).
+ *
+ * In the rare case where multiple rows exist for the same day (different branches),
+ * all entries are returned so the frontend can pick earliest startTime + latest endTime.
+ *
+ * Response: Array of { id, date, branchId, startTime, endTime, note }
+ */
+router.get("/schedule", async (req, res) => {
+  try {
+    const doctorId = req.user.id;
+
+    let date = req.query.date;
+    if (!date) {
+      date = mongoliaLocalDateString();
+    }
+
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (!datePattern.test(date)) {
+      return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD" });
+    }
+
+    const dayRange = ymdToClinicStartEnd(date);
+    if (!dayRange) {
+      return res.status(400).json({ error: "Invalid date format" });
+    }
+
+    const schedules = await prisma.doctorSchedule.findMany({
+      where: {
+        doctorId,
+        date: { gte: dayRange.start, lte: dayRange.end },
+      },
+      select: {
+        id: true,
+        date: true,
+        branchId: true,
+        startTime: true,
+        endTime: true,
+        note: true,
+      },
+    });
+
+    return res.json(
+      schedules.map((s) => ({
+        id: s.id,
+        date: toMongoliaDateOnly(s.date) ?? date,
+        branchId: s.branchId,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        note: s.note ?? null,
+      }))
+    );
+  } catch (err) {
+    console.error("GET /api/doctor/schedule error:", err);
+    return res.status(500).json({ error: "Failed to fetch schedule" });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// C) GET /api/doctor/sales-summary
 // ═════════════════════════════════════════════════════════════════════════════
 
 /**
