@@ -463,14 +463,14 @@ export default function DoctorAppointmentsPage() {
       position: "absolute",
       left: Math.max(0, leftPx),
       width: widthPx,
-      top: isOverlapping ? (lane === 0 ? 4 : "calc(50% + 2px)") : 4,
-      bottom: isOverlapping ? (lane === 0 ? "calc(50% + 2px)" : 4) : 4,
+      top: isOverlapping ? (lane === 0 ? 3 : "calc(50% + 1px)") : 3,
+      bottom: isOverlapping ? (lane === 0 ? "calc(50% + 1px)" : 3) : 3,
       borderRadius: 8,
-      padding: "3px 8px",
+      padding: "2px 6px",
       background: getStatusColor(a.status),
       color: a.status === "completed" ? "#fff" : "#111827",
       overflow: "hidden",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.10)",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.10)",
     };
   }
 
@@ -554,7 +554,7 @@ export default function DoctorAppointmentsPage() {
             <div
               style={{
                 position: "relative",
-                height: 110,
+                height: 88,
                 marginTop: 4,
                 background: "#f8fafc",
                 borderRadius: 12,
@@ -587,7 +587,7 @@ export default function DoctorAppointmentsPage() {
                   <div
                     style={{
                       fontWeight: 700,
-                      fontSize: 12,
+                      fontSize: 11,
                       whiteSpace: "nowrap",
                       textOverflow: "ellipsis",
                       overflow: "hidden",
@@ -595,7 +595,7 @@ export default function DoctorAppointmentsPage() {
                   >
                     {formatPatient(a)}
                   </div>
-                  <div style={{ fontSize: 11, opacity: 0.9 }}>
+                  <div style={{ fontSize: 10, lineHeight: 1.2, opacity: 0.9 }}>
                     {formatStatusShort(a.status)}
                   </div>
                 </div>
@@ -744,16 +744,11 @@ export default function DoctorAppointmentsPage() {
               {date.replaceAll("-", "/")} {formatDateLabel(date) === "Өнөөдөр" ? "" : ""}
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(min(300px, 100%), 1fr))",
-                gap: 10,
-              }}
-            >
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
               {items.map((a) => (
                 <div
                   key={a.id}
+                  className="w-full min-w-0"
                   style={{
                     borderRadius: 12,
                     padding: 12,
