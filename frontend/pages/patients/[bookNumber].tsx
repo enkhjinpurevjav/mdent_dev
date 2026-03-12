@@ -384,7 +384,7 @@ export default function PatientProfilePage() {
         </div>
       )}
 
-      <main className="pt-0 pb-6 font-sans">
+      <main className="py-6 font-sans">
       {loading && <div>Ачааллаж байна...</div>}
       {!loading && error && <div className="text-red-600">{error}</div>}
 
