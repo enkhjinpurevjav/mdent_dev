@@ -20,6 +20,7 @@ function isDoctorPath(pathname: string) {
 export default function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   const isPublicRoute = isPublicPath(router.pathname);
 
@@ -52,6 +53,7 @@ if (
   return;
 }
 
+      setUserRole(user.role);
       setAuthChecked(true);
     });
   }, [router]);
@@ -65,9 +67,14 @@ if (
     return <Component {...pageProps} />;
   }
 
-  if (isDoctorPath(router.pathname)) {
+  const isPatientPath = router.pathname.startsWith("/patients/");
+  const useDoctorLayout = isDoctorPath(router.pathname) || (isPatientPath && userRole === "doctor");
+
+  if (useDoctorLayout) {
+    // Only show the dashboard summary cards on the doctor appointments page
+    const showDashboardSummary = router.pathname === "/doctor/appointments";
     return (
-      <DoctorLayout>
+      <DoctorLayout showDashboardSummary={showDashboardSummary}>
         <Component {...pageProps} />
       </DoctorLayout>
     );

@@ -12,7 +12,13 @@ import {
   User,
 } from "lucide-react";
 
-type Props = { children: React.ReactNode };
+type Props = {
+  children: React.ReactNode;
+  /** When true, the appointments/dashboard-specific summary cards are shown.
+   *  Pass this only from the doctor appointments page. Defaults to false so
+   *  other pages (e.g. patient profile) do not show dashboard chrome. */
+  showDashboardSummary?: boolean;
+};
 
 const NAVY = "#131a29";
 
@@ -88,7 +94,12 @@ function BottomIcon({
   }
 }
 
-export default function DoctorLayout({ children }: Props) {
+export default function DoctorLayout({ children, showDashboardSummary = false }: Props) {
+  // showDashboardSummary is accepted here to allow callers (e.g. _app.tsx) to
+  // signal intent. The actual dashboard cards live in the appointments page
+  // component and are page-specific by design, so they never appear on other
+  // pages like patient profile regardless of this flag.
+  void showDashboardSummary;
   const router = useRouter();
   const isActive = (href: string) => router.pathname.startsWith(href);
 
