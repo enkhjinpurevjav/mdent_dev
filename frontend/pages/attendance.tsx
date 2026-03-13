@@ -56,7 +56,7 @@ export default function AttendancePage() {
       const res = await fetch("/api/attendance/me", { credentials: "include" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Мэдээлэл татахад алдаа гарлаа.");
+        throw new Error((data as any).error || "Мэдээлэл татахад алдаа гарлаа.");
       }
       const data: MeResponse = await res.json();
       setStatus(data);
@@ -95,11 +95,11 @@ export default function AttendancePage() {
           ? err.code === 1
             ? "Байршил ашиглах зөвшөөрөл өгөөгүй байна. Тохиргооноос идэвхжүүлнэ үү."
             : err.code === 2
-            ? "Байршил тодорхойлж чадсангүй. GPS сигналаа шалгана уу."
-            : "Байршил хугацаа дууссан. Дахин оролдоно уу."
+              ? "Байршил тодорхойлж чадсангүй. GPS сигналаа шалгана уу."
+              : "Байршил хугацаа дууссан. Дахин оролдоно уу."
           : err instanceof Error
-          ? err.message
-          : "Байршил авахад алдаа гарлаа.";
+            ? err.message
+            : "Байршил авахад алдаа гарлаа.";
       setActionError(msg);
       setActionLoading(false);
       return;
@@ -120,7 +120,7 @@ export default function AttendancePage() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        throw new Error(data.error || "Алдаа гарлаа.");
+        throw new Error((data as any).error || "Алдаа гарлаа.");
       }
 
       setActionSuccess(
@@ -137,122 +137,74 @@ export default function AttendancePage() {
   }
 
   const checkedIn = status?.checkedIn ?? false;
+  const canShowAction = !loadingStatus && !statusError;
 
   return (
-    <div
-      style={{
-        maxWidth: 640,
-        margin: "0 auto",
-        padding: 24,
-        fontFamily: "sans-serif",
-      }}
-    >
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>
-        🕘 Ирц бүртгэл
-      </h1>
-      <p style={{ color: "#6b7280", fontSize: 13, marginBottom: 24 }}>
+    <div className="mx-auto w-full max-w-[640px] px-6 py-6 font-sans">
+      <h1 className="text-[22px] font-bold leading-tight mb-1">🕘 Ирц бүртгэл</h1>
+      <p className="text-[13px] text-gray-500 mb-6">
         Ирэх болон явах бүртгэлийг GPS байршлаар баталгаажуулна.
       </p>
 
       {/* Current status card */}
       <div
-        style={{
-          background: checkedIn ? "#f0fdf4" : "#f8fafc",
-          border: `1px solid ${checkedIn ? "#86efac" : "#e2e8f0"}`,
-          borderRadius: 12,
-          padding: 20,
-          marginBottom: 24,
-        }}
+        className={[
+          "rounded-xl border p-5 mb-6",
+          checkedIn ? "bg-green-50 border-green-300" : "bg-slate-50 border-slate-200",
+        ].join(" ")}
       >
         {loadingStatus ? (
-          <p style={{ color: "#6b7280", fontSize: 14 }}>Мэдээлэл ачааллаж байна...</p>
+          <p className="text-[14px] text-gray-500">Мэдээлэл ачааллаж байна...</p>
         ) : statusError ? (
-          <p style={{ color: "#ef4444", fontSize: 14 }}>{statusError}</p>
+          <p className="text-[14px] text-red-500">{statusError}</p>
         ) : (
-          <>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                marginBottom: checkedIn ? 12 : 0,
-              }}
-            >
-              <span style={{ fontSize: 28 }}>{checkedIn ? "🟢" : "🔴"}</span>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 16 }}>
-                  {checkedIn ? "Ажил дээр байна" : "Ажилд ирээгүй байна"}
-                </div>
-                {checkedIn && status?.openSession && (
-                  <div style={{ fontSize: 13, color: "#4b5563", marginTop: 2 }}>
-                    Ирсэн цаг: {formatDateTime(status.openSession.checkInAt)} —{" "}
-                    {formatDuration(status.openSession.checkInAt)} болж байна
-                  </div>
-                )}
+          <div className={["flex items-center gap-2.5", checkedIn ? "mb-3" : ""].join(" ")}>
+            <span className="text-[28px] leading-none">{checkedIn ? "🟢" : "🔴"}</span>
+            <div>
+              <div className="text-[16px] font-semibold text-gray-900">
+                {checkedIn ? "Ажил дээр байна" : "Ажилд ирээгүй байна"}
               </div>
+
+              {checkedIn && status?.openSession && (
+                <div className="mt-0.5 text-[13px] text-gray-600">
+                  Ирсэн цаг: {formatDateTime(status.openSession.checkInAt)} —{" "}
+                  {formatDuration(status.openSession.checkInAt)} болж байна
+                </div>
+              )}
             </div>
-          </>
+          </div>
         )}
       </div>
 
       {/* Action button */}
-      {!loadingStatus && !statusError && (
-        <div style={{ marginBottom: 24 }}>
+      {canShowAction && (
+        <div className="mb-6">
           <button
             type="button"
             disabled={actionLoading}
             onClick={() => handleAction(checkedIn ? "check-out" : "check-in")}
-            style={{
-              width: "100%",
-              padding: "14px 24px",
-              borderRadius: 10,
-              border: "none",
-              background: actionLoading
-                ? "#9ca3af"
-                : checkedIn
-                ? "#ef4444"
-                : "#2563eb",
-              color: "white",
-              fontSize: 16,
-              fontWeight: 600,
-              cursor: actionLoading ? "not-allowed" : "pointer",
-              transition: "background 0.2s",
-            }}
+            className={[
+              "w-full rounded-[10px] px-6 py-3.5 text-[16px] font-semibold text-white transition-colors",
+              actionLoading ? "cursor-not-allowed bg-gray-400" : "cursor-pointer",
+              !actionLoading && checkedIn ? "bg-red-500 hover:bg-red-600" : "",
+              !actionLoading && !checkedIn ? "bg-blue-600 hover:bg-blue-700" : "",
+            ].join(" ")}
           >
             {actionLoading
               ? "Байршил тодорхойлж байна..."
               : checkedIn
-              ? "🚪 Гарах бүртгэл хийх"
-              : "✅ Ирц бүртгэх"}
+                ? "🚪 Гарах бүртгэл хийх"
+                : "✅ Ирц бүртгэх"}
           </button>
 
           {actionError && (
-            <div
-              style={{
-                marginTop: 12,
-                padding: "12px 16px",
-                background: "#fef2f2",
-                border: "1px solid #fca5a5",
-                borderRadius: 8,
-                color: "#dc2626",
-                fontSize: 14,
-              }}
-            >
+            <div className="mt-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-[14px] text-red-700">
               {actionError}
             </div>
           )}
+
           {actionSuccess && (
-            <div
-              style={{
-                marginTop: 12,
-                padding: "12px 16px",
-                background: "#f0fdf4",
-                border: "1px solid #86efac",
-                borderRadius: 8,
-                color: "#16a34a",
-                fontSize: 14,
-              }}
-            >
+            <div className="mt-3 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-[14px] text-green-700">
               {actionSuccess}
             </div>
           )}
@@ -262,54 +214,46 @@ export default function AttendancePage() {
       {/* Recent history */}
       {status && status.recent.length > 0 && (
         <div>
-          <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>
+          <h2 className="text-[15px] font-semibold text-gray-900 mb-3">
             Сүүлийн 7 хоногийн бүртгэл
           </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {status.recent.map((s) => (
-              <div
-                key={s.id}
-                style={{
-                  background: "white",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 10,
-                  padding: "12px 16px",
-                  fontSize: 13,
-                }}
-              >
+
+          <div className="flex flex-col gap-2">
+            {status.recent.map((s) => {
+              const isClosed = !!s.checkOutAt;
+              return (
                 <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 4,
-                  }}
+                  key={s.id}
+                  className="rounded-[10px] border border-gray-200 bg-white px-4 py-3 text-[13px]"
                 >
-                  <span style={{ fontWeight: 600, color: "#1f2937" }}>
-                    📅 {formatDateTime(s.checkInAt)}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: s.checkOutAt ? "#16a34a" : "#f59e0b",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {s.checkOutAt ? "✅ Гарсан" : "🟡 Нээлттэй"}
-                  </span>
+                  <div className="mb-1 flex items-center justify-between gap-3">
+                    <span className="font-semibold text-gray-800">
+                      📅 {formatDateTime(s.checkInAt)}
+                    </span>
+
+                    <span
+                      className={[
+                        "text-[12px] font-semibold",
+                        isClosed ? "text-green-600" : "text-amber-500",
+                      ].join(" ")}
+                    >
+                      {isClosed ? "✅ Гарсан" : "🟡 Нээлттэй"}
+                    </span>
+                  </div>
+
+                  <div className="text-gray-500">
+                    {s.checkOutAt ? (
+                      <>
+                        Гарсан: {formatDateTime(s.checkOutAt)} •{" "}
+                        {formatDuration(s.checkInAt, s.checkOutAt)}
+                      </>
+                    ) : (
+                      <>{formatDuration(s.checkInAt)} болж байна</>
+                    )}
+                  </div>
                 </div>
-                <div style={{ color: "#6b7280" }}>
-                  {s.checkOutAt ? (
-                    <>
-                      Гарсан: {formatDateTime(s.checkOutAt)} •{" "}
-                      {formatDuration(s.checkInAt, s.checkOutAt)}
-                    </>
-                  ) : (
-                    <>{formatDuration(s.checkInAt)} болж байна</>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
