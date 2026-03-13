@@ -102,30 +102,18 @@ const SignaturePad = forwardRef<SignaturePadRef, Props>(({ disabled, onChange },
         ref={canvasRef}
         width={400}
         height={160}
-        style={{
-          border: "1px solid #d1d5db",
-          borderRadius: 8,
-          touchAction: "none",
-          background: "#ffffff",
-        }}
+        className="border border-gray-300 rounded-lg touch-none bg-white"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={stopDrawing}
         onPointerLeave={stopDrawing}
       />
-      <div style={{ marginTop: 4 }}>
+      <div className="mt-1">
         <button
           type="button"
           onClick={handleClear}
           disabled={disabled}
-          style={{
-            padding: "4px 10px",
-            borderRadius: 6,
-            border: "1px solid #9ca3af",
-            background: "#f9fafb",
-            fontSize: 12,
-            cursor: disabled ? "default" : "pointer",
-          }}
+          className={`px-2.5 py-1 rounded border border-gray-400 bg-gray-50 text-xs ${disabled ? "cursor-default" : "cursor-pointer"}`}
         >
           Арилгах
         </button>

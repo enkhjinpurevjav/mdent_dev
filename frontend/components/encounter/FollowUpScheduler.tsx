@@ -353,7 +353,7 @@ useEffect(() => {
         <table className="w-full border-separate border-spacing-0 text-xs bg-white">
           <thead>
             <tr>
-              <th className="text-center bg-gray-50 p-2 border-b-2 border-b-gray-300 border-r border-r-gray-200 font-bold min-w-[100px]">
+              <th className="text-center bg-gray-50 p-2 border-b-2 border-b-gray-300 border-r border-r-gray-200 font-bold min-w-[100px] sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">
                 Огноо
               </th>
               {timeLabels.map((timeLabel) => (
@@ -388,7 +388,7 @@ useEffect(() => {
                 <tr key={day.date}>
                   {/* Date as the first column */}
                   <td
-                    className="p-2 text-center bg-gray-50 font-medium border-b border-b-gray-200 border-r border-r-gray-200 align-top"
+                    className="p-2 text-center bg-gray-50 font-medium border-b border-b-gray-200 border-r border-r-gray-200 align-top sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]"
                     style={{ minHeight: MIN_ROW_HEIGHT }}
                   >
                     <div>{day.dayLabel}</div>

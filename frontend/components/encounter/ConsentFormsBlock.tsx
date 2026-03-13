@@ -2723,52 +2723,18 @@ export default function ConsentFormsBlock({
                   </div>
 
                   {/* Shared signature section for all consent types */}
-                  <div
-                    style={{
-                      marginTop: 16,
-                      paddingTop: 12,
-                      borderTop: "1px dashed #e5e7eb",
-                    }}
-                  >
-                    <h3
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        marginBottom: 8,
-                      }}
-                    >
+                  <div className="mt-4 pt-3 border-t border-dashed border-gray-200">
+                    <h3 className="text-sm font-semibold mb-2">
                       Гарын үсэг (бүх зөвшөөрлийн маягтад хамаарна)
                     </h3>
-                    <p
-                      style={{
-                        fontSize: 12,
-                        color: "#6b7280",
-                        marginBottom: 12,
-                      }}
-                    >
+                    <p className="text-xs text-gray-500 mb-3">
                       Энэ гарын үсэг нь 4 төрлийн зөвшөөрлийн маягтад хамтдаа хэрэглэгдэнэ.
                     </p>
 
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: 16,
-                        padding: 12,
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 8,
-                        background: "#fafafa",
-                      }}
-                    >
+                    <div className="grid grid-cols-2 gap-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
                       {/* Patient signature */}
                       <div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 500,
-                            marginBottom: 8,
-                          }}
-                        >
+                        <div className="text-xs font-medium mb-2">
                           Өвчтөн/асран хамгаалагчийн гарын үсэг
                         </div>
                         {encounter.patientSignaturePath ? (
@@ -2776,22 +2742,10 @@ export default function ConsentFormsBlock({
                             <img
                               src={encounter.patientSignaturePath}
                               alt="Patient signature"
-                              style={{
-                                maxWidth: "100%",
-                                height: "auto",
-                                border: "1px solid #d1d5db",
-                                borderRadius: 6,
-                                background: "#ffffff",
-                              }}
+                              className="max-w-full h-auto border border-gray-300 rounded bg-white"
                             />
                             {encounter.patientSignedAt && (
-                              <div
-                                style={{
-                                  fontSize: 11,
-                                  color: "#6b7280",
-                                  marginTop: 4,
-                                }}
-                              >
+                              <div className="text-[11px] text-gray-500 mt-1">
                                 Гарын үсэг зурсан:{" "}
                                 {formatDateTime(encounter.patientSignedAt)}
                               </div>
@@ -2814,16 +2768,7 @@ export default function ConsentFormsBlock({
                                 const blob = await patientSigRef.current.getBlob();
                                 if (blob) void onPatientSignatureUpload(blob);
                               }}
-                              style={{
-                                marginTop: 6,
-                                padding: "4px 10px",
-                                borderRadius: 6,
-                                border: "1px solid #16a34a",
-                                background: "#ecfdf3",
-                                color: "#166534",
-                                fontSize: 12,
-                                cursor: uploadingPatientSignature ? "default" : "pointer",
-                              }}
+                              className={`mt-1.5 px-2.5 py-1 rounded border border-green-600 bg-green-50 text-green-800 text-xs ${uploadingPatientSignature ? "cursor-default" : "cursor-pointer"}`}
                             >
                               {uploadingPatientSignature ? "Хадгалж байна..." : "Гарын үсэг хадгалах"}
                             </button>
@@ -2833,13 +2778,7 @@ export default function ConsentFormsBlock({
 
                       {/* Doctor signature */}
                       <div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 500,
-                            marginBottom: 8,
-                          }}
-                        >
+                        <div className="text-xs font-medium mb-2">
                           Эмчийн гарын үсэг
                         </div>
                         {encounter.doctorSignaturePath ? (
@@ -2847,22 +2786,10 @@ export default function ConsentFormsBlock({
                             <img
                               src={encounter.doctorSignaturePath}
                               alt="Doctor signature"
-                              style={{
-                                maxWidth: "100%",
-                                height: "auto",
-                                border: "1px solid #d1d5db",
-                                borderRadius: 6,
-                                background: "#ffffff",
-                              }}
+                              className="max-w-full h-auto border border-gray-300 rounded bg-white"
                             />
                             {encounter.doctorSignedAt && (
-                              <div
-                                style={{
-                                  fontSize: 11,
-                                  color: "#6b7280",
-                                  marginTop: 4,
-                                }}
-                              >
+                              <div className="text-[11px] text-gray-500 mt-1">
                                 Холбосон:{" "}
                                 {formatDateTime(encounter.doctorSignedAt)}
                               </div>
@@ -2870,7 +2797,7 @@ export default function ConsentFormsBlock({
                           </div>
                         ) : (
                           <div>
-                            <div style={{ marginBottom: 8 }}>
+                            <div className="mb-2">
                               <SignaturePad
                                 ref={doctorSigRef}
                                 disabled={uploadingDoctorSignature}
@@ -2886,29 +2813,12 @@ export default function ConsentFormsBlock({
                                   const blob = await doctorSigRef.current.getBlob();
                                   if (blob) void onDoctorSignatureUpload(blob);
                                 }}
-                                style={{
-                                  marginTop: 6,
-                                  padding: "4px 10px",
-                                  borderRadius: 6,
-                                  border: "1px solid #16a34a",
-                                  background: "#ecfdf3",
-                                  color: "#166534",
-                                  fontSize: 12,
-                                  cursor: uploadingDoctorSignature ? "default" : "pointer",
-                                }}
+                                className={`mt-1.5 px-2.5 py-1 rounded border border-green-600 bg-green-50 text-green-800 text-xs ${uploadingDoctorSignature ? "cursor-default" : "cursor-pointer"}`}
                               >
                                 {uploadingDoctorSignature ? "Хадгалж байна..." : "Гарын үсэг хадгалах"}
                               </button>
                             </div>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                fontSize: 11,
-                                color: "#6b7280",
-                              }}
-                            >
+                            <div className="flex items-center gap-2 text-[11px] text-gray-500">
                               <span>эсвэл</span>
                             </div>
                             <button
@@ -2918,38 +2828,14 @@ export default function ConsentFormsBlock({
                                 attachingDoctorSignature ||
                                 !encounter.doctor?.signatureImagePath
                               }
-                              style={{
-                                marginTop: 8,
-                                padding: "8px 16px",
-                                borderRadius: 6,
-                                border: "1px solid #2563eb",
-                                background: "#eff6ff",
-                                color: "#2563eb",
-                                fontSize: 12,
-                                cursor:
-                                  attachingDoctorSignature ||
-                                  !encounter.doctor?.signatureImagePath
-                                    ? "not-allowed"
-                                    : "pointer",
-                                opacity:
-                                  attachingDoctorSignature ||
-                                  !encounter.doctor?.signatureImagePath
-                                    ? 0.6
-                                    : 1,
-                              }}
+                              className={`mt-2 px-4 py-2 rounded border border-blue-600 bg-blue-50 text-blue-600 text-xs ${attachingDoctorSignature || !encounter.doctor?.signatureImagePath ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                             >
                               {attachingDoctorSignature
                                 ? "Холбож байна..."
                                 : "Эмчийн гарын үсэг холбох"}
                             </button>
                             {!encounter.doctor?.signatureImagePath && (
-                              <div
-                                style={{
-                                  fontSize: 11,
-                                  color: "#b91c1c",
-                                  marginTop: 4,
-                                }}
-                              >
+                              <div className="text-[11px] text-red-700 mt-1">
                                 Эмчийн профайлд гарын үсэг байхгүй байна
                               </div>
                             )}

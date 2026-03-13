@@ -44,30 +44,10 @@ export default function SharedConsentAndSignature({
   const hasExistingSignature = !sharedSignatureLoading && sharedSignature && !showSignaturePad;
 
   return (
-    <div
-      style={{
-        borderRadius: 12,
-        border: "1px solid #e5e7eb",
-        padding: 16,
-        background: "white",
-        marginTop: 16,
-      }}
-    >
+    <div className="rounded-xl border border-gray-200 p-4 bg-white mt-4">
       {/* Consent Section */}
-      <section
-        style={{
-          paddingBottom: 12,
-          borderBottom: "1px dashed #e5e7eb",
-          fontSize: 13,
-        }}
-      >
-        <label
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 6,
-          }}
-        >
+      <section className="pb-3 border-b border-dashed border-gray-200 text-[13px]">
+        <label className="flex items-start gap-1.5">
           <input
             type="checkbox"
             checked={consentAccepted}
@@ -81,30 +61,21 @@ export default function SharedConsentAndSignature({
       </section>
 
       {/* Signature Section */}
-      <section
-        style={{
-          marginTop: 12,
-        }}
-      >
-        <div style={{ fontSize: 13, marginBottom: 8, fontWeight: 500 }}>
+      <section className="mt-3">
+        <div className="text-[13px] mb-2 font-medium">
           Гарын үсэг
         </div>
 
         {hasExistingSignature ? (
           <div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div className="flex flex-col gap-1">
               <img
                 src={sharedSignature.filePath}
                 alt="Shared signature"
-                style={{
-                  maxWidth: 400,
-                  borderRadius: 8,
-                  border: "1px solid #d1d5db",
-                  background: "#ffffff",
-                }}
+                className="max-w-[400px] rounded-lg border border-gray-300 bg-white"
               />
               {sharedSignature.signedAt && (
-                <span style={{ fontSize: 11, color: "#6b7280" }}>
+                <span className="text-[11px] text-gray-500">
                   Огноо: {formatDate(sharedSignature.signedAt)}
                 </span>
               )}
@@ -112,15 +83,7 @@ export default function SharedConsentAndSignature({
             <button
               type="button"
               onClick={handleRedrawSignature}
-              style={{
-                marginTop: 8,
-                padding: "6px 12px",
-                borderRadius: 6,
-                border: "1px solid #9ca3af",
-                background: "#f9fafb",
-                fontSize: 13,
-                cursor: "pointer",
-              }}
+              className="mt-2 px-3 py-1.5 rounded border border-gray-400 bg-gray-50 text-[13px] cursor-pointer"
             >
               Дахин гарын үсэг зурах
             </button>
@@ -128,29 +91,14 @@ export default function SharedConsentAndSignature({
         ) : (
           <div>
             <SignaturePad ref={signaturePadRef} disabled={signatureSaving} />
-            <div
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-                marginTop: 4,
-                marginBottom: 8,
-              }}
-            >
+            <div className="text-[11px] text-gray-500 mt-1 mb-2">
               Таблет, утас эсвэл хулгана ашиглан доор гарын үсэг зурна уу.
             </div>
             <button
               type="button"
               onClick={handleSaveSignature}
               disabled={signatureSaving}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 6,
-                border: "none",
-                background: signatureSaving ? "#9ca3af" : "#10b981",
-                color: "#ffffff",
-                fontSize: 13,
-                cursor: signatureSaving ? "default" : "pointer",
-              }}
+              className={`px-3 py-1.5 rounded border-none text-white text-[13px] ${signatureSaving ? "bg-gray-400 cursor-default" : "bg-emerald-500 cursor-pointer"}`}
             >
               {signatureSaving ? "Хадгалж байна..." : "Гарын үсэг хадгалах"}
             </button>
