@@ -151,16 +151,17 @@ function formatSalesValue(
 
 function formatStatusShort(status: string): string {
   switch (status) {
-    case "booked": return "Зах.";
-    case "confirmed": return "Бат.";
-    case "ongoing": return "Яв.";
+    case "booked": return "Захиал.";
+    case "confirmed": return "Батал.";
+    case "ongoing": return "Эхэл.";
     case "completed": return "Дуус.";
     case "cancelled": return "Цуц.";
     case "no_show": return "Ирээгүй";
     case "ready_to_pay": return "Төлбөр";
     case "partial_paid": return "Үлд.";
     case "imaging": return "Зураг";
-    case "online": return "Онл.";
+    case "online": return "Цахим";
+    case "other": return "Бусад";
     default: return "Төлөв";
   }
 }
