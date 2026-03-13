@@ -4,7 +4,7 @@ import React, {
   useMemo,
   useRef,
   useState,
-} from "react";ƒ
+} from "react";
 import { useRouter } from "next/router";
 import { useBranchLock } from "../components/appointments/useBranchLock";
 import type { Branch, Doctor, ScheduledDoctor, PatientLite, Appointment, DoctorScheduleDay, TimeSlot, CompletedHistoryItem } from "../components/appointments/types";
@@ -17,7 +17,7 @@ import PendingSaveBar from "../components/appointments/PendingSaveBar";
 function groupByDate(appointments: Appointment[]) {
   const map: Record<string, Appointment[]> = {};
   for (const a of appointments) {
-    const scheduled = a.scheduledAt;ƒ
+    const scheduled = a.scheduledAt;
     if (!scheduled) continue;
     const key = scheduled.slice(0, 10);
     if (!map[key]) map[key] = [];
@@ -2169,40 +2169,30 @@ const totalCompletedPatientsForDay = useMemo(() => {
     );
   };
 
-const getStatusColor = (status: string): string => {
-  switch (status) {
+ const getStatusColor = (status: string): string => {
+ switch (status) {
     case "completed":
-      return "#BBF7D0"; // green
-
+      return "#BBF7D0";
     case "confirmed":
-      return "#BFDBFE"; // blue
-
+      return "#BFDBFE";
     case "online":
-      return "#C7D2FE"; // indigo
-
+      return "#C7D2FE";
     case "ongoing":
-      return "#FED7AA"; // orange
-
+      return "#FED7AA";
     case "imaging":
-      return "#E9D5FF"; // purple
-
+      return "#E9D5FF";
     case "ready_to_pay":
-      return "#FDE68A"; // amber
-
+      return "#FDE68A";
     case "partial_paid":
-      return "#FEF08A"; // yellow
-
+      return "#FEF08A";
     case "no_show":
-      return "#FECACA"; // red
-
+      return "#FECACA";
     case "cancelled":
-      return "#FCA5A5"; // darker red
-
+      return "#FCA5A5";
     case "other":
-      return "#E5E7EB"; // gray
-
+      return "#E5E7EB";
     default:
-      return "#E2E8F0"; // booked
+      return "#E2E8F0";
   }
 };
 
