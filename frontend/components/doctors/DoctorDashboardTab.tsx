@@ -48,7 +48,9 @@ interface DashboardResponse {
 }
 
 interface Props {
-  doctorId: number;
+  doctorId?: number;
+  /** If provided, fetch from this base path instead of the admin endpoint. */
+  apiBasePath?: string;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -64,7 +66,7 @@ const AGE_COLORS = ["#22c55e", "#f59e0b", "#9ca3af"];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function DoctorDashboardTab({ doctorId }: Props) {
+export default function DoctorDashboardTab({ doctorId, apiBasePath }: Props) {
   const currentYear = new Date().getFullYear();
   const yearOptions = getYearOptions();
 
@@ -87,10 +89,11 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const url =
-        `/api/admin/doctors/${doctorId}/dashboard` +
-        `?startDate=${range.startDate}&endDate=${range.endDate}&bucket=${range.bucket}`;
-      const res = await fetch(url);
+      const base = apiBasePath
+        ? apiBasePath
+        : `/api/admin/doctors/${doctorId}/dashboard`;
+      const url = `${base}?startDate=${range.startDate}&endDate=${range.endDate}&bucket=${range.bucket}`;
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
@@ -103,7 +106,7 @@ export default function DoctorDashboardTab({ doctorId }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [doctorId, mode, selectedYear, selectedMonth]);
+  }, [doctorId, apiBasePath, mode, selectedYear, selectedMonth]);
 
   useEffect(() => {
     void fetchDashboard();

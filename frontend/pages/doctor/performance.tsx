@@ -1,27 +1,13 @@
 import React from "react";
+import DoctorDashboardTab from "../../components/doctors/DoctorDashboardTab";
 
 export default function DoctorPerformancePage() {
   return (
-    <div style={{ maxWidth: 600, margin: "0 auto", padding: "16px 12px 0" }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, color: "#0f2044" }}>Гүйцэтгэл</h1>
-      <div
-        style={{
-          background: "white",
-          borderRadius: 12,
-          padding: 24,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
-          textAlign: "center",
-          color: "#6b7280",
-        }}
-      >
-        <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
-          Гүйцэтгэлийн тайлан удахгүй нэмэгдэнэ
-        </div>
-        <div style={{ fontSize: 13 }}>
-          Орлого, үзлэгийн тоо болон бусад үзүүлэлтүүд тун удахгүй бэлэн болно.
-        </div>
-      </div>
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 12px 32px" }}>
+      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, color: "#0f2044" }}>
+        Гүйцэтгэл
+      </h1>
+      <DoctorDashboardTab apiBasePath="/api/doctor/dashboard" />
     </div>
   );
 }
