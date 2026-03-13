@@ -2080,6 +2080,8 @@ const handleFinishEncounter = async () => {
             nursesForEncounter={nursesForEncounter}
             changingNurse={changingNurse}
             onChangeNurse={handleChangeNurse}
+            hideMiniNav={isDoctor}
+            showPatientDetailsButton={isDoctor}
           />
 
           {/* Consent Forms */}
@@ -2246,6 +2248,7 @@ const handleFinishEncounter = async () => {
               onFinish={handleFinishEncounter}
               onResetToothSelection={resetToothSelectionSession}
               onReloadEncounter={reloadEncounter}
+              hideInlineActions={isDoctor}
             />
           </section>
 
@@ -2383,7 +2386,7 @@ const handleFinishEncounter = async () => {
                 }}
                 className="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold text-sm disabled:opacity-50"
               >
-                {saving ? "Хадгалж байна..." : "Хадгалах"}
+                {saving ? "Хадгалж байна..." : "Онош хадгалах"}
               </button>
               <button
                 type="button"
