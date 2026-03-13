@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { getMe } from "../../utils/auth";
 
 type ScheduleItem = {
   id: number;
@@ -31,13 +30,7 @@ export default function DoctorSchedulePage() {
       setLoading(true);
       setError(null);
       try {
-        const me = await getMe();
-        if (!me) {
-          if (!cancelled) setError("Хэрэглэгчийн мэдээлэл олдсонгүй");
-          return;
-        }
-
-        const res = await fetch(`/api/users/${me.id}/schedule`, {
+        const res = await fetch("/api/doctor/schedule", {
           credentials: "include",
         });
 

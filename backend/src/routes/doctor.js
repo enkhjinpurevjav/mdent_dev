@@ -305,55 +305,77 @@ router.get("/appointments", async (req, res) => {
 // ═════════════════════════════════════════════════════════════════════════════
 
 /**
- * GET /api/doctor/schedule?date=YYYY-MM-DD
+ * GET /api/doctor/schedule?from=YYYY-MM-DD&to=YYYY-MM-DD
  *
  * Returns the authenticated doctor's DoctorSchedule entries for the given date
- * (defaults to today in Mongolia timezone if omitted).
+ * range. Defaults to today → today+31 days (inclusive) in Mongolia timezone.
  *
- * In the rare case where multiple rows exist for the same day (different branches),
- * all entries are returned so the frontend can pick earliest startTime + latest endTime.
+ * Optional query params:
+ *   from  – start date YYYY-MM-DD (defaults to today)
+ *   to    – end date YYYY-MM-DD   (defaults to from + 31 days)
  *
- * Response: Array of { id, date, branchId, startTime, endTime, note }
+ * The inclusive range must not exceed 31 days; requests beyond that are rejected
+ * with 400.
+ *
+ * Response: Array of { id, date (YYYY-MM-DD), branch {id,name}, startTime, endTime, note }
  */
 router.get("/schedule", async (req, res) => {
   try {
     const doctorId = req.user.id;
 
-    let date = req.query.date;
-    if (!date) {
-      date = mongoliaLocalDateString();
-    }
+    const today = mongoliaLocalDateString();
 
+    const fromYmd = req.query.from || today;
     const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-    if (!datePattern.test(date)) {
-      return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD" });
+
+    if (!datePattern.test(fromYmd)) {
+      return res.status(400).json({ error: "Invalid from date. Use YYYY-MM-DD" });
     }
 
-    const dayRange = ymdToClinicStartEnd(date);
-    if (!dayRange) {
+    // Default to: from + 30 days (31 days inclusive)
+    let toYmd = req.query.to;
+    if (!toYmd) {
+      const parsed = parseYmd(fromYmd);
+      if (!parsed) return res.status(400).json({ error: "Invalid from date" });
+      const toDate = new Date(parsed.y, parsed.m - 1, parsed.d);
+      toDate.setDate(toDate.getDate() + 30);
+      toYmd = `${toDate.getFullYear()}-${String(toDate.getMonth() + 1).padStart(2, "0")}-${String(toDate.getDate()).padStart(2, "0")}`;
+    }
+
+    if (!datePattern.test(toYmd)) {
+      return res.status(400).json({ error: "Invalid to date. Use YYYY-MM-DD" });
+    }
+
+    const rangedays = diffDaysInclusive(fromYmd, toYmd);
+    if (rangedays === null || rangedays < 1) {
+      return res.status(400).json({ error: "to must be >= from" });
+    }
+    if (rangedays > 31) {
+      return res.status(400).json({ error: "Date range must not exceed 31 days" });
+    }
+
+    const fromRange = ymdToClinicStartEnd(fromYmd);
+    const toRange = ymdToClinicStartEnd(toYmd);
+    if (!fromRange || !toRange) {
       return res.status(400).json({ error: "Invalid date format" });
     }
 
     const schedules = await prisma.doctorSchedule.findMany({
       where: {
         doctorId,
-        date: { gte: dayRange.start, lte: dayRange.end },
+        date: { gte: fromRange.start, lte: toRange.end },
       },
-      select: {
-        id: true,
-        date: true,
-        branchId: true,
-        startTime: true,
-        endTime: true,
-        note: true,
+      include: {
+        branch: { select: { id: true, name: true } },
       },
+      orderBy: [{ date: "asc" }, { startTime: "asc" }],
     });
 
     return res.json(
       schedules.map((s) => ({
         id: s.id,
-        date: toMongoliaDateOnly(s.date) ?? date,
-        branchId: s.branchId,
+        date: toMongoliaDateOnly(s.date) ?? s.date.toISOString().slice(0, 10),
+        branch: s.branch,
         startTime: s.startTime,
         endTime: s.endTime,
         note: s.note ?? null,
