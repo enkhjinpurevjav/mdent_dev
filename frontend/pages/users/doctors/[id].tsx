@@ -204,7 +204,7 @@ function SalesDrillDownRows({
   if (lines.length === 0) {
     return (
       <tr>
-        <td colSpan={10} className="px-8 py-4 text-center text-xs text-gray-500">
+        <td colSpan={9} className="px-8 py-4 text-center text-xs text-gray-500">
           Энэ ангилалд мэдээлэл олдсонгүй.
         </td>
       </tr>
@@ -219,21 +219,20 @@ function SalesDrillDownRows({
         const tooltip = canOpen ? "Дэлгэрэнгүй" : "Цаг захиалга байхгүй";
         return (
           <tr key={`${line.invoiceId}-${idx}`} className="border-t border-blue-100 bg-blue-50/30">
-            <td className="py-2 pl-8 pr-3 text-xs text-gray-700">#{line.invoiceId}</td>
+            <td className="hidden xl:table-cell py-2 pl-8 pr-3 text-xs text-gray-700">#{line.invoiceId}</td>
             <td className="px-3 py-2 text-xs text-gray-700">{dateStr}</td>
             <td className="px-3 py-2 text-xs text-gray-700">{patientStr}</td>
-            <td className="px-3 py-2 text-xs text-gray-700">{line.serviceName}</td>
-            <td className="px-3 py-2 text-right text-xs text-gray-700">{fmtMnt(line.priceMnt)}</td>
-            <td className="px-3 py-2 text-right text-xs text-gray-700">
+            <td className="hidden sm:table-cell px-3 py-2 text-xs text-gray-700">{line.serviceName}</td>
+            <td className="hidden lg:table-cell px-3 py-2 text-right text-xs text-gray-700">{fmtMnt(line.priceMnt)}</td>
+            <td className="hidden lg:table-cell px-3 py-2 text-right text-xs text-gray-700">
               {line.discountMnt > 0 ? fmtMnt(line.discountMnt) : "-"}
             </td>
             <td className="px-3 py-2 text-right text-xs font-semibold text-gray-800">
               {fmtMnt(line.allocatedPaidMnt)}
             </td>
-            <td className="px-3 py-2 text-xs text-gray-700">
+            <td className="hidden md:table-cell px-3 py-2 text-xs text-gray-700">
               {line.paymentMethodLabel || "-"}
             </td>
-            <td className="px-3 py-2 text-xs text-gray-500">{line.serviceCategory}</td>
             <td className="px-3 py-2 text-center">
               <div className="group relative inline-block">
                 <button
@@ -3302,7 +3301,7 @@ function formatScheduleDate(ymd: string): string {
                                             <table className="w-full border-collapse text-xs">
                                               <thead className="bg-blue-50 text-left">
                                                 <tr>
-                                                  <th className="py-2 pl-8 pr-3 font-semibold text-gray-600">
+                                                  <th className="hidden xl:table-cell py-2 pl-8 pr-3 font-semibold text-gray-600">
                                                     Нэхэмжлэл #
                                                   </th>
                                                   <th className="px-3 py-2 font-semibold text-gray-600">
@@ -3311,23 +3310,20 @@ function formatScheduleDate(ymd: string): string {
                                                   <th className="px-3 py-2 font-semibold text-gray-600">
                                                     Үйлчлүүлэгч
                                                   </th>
-                                                  <th className="px-3 py-2 font-semibold text-gray-600">
+                                                  <th className="hidden sm:table-cell px-3 py-2 font-semibold text-gray-600">
                                                     Үйлчилгээ
                                                   </th>
-                                                  <th className="px-3 py-2 text-right font-semibold text-gray-600">
+                                                  <th className="hidden lg:table-cell px-3 py-2 text-right font-semibold text-gray-600">
                                                     Үнийн дүн
                                                   </th>
-                                                  <th className="px-3 py-2 text-right font-semibold text-gray-600">
+                                                  <th className="hidden lg:table-cell px-3 py-2 text-right font-semibold text-gray-600">
                                                     Хөнгөлөлт
                                                   </th>
                                                   <th className="px-3 py-2 text-right font-semibold text-gray-600">
                                                     Нийт
                                                   </th>
-                                                  <th className="px-3 py-2 font-semibold text-gray-600">
+                                                  <th className="hidden md:table-cell px-3 py-2 font-semibold text-gray-600">
                                                     Төлбөрийн хэрэгсэл
-                                                  </th>
-                                                  <th className="px-3 py-2 font-semibold text-gray-600">
-                                                    Үйлчилгээний төрөл
                                                   </th>
                                                   <th className="px-3 py-2 text-center font-semibold text-gray-600">
                                                     Үйлдэл
