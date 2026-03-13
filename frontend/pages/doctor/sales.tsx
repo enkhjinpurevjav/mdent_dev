@@ -111,7 +111,7 @@ function DrillDownRows({ lines }: { lines: SalesLineItem[] }) {
   if (lines.length === 0) {
     return (
       <tr>
-        <td colSpan={9} className="px-8 py-4 text-center text-xs text-gray-500">
+        <td colSpan={8} className="px-8 py-4 text-center text-xs text-gray-500">
           Энэ ангилалд мэдээлэл олдсонгүй.
         </td>
       </tr>
@@ -124,19 +124,18 @@ function DrillDownRows({ lines }: { lines: SalesLineItem[] }) {
         const patientStr = salesFormatPatient(line.patientOvog, line.patientName);
         return (
           <tr key={`${line.invoiceId}-${idx}`} className="border-t border-blue-100 bg-blue-50/30">
-            <td className="py-2 pl-8 pr-3 text-xs text-gray-700">#{line.invoiceId}</td>
+            <td className="hidden xl:table-cell py-2 pl-8 pr-3 text-xs text-gray-700">#{line.invoiceId}</td>
             <td className="px-3 py-2 text-xs text-gray-700">{dateStr}</td>
             <td className="px-3 py-2 text-xs text-gray-700">{patientStr}</td>
-            <td className="px-3 py-2 text-xs text-gray-700">{line.serviceName}</td>
-            <td className="px-3 py-2 text-right text-xs text-gray-700">{fmtMnt(line.priceMnt)}</td>
-            <td className="px-3 py-2 text-right text-xs text-gray-700">
+            <td className="hidden sm:table-cell px-3 py-2 text-xs text-gray-700">{line.serviceName}</td>
+            <td className="hidden lg:table-cell px-3 py-2 text-right text-xs text-gray-700">{fmtMnt(line.priceMnt)}</td>
+            <td className="hidden lg:table-cell px-3 py-2 text-right text-xs text-gray-700">
               {line.discountMnt > 0 ? fmtMnt(line.discountMnt) : "-"}
             </td>
             <td className="px-3 py-2 text-right text-xs font-semibold text-gray-800">
               {fmtMnt(line.allocatedPaidMnt)}
             </td>
-            <td className="px-3 py-2 text-xs text-gray-700">{line.paymentMethodLabel || "-"}</td>
-            <td className="px-3 py-2 text-xs text-gray-500">{line.serviceCategory}</td>
+            <td className="hidden md:table-cell px-3 py-2 text-xs text-gray-700">{line.paymentMethodLabel || "-"}</td>
           </tr>
         );
       })}
@@ -418,7 +417,7 @@ export default function DoctorSalesPage() {
                                       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                                         <thead style={{ background: "#eff6ff" }}>
                                           <tr>
-                                            <th style={{ textAlign: "left", padding: "7px 10px 7px 32px", fontWeight: 600, color: "#374151" }}>
+                                            <th className="hidden xl:table-cell" style={{ textAlign: "left", padding: "7px 10px 7px 32px", fontWeight: 600, color: "#374151" }}>
                                               Нэхэмжлэл #
                                             </th>
                                             <th style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
@@ -427,23 +426,20 @@ export default function DoctorSalesPage() {
                                             <th style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
                                               Үйлчлүүлэгч
                                             </th>
-                                            <th style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
+                                            <th className="hidden sm:table-cell" style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
                                               Үйлчилгээ
                                             </th>
-                                            <th style={{ textAlign: "right", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
+                                            <th className="hidden lg:table-cell" style={{ textAlign: "right", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
                                               Үнийн дүн
                                             </th>
-                                            <th style={{ textAlign: "right", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
+                                            <th className="hidden lg:table-cell" style={{ textAlign: "right", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
                                               Хөнгөлөлт
                                             </th>
                                             <th style={{ textAlign: "right", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
                                               Нийт
                                             </th>
-                                            <th style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
+                                            <th className="hidden md:table-cell" style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
                                               Төлбөрийн хэрэгсэл
-                                            </th>
-                                            <th style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
-                                              Үйлчилгээний төрөл
                                             </th>
                                           </tr>
                                         </thead>
