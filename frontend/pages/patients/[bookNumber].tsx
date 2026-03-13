@@ -347,67 +347,63 @@ export default function PatientProfilePage() {
       {/* In AdminLayout: negative margins negate the 20px padding for full-bleed; top:-20 aligns the */}
       {/*   sticky threshold with the container border so the bar stays flush under the header on scroll */}
       {/* In DoctorLayout: sticky top-11 clears the fixed 44px header; no negative margins needed */}
-      {patient && pb && (
-  <div
-  className={[
-    "sticky top-11 z-50 border-b border-white/10 bg-[#061325]",
-    // AdminLayout full-bleed (20px container padding)
-    isDoctor ? "" : "-mx-5",
-  ].join(" ")}
->
-          {/* In AdminLayout, re-add the 20px padding that was removed by the negative margins above */}
-<div className={isDoctor ? "" : "px-5"}>
-  <div className="flex items-center">
-    {/* Horizontally scrollable tab pills */}
-    <div className="flex-1 overflow-x-auto">
-      <div className="flex items-center gap-1 py-2 min-w-max">
-                  <button
-                    type="button"
-                    onClick={() => { setActiveTab("profile"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
-                    className={tabBtnClass("profile")}
-                  >
-                    Профайл
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setActiveTab("patient_history"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
-                    className={tabBtnClass("patient_history")}
-                  >
-                    Үйлчлүүлэгчийн карт
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setActiveTab("appointments"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
-                    className={tabBtnClass("appointments")}
-                  >
-                    Цагууд
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setActiveTab("visit_card"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
-                    className={tabBtnClass("visit_card")}
-                  >
-                    Карт бөглөх
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setActiveTab("ortho_card"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
-                    className={tabBtnClass("ortho_card")}
-                  >
-                    Гажиг заслын карт
-                  </button>
-                </div>
-              </div>
-              {/* Patient label — hidden on very small screens */}
-              <div className="hidden sm:block shrink-0 ml-3 text-xs sm:text-sm text-white/70 truncate max-w-[40vw]">
-                {formatDisplayName(patient)} • #{pb.bookNumber}
-              </div>
-            </div>
+     {patient && pb && (
+  <div className="fixed top-11 left-0 right-0 z-[90] border-b border-white/10 bg-[#061325]">
+    <div className={isDoctor ? "px-3 sm:px-4 sm:max-w-[720px] sm:mx-auto" : "px-5"}>
+      <div className="flex items-center">
+        <div className="flex-1 overflow-x-auto">
+          <div className="flex items-center gap-1 py-2 min-w-max">
+            <button
+              type="button"
+              onClick={() => { setActiveTab("profile"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
+              className={tabBtnClass("profile")}
+            >
+              Профайл
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setActiveTab("patient_history"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
+              className={tabBtnClass("patient_history")}
+            >
+              Үйлчлүүлэгчийн карт
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setActiveTab("appointments"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
+              className={tabBtnClass("appointments")}
+            >
+              Цагууд
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setActiveTab("visit_card"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
+              className={tabBtnClass("visit_card")}
+            >
+              Карт бөглөх
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setActiveTab("ortho_card"); setEditMode(false); setSaveError(""); setSaveSuccess(""); }}
+              className={tabBtnClass("ortho_card")}
+            >
+              Гажиг заслын карт
+            </button>
           </div>
         </div>
-      )}
 
-      <main className="pb-6 font-sans">
+        <div className="hidden sm:block shrink-0 ml-3 text-xs sm:text-sm text-white/70 truncate max-w-[40vw]">
+          {formatDisplayName(patient)} • #{pb.bookNumber}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+      <main className="pt-14 pb-6 font-sans">
       {loading && <div>Ачааллаж байна...</div>}
       {!loading && error && <div className="text-red-600">{error}</div>}
 
