@@ -42,12 +42,12 @@ export default function MyApp({ Component, pageProps }: AppProps) {
         return;
       }
 
-      // Doctors cannot access anything outside /doctor/*
-      // Doctors cannot access anything outside /doctor/* EXCEPT /patients/*
+      // Doctors cannot access anything outside /doctor/* EXCEPT /patients/* and /encounters/*
 if (
   user.role === "doctor" &&
   !isDoctorPath(router.pathname) &&
-  !router.pathname.startsWith("/patients")
+  !router.pathname.startsWith("/patients") &&
+  !router.pathname.startsWith("/encounters")
 ) {
   router.replace("/doctor/appointments");
   return;
@@ -68,7 +68,8 @@ if (
   }
 
   const isPatientPath = router.pathname.startsWith("/patients/");
-  const useDoctorLayout = isDoctorPath(router.pathname) || (isPatientPath && userRole === "doctor");
+  const isEncounterPath = router.pathname.startsWith("/encounters/");
+  const useDoctorLayout = isDoctorPath(router.pathname) || ((isPatientPath || isEncounterPath) && userRole === "doctor");
 
   if (useDoctorLayout) {
     // Only show the dashboard summary cards on the doctor appointments page

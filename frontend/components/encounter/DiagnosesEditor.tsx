@@ -902,7 +902,7 @@ export default function DiagnosesEditor({
           >
             {finishing
               ? "Дуусгаж байна..."
-              : "Үзлэг дуусгах / Төлбөрт шилжүүлэх"}
+              : "Үзлэг дуусгах"}
           </button>
         </div>
       </div>

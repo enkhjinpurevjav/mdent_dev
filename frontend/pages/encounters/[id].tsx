@@ -1,5 +1,7 @@
  import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
+import type { AuthUser } from "../../utils/auth";
+import { getMe } from "../../utils/auth";
 import type {
   Encounter,
   Diagnosis,
@@ -54,6 +56,9 @@ const isDxRowEffectivelyEmpty = (r: DiagnosisServiceRow | undefined | null) => {
 export default function EncounterAdminPage() {
   const router = useRouter();
   const { id } = router.query;
+
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const isDoctor = currentUser?.role === "doctor";
 
   const [encounter, setEncounter] = useState<Encounter | null>(null);
   const [loading, setLoading] = useState(true);
@@ -310,6 +315,27 @@ export default function EncounterAdminPage() {
  
   const [servicesLoadError, setServicesLoadError] = useState("");
   const [dxError, setDxError] = useState("");
+
+  // Doctor-mode collapsible sections (collapsed by default for doctor)
+  const [consentOpen, setConsentOpen] = useState(true);
+  const [followUpOpen, setFollowUpOpen] = useState(true);
+  const [mediaOpen, setMediaOpen] = useState(true);
+  const [prescriptionOpen, setPrescriptionOpen] = useState(true);
+
+  useEffect(() => {
+    getMe().then((user) => {
+      setCurrentUser(user);
+      // Collapse secondary sections by default for doctor
+      if (user?.role === "doctor") {
+        setConsentOpen(false);
+        setFollowUpOpen(false);
+        setMediaOpen(false);
+        setPrescriptionOpen(false);
+      }
+    }).catch(() => {
+      // If auth check fails, keep currentUser null (isDoctor = false, use admin layout)
+    });
+  }, []);
   
   const encounterId = useMemo(
     () => (typeof id === "string" ? Number(id) : NaN),
@@ -1964,7 +1990,7 @@ const handleFinishEncounter = async () => {
         );
       }
 
-      await router.push(`/billing/${id}`);
+      await router.push(isDoctor ? "/doctor/appointments" : `/billing/${id}`);
     } catch (err) {
       console.error("handleFinishEncounter failed", err);
     } finally {
@@ -1992,11 +2018,37 @@ const handleFinishEncounter = async () => {
     );
   }
 
+  // Collapsible section header shared by doctor mode
+  const SectionHeader = ({
+    title,
+    open,
+    onToggle,
+  }: {
+    title: string;
+    open: boolean;
+    onToggle: () => void;
+  }) => (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="w-full flex items-center justify-between px-4 py-3 bg-white rounded-t-lg border border-gray-200 text-left"
+    >
+      <span className="font-semibold text-sm text-gray-800">{title}</span>
+      <span className="text-gray-400 text-lg leading-none">{open ? "▲" : "▼"}</span>
+    </button>
+  );
+
   return (
-    <main className="max-w-[1000px] mx-auto mt-10 p-6 font-sans">
-      <h1 className="text-xl mb-3">
-        Үзлэгийн дэлгэрэнгүй
-      </h1>
+    <main
+      className={
+        isDoctor
+          ? "px-3 pt-3 pb-32 font-sans"
+          : "max-w-[1000px] mx-auto mt-10 p-6 font-sans"
+      }
+    >
+      {!isDoctor && (
+        <h1 className="text-xl mb-3">Үзлэгийн дэлгэрэнгүй</h1>
+      )}
 
       {loading && <div>Ачаалж байна...</div>}
       {!loading && error && (
@@ -2013,74 +2065,160 @@ const handleFinishEncounter = async () => {
             onChangeNurse={handleChangeNurse}
           />
 
-          <section className="mb-4">
-            <ConsentFormsBlock
-              encounter={encounter}
-              consents={consents}
-              consentTypeDraft={consentTypeDraft}
-              consentAnswersDraft={consentAnswersDraft}
-              consentSaving={consentSaving}
-              consentLoading={consentLoading}
-              consentError={consentError}
-              uploadingPatientSignature={uploadingPatientSignature}
-              uploadingDoctorSignature={uploadingDoctorSignature}
-              attachingDoctorSignature={attachingDoctorSignature}
-              onConsentTypeDraftChange={setConsentTypeDraft}
-              onConsentAnswersDraftUpdate={updateConsentAnswers}
-              onSaveConsent={saveCurrentConsent}
-              onSaveConsentApi={saveConsentApi}
-              onPatientSignatureUpload={handlePatientSignatureUpload}
-              onDoctorSignatureUpload={handleDoctorSignatureUpload}
-              onAttachDoctorSignature={handleAttachDoctorSignature}
-            />
+          {/* Consent Forms */}
+          <section className="mb-3">
+            {isDoctor ? (
+              <>
+                <SectionHeader
+                  title="Зөвшөөрлийн хуудас"
+                  open={consentOpen}
+                  onToggle={() => setConsentOpen((v) => !v)}
+                />
+                {consentOpen && (
+                  <div className="border border-t-0 border-gray-200 rounded-b-lg bg-white">
+                    <ConsentFormsBlock
+                      encounter={encounter}
+                      consents={consents}
+                      consentTypeDraft={consentTypeDraft}
+                      consentAnswersDraft={consentAnswersDraft}
+                      consentSaving={consentSaving}
+                      consentLoading={consentLoading}
+                      consentError={consentError}
+                      uploadingPatientSignature={uploadingPatientSignature}
+                      uploadingDoctorSignature={uploadingDoctorSignature}
+                      attachingDoctorSignature={attachingDoctorSignature}
+                      onConsentTypeDraftChange={setConsentTypeDraft}
+                      onConsentAnswersDraftUpdate={updateConsentAnswers}
+                      onSaveConsent={saveCurrentConsent}
+                      onSaveConsentApi={saveConsentApi}
+                      onPatientSignatureUpload={handlePatientSignatureUpload}
+                      onDoctorSignatureUpload={handleDoctorSignatureUpload}
+                      onAttachDoctorSignature={handleAttachDoctorSignature}
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <ConsentFormsBlock
+                encounter={encounter}
+                consents={consents}
+                consentTypeDraft={consentTypeDraft}
+                consentAnswersDraft={consentAnswersDraft}
+                consentSaving={consentSaving}
+                consentLoading={consentLoading}
+                consentError={consentError}
+                uploadingPatientSignature={uploadingPatientSignature}
+                uploadingDoctorSignature={uploadingDoctorSignature}
+                attachingDoctorSignature={attachingDoctorSignature}
+                onConsentTypeDraftChange={setConsentTypeDraft}
+                onConsentAnswersDraftUpdate={updateConsentAnswers}
+                onSaveConsent={saveCurrentConsent}
+                onSaveConsentApi={saveConsentApi}
+                onPatientSignatureUpload={handlePatientSignatureUpload}
+                onDoctorSignatureUpload={handleDoctorSignatureUpload}
+                onAttachDoctorSignature={handleAttachDoctorSignature}
+              />
+            )}
+          </section>
 
-            {/* Follow-up Appointment Scheduler */}
-            <FollowUpScheduler
-              showFollowUpScheduler={showFollowUpScheduler}
-              followUpDateFrom={followUpDateFrom}
-              followUpDateTo={followUpDateTo}
-              followUpSlotMinutes={followUpSlotMinutes}
-              followUpAvailability={followUpAvailability}
-              followUpLoading={followUpLoading}
-              followUpError={followUpError}
-              followUpSuccess={followUpSuccess}
-              followUpBooking={followUpBooking}
-              followUpAppointments={followUpAppointments}
-              followUpNoSchedule={followUpNoSchedule}
-              onToggleScheduler={(checked) => {
-                setShowFollowUpScheduler(checked);
-                if (!checked) {
-                  setFollowUpError("");
-                  setFollowUpSuccess("");
-                  setFollowUpAvailability(null);
-                  setFollowUpAppointments([]);
-                  setFollowUpNoSchedule(false);
-                }
-              }}
-              onDateFromChange={setFollowUpDateFrom}
-              onDateToChange={setFollowUpDateTo}
-              onSlotMinutesChange={setFollowUpSlotMinutes}
-              onBookAppointment={createFollowUpAppointment}
-              onDeleteAppointment={deleteFollowUpAppointment}
-              onQuickCreate={handleQuickCreateAppointment}
-              doctorId={encounter?.doctorId || undefined}
-              encounterId={encounter?.id || undefined}
-              onReloadAvailability={loadFollowUpAvailability}
+          {/* Follow-up Scheduler */}
+          <section className="mb-3">
+            {isDoctor ? (
+              <>
+                <SectionHeader
+                  title="Давтан үзлэгийн цаг авах"
+                  open={followUpOpen}
+                  onToggle={() => setFollowUpOpen((v) => !v)}
+                />
+                {followUpOpen && (
+                  <div className="border border-t-0 border-gray-200 rounded-b-lg bg-white">
+                    <FollowUpScheduler
+                      showFollowUpScheduler={showFollowUpScheduler}
+                      followUpDateFrom={followUpDateFrom}
+                      followUpDateTo={followUpDateTo}
+                      followUpSlotMinutes={followUpSlotMinutes}
+                      followUpAvailability={followUpAvailability}
+                      followUpLoading={followUpLoading}
+                      followUpError={followUpError}
+                      followUpSuccess={followUpSuccess}
+                      followUpBooking={followUpBooking}
+                      followUpAppointments={followUpAppointments}
+                      followUpNoSchedule={followUpNoSchedule}
+                      onToggleScheduler={(checked) => {
+                        setShowFollowUpScheduler(checked);
+                        if (!checked) {
+                          setFollowUpError("");
+                          setFollowUpSuccess("");
+                          setFollowUpAvailability(null);
+                          setFollowUpAppointments([]);
+                          setFollowUpNoSchedule(false);
+                        }
+                      }}
+                      onDateFromChange={setFollowUpDateFrom}
+                      onDateToChange={setFollowUpDateTo}
+                      onSlotMinutesChange={setFollowUpSlotMinutes}
+                      onBookAppointment={createFollowUpAppointment}
+                      onDeleteAppointment={deleteFollowUpAppointment}
+                      onQuickCreate={handleQuickCreateAppointment}
+                      doctorId={encounter?.doctorId || undefined}
+                      encounterId={encounter?.id || undefined}
+                      onReloadAvailability={loadFollowUpAvailability}
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <FollowUpScheduler
+                showFollowUpScheduler={showFollowUpScheduler}
+                followUpDateFrom={followUpDateFrom}
+                followUpDateTo={followUpDateTo}
+                followUpSlotMinutes={followUpSlotMinutes}
+                followUpAvailability={followUpAvailability}
+                followUpLoading={followUpLoading}
+                followUpError={followUpError}
+                followUpSuccess={followUpSuccess}
+                followUpBooking={followUpBooking}
+                followUpAppointments={followUpAppointments}
+                followUpNoSchedule={followUpNoSchedule}
+                onToggleScheduler={(checked) => {
+                  setShowFollowUpScheduler(checked);
+                  if (!checked) {
+                    setFollowUpError("");
+                    setFollowUpSuccess("");
+                    setFollowUpAvailability(null);
+                    setFollowUpAppointments([]);
+                    setFollowUpNoSchedule(false);
+                  }
+                }}
+                onDateFromChange={setFollowUpDateFrom}
+                onDateToChange={setFollowUpDateTo}
+                onSlotMinutesChange={setFollowUpSlotMinutes}
+                onBookAppointment={createFollowUpAppointment}
+                onDeleteAppointment={deleteFollowUpAppointment}
+                onQuickCreate={handleQuickCreateAppointment}
+                doctorId={encounter?.doctorId || undefined}
+                encounterId={encounter?.id || undefined}
+                onReloadAvailability={loadFollowUpAvailability}
+              />
+            )}
+          </section>
+
+          {/* Tooth Chart */}
+          <section className={isDoctor ? "mb-3 rounded-lg border border-gray-200 bg-white overflow-hidden" : ""}>
+            <ToothChartSelector
+              toothMode={toothMode}
+              selectedTeeth={selectedTeeth}
+              customToothRange={customToothRange}
+              chartError={chartError}
+              onToggleToothMode={toggleToothMode}
+              onToggleToothSelection={toggleToothSelection}
+              onCustomToothRangeChange={setCustomToothRange}
+              isToothSelected={isToothSelected}
+              areAllModeTeethSelected={areAllModeTeethSelected}
             />
           </section>
 
-          <ToothChartSelector
-            toothMode={toothMode}
-            selectedTeeth={selectedTeeth}
-            customToothRange={customToothRange}
-            chartError={chartError}
-            onToggleToothMode={toggleToothMode}
-            onToggleToothSelection={toggleToothSelection}
-            onCustomToothRangeChange={setCustomToothRange}
-            isToothSelected={isToothSelected}
-            areAllModeTeethSelected={areAllModeTeethSelected}
-          />
-
+          {/* Diagnoses Editor */}
           <section className="mt-4 p-4 rounded-lg border border-gray-200 bg-white">
             <DiagnosesEditor
               rows={rows}
@@ -2119,63 +2257,167 @@ const handleFinishEncounter = async () => {
               onRemoveToolLineLocal={handleRemoveToolLineLocal}
               toolLineMetadata={toolLineMetadata}
               onSave={async () => {
-  if (saving || finishing) return;
-
-  try {
-    await handleSaveDiagnoses();  // includes services + indicators now
-    await savePrescription();
-  } catch (err: any) {
-    console.error("Save failed:", err);
-    setSaveError(err?.message || "Хадгалахад алдаа гарлаа");
-  }
-}}
+                if (saving || finishing) return;
+                try {
+                  await handleSaveDiagnoses();
+                  await savePrescription();
+                } catch (err: any) {
+                  console.error("Save failed:", err);
+                  setSaveError(err?.message || "Хадгалахад алдаа гарлаа");
+                }
+              }}
               onFinish={handleFinishEncounter}
               onResetToothSelection={resetToothSelectionSession}
               onReloadEncounter={reloadEncounter}
-       
-            />
-
-            <MediaGallery
-              media={media}
-              mediaLoading={mediaLoading}
-              mediaError={mediaError}
-              uploadingMedia={uploadingMedia}
-              onUpload={handleMediaUpload}
-              onDelete={handleMediaDelete}
-              onRefresh={reloadMedia}
-            />
-
-            <PrescriptionEditor
-              prescriptionItems={prescriptionItems}
-              prescriptionSaving={prescriptionSaving}
-              prescriptionError={prescriptionError}
-              onUpdateItem={(idx, updates) =>
-                setPrescriptionItems((prev) =>
-                  prev.map((p, i) => (i === idx ? { ...p, ...updates } : p))
-                )
-              }
-              onRemoveItem={(idx) =>
-                setPrescriptionItems((prev) =>
-                  prev.filter((_, i) => i !== idx)
-                )
-              }
-              onAddItem={() => {
-                if (prescriptionItems.length >= 3) return;
-                setPrescriptionItems((prev) => [
-                  ...prev,
-                  {
-                    localId: prev.length + 1,
-                    drugName: "",
-                    durationDays: null,
-                    quantityPerTake: null,
-                    frequencyPerDay: null,
-                    note: "",
-                  },
-                ]);
-              }}
-              onSave={savePrescription}
             />
           </section>
+
+          {/* Media Gallery */}
+          <section className="mb-3">
+            {isDoctor ? (
+              <>
+                <SectionHeader
+                  title="Рентген / зураг"
+                  open={mediaOpen}
+                  onToggle={() => setMediaOpen((v) => !v)}
+                />
+                {mediaOpen && (
+                  <div className="border border-t-0 border-gray-200 rounded-b-lg bg-white">
+                    <MediaGallery
+                      media={media}
+                      mediaLoading={mediaLoading}
+                      mediaError={mediaError}
+                      uploadingMedia={uploadingMedia}
+                      onUpload={handleMediaUpload}
+                      onDelete={handleMediaDelete}
+                      onRefresh={reloadMedia}
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <MediaGallery
+                media={media}
+                mediaLoading={mediaLoading}
+                mediaError={mediaError}
+                uploadingMedia={uploadingMedia}
+                onUpload={handleMediaUpload}
+                onDelete={handleMediaDelete}
+                onRefresh={reloadMedia}
+              />
+            )}
+          </section>
+
+          {/* Prescription Editor */}
+          <section className="mb-3">
+            {isDoctor ? (
+              <>
+                <SectionHeader
+                  title="Эмийн жор"
+                  open={prescriptionOpen}
+                  onToggle={() => setPrescriptionOpen((v) => !v)}
+                />
+                {prescriptionOpen && (
+                  <div className="border border-t-0 border-gray-200 rounded-b-lg bg-white p-4">
+                    <PrescriptionEditor
+                      prescriptionItems={prescriptionItems}
+                      prescriptionSaving={prescriptionSaving}
+                      prescriptionError={prescriptionError}
+                      onUpdateItem={(idx, updates) =>
+                        setPrescriptionItems((prev) =>
+                          prev.map((p, i) => (i === idx ? { ...p, ...updates } : p))
+                        )
+                      }
+                      onRemoveItem={(idx) =>
+                        setPrescriptionItems((prev) =>
+                          prev.filter((_, i) => i !== idx)
+                        )
+                      }
+                      onAddItem={() => {
+                        if (prescriptionItems.length >= 3) return;
+                        setPrescriptionItems((prev) => [
+                          ...prev,
+                          {
+                            localId: prev.length + 1,
+                            drugName: "",
+                            durationDays: null,
+                            quantityPerTake: null,
+                            frequencyPerDay: null,
+                            note: "",
+                          },
+                        ]);
+                      }}
+                      onSave={savePrescription}
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <PrescriptionEditor
+                prescriptionItems={prescriptionItems}
+                prescriptionSaving={prescriptionSaving}
+                prescriptionError={prescriptionError}
+                onUpdateItem={(idx, updates) =>
+                  setPrescriptionItems((prev) =>
+                    prev.map((p, i) => (i === idx ? { ...p, ...updates } : p))
+                  )
+                }
+                onRemoveItem={(idx) =>
+                  setPrescriptionItems((prev) =>
+                    prev.filter((_, i) => i !== idx)
+                  )
+                }
+                onAddItem={() => {
+                  if (prescriptionItems.length >= 3) return;
+                  setPrescriptionItems((prev) => [
+                    ...prev,
+                    {
+                      localId: prev.length + 1,
+                      drugName: "",
+                      durationDays: null,
+                      quantityPerTake: null,
+                      frequencyPerDay: null,
+                      note: "",
+                    },
+                  ]);
+                }}
+                onSave={savePrescription}
+              />
+            )}
+          </section>
+
+          {/* Doctor-mode sticky bottom action bar */}
+          {isDoctor && (
+            <div
+              className="fixed bottom-[60px] left-0 right-0 z-50 bg-white border-t border-gray-200 px-4 py-3 flex gap-3 sm:max-w-[720px] sm:mx-auto"
+            >
+              <button
+                type="button"
+                disabled={saving || finishing}
+                onClick={async () => {
+                  if (saving || finishing) return;
+                  try {
+                    await handleSaveDiagnoses();
+                    await savePrescription();
+                  } catch (err: any) {
+                    console.error("Save failed:", err);
+                    setSaveError(err?.message || "Хадгалахад алдаа гарлаа");
+                  }
+                }}
+                className="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold text-sm disabled:opacity-50"
+              >
+                {saving ? "Хадгалж байна..." : "Хадгалах"}
+              </button>
+              <button
+                type="button"
+                disabled={saving || finishing}
+                onClick={handleFinishEncounter}
+                className="flex-1 py-2.5 rounded-lg bg-[#131a29] text-white font-semibold text-sm disabled:opacity-50"
+              >
+                {finishing ? "Дуусгаж байна..." : "Үзлэг дуусгах"}
+              </button>
+            </div>
+          )}
         </>
       )}
     </main>
