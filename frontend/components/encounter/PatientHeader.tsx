@@ -1,7 +1,11 @@
 import React from "react";
 import Link from "next/link";
 import type { Encounter, Branch, WarningLine } from "../../types/encounter-admin";
-import { formatPatientName, formatDoctorDisplayName, formatStaffName } from "../../utils/name-formatters";
+import {
+  formatPatientName,
+  formatDoctorDisplayName,
+  formatStaffName,
+} from "../../utils/name-formatters";
 import { formatShortDate } from "../../utils/date-formatters";
 import { displayOrDash } from "../../utils/display-helpers";
 
@@ -47,83 +51,42 @@ export default function PatientHeader({
     { label: "Карт бөглөх", href: `/patients/${bookNumber}?tab=visit_card` },
     { label: "Гажиг заслын карт", href: `/patients/${bookNumber}?tab=ortho_card` },
   ];
+
   return (
-    <section
-      style={{
-        display: "grid",
-        gridTemplateColumns: "2fr 1fr",
-        gap: 16,
-        marginBottom: 16,
-      }}
-    >
-      <div
-        style={{
-          borderRadius: 12,
-          border: "1px solid #e5e7eb",
-          padding: 16,
-          background: "#ffffff",
-        }}
-      >
-        <div
-          style={{
-            fontSize: 18,
-            fontWeight: 600,
-            marginBottom: 4,
-          }}
-        >
+    <section className="grid grid-cols-1 gap-4 mb-4 md:grid-cols-[2fr_1fr]">
+      {/* Left card */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <div className="text-lg font-semibold mb-1">
           {formatPatientName(encounter.patientBook.patient)}
         </div>
-        <div style={{ fontSize: 13, color: "#6b7280" }}>
+
+        <div className="text-[13px] text-gray-500">
           Картын дугаар: {encounter.patientBook.bookNumber}
         </div>
+
         {encounter.patientBook.patient.regNo && (
-          <div style={{ fontSize: 13, color: "#6b7280" }}>
+          <div className="text-[13px] text-gray-500">
             РД: {encounter.patientBook.patient.regNo}
           </div>
         )}
-        <div style={{ fontSize: 13, color: "#6b7280" }}>
+
+        <div className="text-[13px] text-gray-500">
           Утас: {displayOrDash(encounter.patientBook.patient.phone)}
         </div>
-        <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
+
+        <div className="text-[13px] text-gray-500 mb-2">
           Бүртгэсэн салбар:{" "}
           {encounter.patientBook.patient.branch?.name ||
             encounter.patientBook.patient.branchId}
         </div>
 
         {!hideMiniNav && (
-          <nav
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: 0,
-              marginTop: 8,
-              borderBottom: "2px solid #e5e7eb",
-            }}
-          >
+          <nav className="mt-2 flex flex-wrap border-b-2 border-gray-200">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                style={{
-                  display: "inline-block",
-                  padding: "6px 12px",
-                  fontSize: 12,
-                  color: "#6b7280",
-                  textDecoration: "none",
-                  cursor: "pointer",
-                  borderBottom: "2px solid transparent",
-                  marginBottom: -2,
-                  whiteSpace: "nowrap",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.color = "#1d4ed8";
-                  (e.currentTarget as HTMLAnchorElement).style.borderBottomColor = "#3b82f6";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.color = "#6b7280";
-                  (e.currentTarget as HTMLAnchorElement).style.borderBottomColor = "transparent";
-                }}
+                className="inline-block whitespace-nowrap px-3 py-1.5 text-xs text-gray-500 border-b-2 border-transparent -mb-[2px] hover:text-blue-700 hover:border-blue-500"
               >
                 {item.label}
               </Link>
@@ -132,22 +95,12 @@ export default function PatientHeader({
         )}
 
         {showPatientDetailsButton && (
-          <div style={{ marginTop: 8 }}>
+          <div className="mt-2">
             <a
               href={`/patients/${bookNumber}`}
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                display: "inline-block",
-                padding: "6px 12px",
-                fontSize: 12,
-                color: "#1d4ed8",
-                border: "1px solid #bfdbfe",
-                borderRadius: 6,
-                background: "#eff6ff",
-                textDecoration: "none",
-                cursor: "pointer",
-              }}
+              className="inline-block rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs text-blue-700 hover:bg-blue-100"
             >
               Үйлчлүүлэгчийн дэлгэрэнгүй
             </a>
@@ -155,56 +108,25 @@ export default function PatientHeader({
         )}
       </div>
 
-      <div
-        style={{
-          borderRadius: 12,
-          border: "1px solid #e5e7eb",
-          padding: 16,
-          background: "#ffffff",
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
+      {/* Right card */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4 flex flex-col gap-2">
         <div>
-          <div
-            style={{ fontSize: 12, color: "#6b7280", marginBottom: 2 }}
-          >
-            Огноо
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 500 }}>
-            {formatShortDate(encounter.visitDate)}
-          </div>
+          <div className="text-xs text-gray-500 mb-0.5">Огноо</div>
+          <div className="text-sm font-medium">{formatShortDate(encounter.visitDate)}</div>
         </div>
 
         <div>
-          <div
-            style={{ fontSize: 12, color: "#6b7280", marginBottom: 2 }}
-          >
-            Эмч
-          </div>
-          <div style={{ fontSize: 14 }}>
-            {formatDoctorDisplayName(encounter.doctor)}
-          </div>
+          <div className="text-xs text-gray-500 mb-0.5">Эмч</div>
+          <div className="text-sm">{formatDoctorDisplayName(encounter.doctor)}</div>
         </div>
 
         <div>
-          <div
-            style={{ fontSize: 12, color: "#6b7280", marginBottom: 2 }}
-          >
-            Сувилагч
-          </div>
+          <div className="text-xs text-gray-500 mb-0.5">Сувилагч</div>
           <select
             value={encounter.nurseId || ""}
             onChange={(e) => onChangeNurse(e.target.value)}
             disabled={changingNurse}
-            style={{
-              width: "100%",
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              padding: "4px 6px",
-              fontSize: 13,
-            }}
+            className="w-full rounded-md border border-gray-300 px-2 py-1 text-[13px] disabled:opacity-60"
           >
             <option value="">Сонгоогүй</option>
             {nursesForEncounter.map((n) => (
@@ -220,35 +142,13 @@ export default function PatientHeader({
         </div>
 
         {warningLines.length > 0 && (
-          <div
-            style={{
-              marginTop: 4,
-              padding: 8,
-              borderRadius: 8,
-              border: "1px solid #f97316",
-              background: "#fff7ed",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#b91c1c",
-                marginBottom: 4,
-              }}
-            >
+          <div className="mt-1 rounded-lg border border-orange-400 bg-orange-50 p-2">
+            <div className="text-[13px] font-bold text-red-700 mb-1">
               Анхаарах!
             </div>
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: 16,
-                fontSize: 12,
-                color: "#7f1d1d",
-              }}
-            >
+            <ul className="m-0 pl-4 text-xs text-red-900">
               {warningLines.map((w, idx) => (
-                <li key={`${w.label}-${idx}`} style={{ marginBottom: 2 }}>
+                <li key={`${w.label}-${idx}`} className="mb-0.5">
                   {w.label} ({w.value})
                 </li>
               ))}
