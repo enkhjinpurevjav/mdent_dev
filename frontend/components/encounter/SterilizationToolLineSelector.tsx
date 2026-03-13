@@ -42,19 +42,28 @@ export default function SterilizationToolLineSelector({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Handle click outside to close dropdown
+  // Handle pointer down outside to close dropdown.
+  // Uses pointerdown (covers mouse + touch) and checks that the target is still
+  // connected to the DOM before evaluating containment — this prevents the
+  // dropdown from being closed when React re-renders and removes the clicked
+  // result element before the document listener fires.
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+    const handlePointerOutside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      // If the target was removed from the DOM by a React re-render (e.g. after
+      // selecting a result which clears searchText and unmounts the list), treat
+      // the click as internal and ignore it so isOpen is not reset to false.
+      if (!document.body.contains(target)) return;
+      if (containerRef.current && !containerRef.current.contains(target)) {
         onClose();
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('pointerdown', handlePointerOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('pointerdown', handlePointerOutside);
     };
   }, [isOpen, onClose]);
 
@@ -239,11 +248,13 @@ export default function SterilizationToolLineSelector({
                   <div
                     key={result.toolLineId}
                     onMouseDown={(e) => {
+                      // preventDefault keeps focus on the input (no blur/refocus needed).
                       e.preventDefault();
                       onAddToolLine(result.toolLineId);
                       onSearchTextChange("");
-                      // Refocus the search input so the user can immediately search
-                      // for the next indicator without clicking back into the field.
+                      // Keep the selector open so the user can immediately type and
+                      // add the next value without clicking outside first.
+                      onOpen();
                       requestAnimationFrame(() => inputRef.current?.focus());
                     }}
                     style={{

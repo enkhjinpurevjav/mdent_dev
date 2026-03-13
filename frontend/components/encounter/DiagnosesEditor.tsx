@@ -505,6 +505,7 @@ export default function DiagnosesEditor({
                           border: row.nurseId == null ? "1.5px solid #ef4444" : "1px solid #d1d5db",
                           minWidth: 160,
                           background: isLocked ? "#f3f4f6" : "white",
+                          fontSize: 16,
                         }}
                       >
                         <option value="">— Сувилагч сонгох —</option>
