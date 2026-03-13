@@ -778,7 +778,7 @@ export default function DoctorAppointmentsPage() {
       borderRadius: 12,
       padding: 8,
       background: getStatusColor(a.status),
-      color: "#1F2937",
+      color: a.status === "completed" ? "#ffffff" : "#1F2937",
       cursor: "pointer",
     }}
     onClick={() => setDetailsModal({ open: true, appointment: a })}
