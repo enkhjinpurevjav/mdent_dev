@@ -56,6 +56,7 @@ type DiagnosesEditorProps = {
   onFinish: () => Promise<void>;
   onResetToothSelection: () => void;
   onReloadEncounter?: () => Promise<void>;
+  hideInlineActions?: boolean;
 };
 
 export default function DiagnosesEditor({
@@ -98,6 +99,7 @@ export default function DiagnosesEditor({
   onFinish,
   onResetToothSelection,
   onReloadEncounter,
+  hideInlineActions,
 }: DiagnosesEditorProps) {
   const [todayNurses, setTodayNurses] = useState<{ id: number; name: string | null }[]>([]);
 
@@ -857,54 +859,56 @@ export default function DiagnosesEditor({
           </span>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            alignItems: "center",
-          }}
-        >
-          <button
-            type="button"
-            onClick={async () => {
-              await onSave();
-              onResetToothSelection();
-            }}
-            disabled={saving || finishing || prescriptionSaving}
+        {!hideInlineActions && (
+          <div
             style={{
-              padding: "8px 16px",
-              borderRadius: 6,
-              border: "none",
-              background: "#16a34a",
-              color: "#ffffff",
-              cursor: "pointer",
-              fontSize: 14,
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
             }}
           >
-            {saving || prescriptionSaving
-              ? "Хадгалж байна..."
-              : "Онош хадгалах"}
-          </button>
+            <button
+              type="button"
+              onClick={async () => {
+                await onSave();
+                onResetToothSelection();
+              }}
+              disabled={saving || finishing || prescriptionSaving}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "none",
+                background: "#16a34a",
+                color: "#ffffff",
+                cursor: "pointer",
+                fontSize: 14,
+              }}
+            >
+              {saving || prescriptionSaving
+                ? "Хадгалж байна..."
+                : "Онош хадгалах"}
+            </button>
 
-          <button
-            type="button"
-            onClick={onFinish}
-            disabled={saving || finishing || prescriptionSaving}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 6,
-              border: "none",
-              background: "#2563eb",
-              color: "#ffffff",
-              cursor: "pointer",
-              fontSize: 14,
-            }}
-          >
-            {finishing
-              ? "Дуусгаж байна..."
-              : "Үзлэг дуусгах"}
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={onFinish}
+              disabled={saving || finishing || prescriptionSaving}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "none",
+                background: "#2563eb",
+                color: "#ffffff",
+                cursor: "pointer",
+                fontSize: 14,
+              }}
+            >
+              {finishing
+                ? "Дуусгаж байна..."
+                : "Үзлэг дуусгах"}
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );

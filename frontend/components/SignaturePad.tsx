@@ -30,9 +30,11 @@ const SignaturePad = forwardRef<SignaturePadRef, Props>(({ disabled, onChange },
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
     };
   };
 
@@ -102,7 +104,7 @@ const SignaturePad = forwardRef<SignaturePadRef, Props>(({ disabled, onChange },
         ref={canvasRef}
         width={400}
         height={160}
-        className="border border-gray-300 rounded-lg touch-none bg-white"
+        className="w-full max-w-[400px] h-[160px] border border-gray-300 rounded-lg touch-none bg-white"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={stopDrawing}

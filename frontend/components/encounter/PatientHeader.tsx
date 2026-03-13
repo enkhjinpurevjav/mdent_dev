@@ -25,6 +25,8 @@ type PatientHeaderProps = {
   }[];
   changingNurse: boolean;
   onChangeNurse: (nurseIdStr: string) => void;
+  hideMiniNav?: boolean;
+  showPatientDetailsButton?: boolean;
 };
 
 export default function PatientHeader({
@@ -33,6 +35,8 @@ export default function PatientHeader({
   nursesForEncounter,
   changingNurse,
   onChangeNurse,
+  hideMiniNav,
+  showPatientDetailsButton,
 }: PatientHeaderProps) {
   const bookNumber = encodeURIComponent(encounter.patientBook.bookNumber);
 
@@ -80,52 +84,75 @@ export default function PatientHeader({
         <div style={{ fontSize: 13, color: "#6b7280" }}>
           Утас: {displayOrDash(encounter.patientBook.patient.phone)}
         </div>
-        <div
-          style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}
-        >
+        <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
           Бүртгэсэн салбар:{" "}
           {encounter.patientBook.patient.branch?.name ||
             encounter.patientBook.patient.branchId}
         </div>
 
-        <nav
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 0,
-            marginTop: 8,
-            borderBottom: "2px solid #e5e7eb",
-          }}
-        >
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
+        {!hideMiniNav && (
+          <nav
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 0,
+              marginTop: 8,
+              borderBottom: "2px solid #e5e7eb",
+            }}
+          >
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                style={{
+                  display: "inline-block",
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  color: "#6b7280",
+                  textDecoration: "none",
+                  cursor: "pointer",
+                  borderBottom: "2px solid transparent",
+                  marginBottom: -2,
+                  whiteSpace: "nowrap",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLAnchorElement).style.color = "#1d4ed8";
+                  (e.currentTarget as HTMLAnchorElement).style.borderBottomColor = "#3b82f6";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLAnchorElement).style.color = "#6b7280";
+                  (e.currentTarget as HTMLAnchorElement).style.borderBottomColor = "transparent";
+                }}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        )}
+
+        {showPatientDetailsButton && (
+          <div style={{ marginTop: 8 }}>
+            <a
+              href={`/patients/${bookNumber}`}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
                 display: "inline-block",
                 padding: "6px 12px",
                 fontSize: 12,
-                color: "#6b7280",
+                color: "#1d4ed8",
+                border: "1px solid #bfdbfe",
+                borderRadius: 6,
+                background: "#eff6ff",
                 textDecoration: "none",
                 cursor: "pointer",
-                borderBottom: "2px solid transparent",
-                marginBottom: -2,
-                whiteSpace: "nowrap",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.color = "#1d4ed8";
-                (e.currentTarget as HTMLAnchorElement).style.borderBottomColor = "#3b82f6";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.color = "#6b7280";
-                (e.currentTarget as HTMLAnchorElement).style.borderBottomColor = "transparent";
               }}
             >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+              Үйлчлүүлэгчийн дэлгэрэнгүй
+            </a>
+          </div>
+        )}
       </div>
 
       <div

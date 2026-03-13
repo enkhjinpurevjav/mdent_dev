@@ -2731,9 +2731,9 @@ export default function ConsentFormsBlock({
                       Энэ гарын үсэг нь 4 төрлийн зөвшөөрлийн маягтад хамтдаа хэрэглэгдэнэ.
                     </p>
 
-                    <div className="grid grid-cols-2 gap-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
                       {/* Patient signature */}
-                      <div>
+                      <div className="min-w-0">
                         <div className="text-xs font-medium mb-2">
                           Өвчтөн/асран хамгаалагчийн гарын үсэг
                         </div>
@@ -2777,7 +2777,7 @@ export default function ConsentFormsBlock({
                       </div>
 
                       {/* Doctor signature */}
-                      <div>
+                      <div className="min-w-0">
                         <div className="text-xs font-medium mb-2">
                           Эмчийн гарын үсэг
                         </div>
