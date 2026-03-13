@@ -344,14 +344,15 @@ export default function PatientProfilePage() {
   return (
     <>
       {/* Sticky top tabs bar — same dark navy as the app header */}
-      {/* In AdminLayout: negative margins negate the 20px padding so the bar is flush and full-bleed */}
+      {/* In AdminLayout: negative margins negate the 20px padding for full-bleed; top:-20 aligns the */}
+      {/*   sticky threshold with the container border so the bar stays flush under the header on scroll */}
       {/* In DoctorLayout: sticky top-11 clears the fixed 44px header; no negative margins needed */}
       {patient && pb && (
         <div
-          className={`${isDoctor ? "sticky top-11" : "sticky top-0"} z-50 border-b border-white/10`}
+          className={`${isDoctor ? "sticky top-11" : "sticky"} z-50 border-b border-white/10`}
           style={isDoctor
             ? { background: "#061325" }
-            : { background: "#061325", margin: "-20px -20px 0 -20px" }}
+            : { background: "#061325", margin: "-20px -20px 0 -20px", top: -20 }}
         >
           {/* In AdminLayout, re-add the 20px padding that was removed by the negative margins above */}
           <div style={isDoctor ? {} : { padding: "0 20px" }}>
