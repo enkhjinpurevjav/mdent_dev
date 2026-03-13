@@ -2170,29 +2170,29 @@ const totalCompletedPatientsForDay = useMemo(() => {
   };
 
  const getStatusColor = (status: string): string => {
- switch (status) {
+  switch (status) {
     case "completed":
-      return "#BBF7D0";
+      return "#22c55e";
     case "confirmed":
-      return "#BFDBFE";
+      return "#3b82f6";
     case "online":
-      return "#C7D2FE";
+      return "#6366f1"; // purple
     case "ongoing":
-      return "#FED7AA";
+      return "#f97316";
     case "imaging":
-      return "#E9D5FF";
+      return "#8b5cf6"; // purple for imaging
     case "ready_to_pay":
-      return "#FDE68A";
+      return "#f59e0b";
     case "partial_paid":
-      return "#FEF08A";
+      return "#eab308"; // amber/yellow for partial paid
     case "no_show":
-      return "#FECACA";
+      return "#ef4444"; // red
     case "cancelled":
-      return "#FCA5A5";
+      return "#dc2626";
     case "other":
-      return "#E5E7EB";
+      return "#94a3b8"; // gray
     default:
-      return "#E2E8F0";
+      return "#cbd5f5"; // booked
   }
 };
 
