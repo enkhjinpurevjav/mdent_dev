@@ -156,7 +156,7 @@ export default function DiagnosesEditor({
 
       {rows.length === 0 && (
         <div style={{ color: "#6b7280", fontSize: 13 }}>
-          Үйлчилгээнд хамраг шүдийг сонгоно уу?
+          Үйлчилгээнд хамрах шүдийг сонгоно уу?
         </div>
       )}
 
