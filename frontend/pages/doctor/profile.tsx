@@ -51,7 +51,7 @@ export default function DoctorProfilePage() {
           return;
         }
 
-        const res = await fetch(`/api/users/${me.id}`, { credentials: "include" });
+        const res = await fetch(`/api/doctor/me`, { credentials: "include" });
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {

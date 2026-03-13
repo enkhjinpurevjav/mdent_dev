@@ -22,6 +22,43 @@ import { generateBuckets } from "../utils/dashboardHelpers.js";
 
 const router = express.Router();
 
+// ─── GET /api/doctor/me ───────────────────────────────────────────────────────
+// Returns the authenticated user's own doctor record.
+// Allowed roles: doctor, admin, super_admin.
+// Must be registered BEFORE the router-level requireRole("doctor") middleware.
+router.get(
+  "/me",
+  authenticateJWT,
+  requireRole("doctor", "admin", "super_admin"),
+  async (req, res) => {
+    try {
+      const id = req.user?.id;
+      if (!id) {
+        return res.status(401).json({ error: "Authentication required." });
+      }
+
+      const user = await prisma.user.findUnique({ where: { id } });
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found." });
+      }
+
+      return res.status(200).json({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        ovog: user.ovog,
+        regNo: user.regNo,
+        branchId: user.branchId,
+        idPhotoPath: user.idPhotoPath,
+      });
+    } catch (err) {
+      console.error("GET /api/doctor/me error:", err);
+      return res.status(500).json({ error: "Failed to fetch doctor profile." });
+    }
+  }
+);
+
 // Apply auth + doctor role to every route in this router
 router.use(authenticateJWT, requireRole("doctor"));
 
