@@ -78,6 +78,17 @@ export default function DoctorDashboardTab({ doctorId, apiBasePath }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Detect phone-width viewport (< Tailwind `sm` = 640 px)
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 639px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   const fetchDashboard = useCallback(async () => {
     const range = computeDateRange(
       mode,
@@ -116,10 +127,17 @@ export default function DoctorDashboardTab({ doctorId, apiBasePath }: Props) {
 
   const bucket = (data?.range?.bucket ?? "month") as BucketType;
 
-  const chartData = (data?.series ?? []).map((s) => ({
-    ...s,
-    xLabel: formatBucketLabel(s.key, bucket),
-  }));
+  const chartData = (data?.series ?? []).map((s) => {
+    const xLabel = formatBucketLabel(s.key, bucket);
+    const xLabelShort =
+      bucket === "month"
+        ? String(parseInt(s.key.split("-")[1] ?? "0", 10))
+        : xLabel;
+    return { ...s, xLabel, xLabelShort };
+  });
+
+  // On mobile in yearly mode (month bucket), show only the number in x-axis ticks
+  const xLabelKey = isMobile && bucket === "month" ? "xLabelShort" : "xLabel";
 
   const genderPieData = data
     ? [
@@ -216,7 +234,7 @@ export default function DoctorDashboardTab({ doctorId, apiBasePath }: Props) {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis
-                  dataKey="xLabel"
+                  dataKey={xLabelKey}
                   tick={{ fontSize: 11, fill: "#6b7280" }}
                   interval={0}
                 />
@@ -250,7 +268,7 @@ export default function DoctorDashboardTab({ doctorId, apiBasePath }: Props) {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis
-                  dataKey="xLabel"
+                  dataKey={xLabelKey}
                   tick={{ fontSize: 11, fill: "#6b7280" }}
                   interval={0}
                 />
@@ -284,7 +302,7 @@ export default function DoctorDashboardTab({ doctorId, apiBasePath }: Props) {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis
-                  dataKey="xLabel"
+                  dataKey={xLabelKey}
                   tick={{ fontSize: 11, fill: "#6b7280" }}
                   interval={0}
                 />
@@ -312,7 +330,7 @@ export default function DoctorDashboardTab({ doctorId, apiBasePath }: Props) {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis
-                  dataKey="xLabel"
+                  dataKey={xLabelKey}
                   tick={{ fontSize: 11, fill: "#6b7280" }}
                   interval={0}
                 />
@@ -344,10 +362,10 @@ export default function DoctorDashboardTab({ doctorId, apiBasePath }: Props) {
                     cx="50%"
                     cy="50%"
                     outerRadius={80}
-                    label={({ name, percent }) =>
+                    label={isMobile ? false : ({ name, percent }) =>
                       `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
                     }
-                    labelLine={false}
+                    labelLine={!isMobile}
                   >
                     {genderPieData.map((_, i) => (
                       <Cell key={i} fill={GENDER_COLORS[i % GENDER_COLORS.length]} />
@@ -383,10 +401,10 @@ export default function DoctorDashboardTab({ doctorId, apiBasePath }: Props) {
                     cx="50%"
                     cy="50%"
                     outerRadius={80}
-                    label={({ name, percent }) =>
+                    label={isMobile ? false : ({ name, percent }) =>
                       `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
                     }
-                    labelLine={false}
+                    labelLine={!isMobile}
                   >
                     {agePieData.map((_, i) => (
                       <Cell key={i} fill={AGE_COLORS[i % AGE_COLORS.length]} />
