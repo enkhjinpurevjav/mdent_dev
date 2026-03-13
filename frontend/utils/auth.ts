@@ -11,6 +11,8 @@ export interface AuthUser {
   email: string;
   role: string;
   branchId: number | null;
+  ovog?: string | null;
+  regNo?: string | null;
 }
 
 /** Call /api/auth/me to get the current authenticated user, or null on 401. */

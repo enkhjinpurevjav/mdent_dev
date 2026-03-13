@@ -65,18 +65,22 @@ export default function DoctorProfilePage() {
           >
             {user.name ? user.name[0].toUpperCase() : "?"}
           </div>
-          <div style={{ fontWeight: 700, fontSize: 18, color: "#111827" }}>{user.name}</div>
+          <div style={{ fontWeight: 700, fontSize: 18, color: "#111827" }}>
+            {user.ovog && user.ovog.length > 0 && user.name
+              ? `${user.ovog[0]}. ${user.name}`
+              : user.name || user.email}
+          </div>
           <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>Эмч</div>
         </div>
 
         {/* Info rows */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
-            <span style={{ fontSize: 14, color: "#6b7280" }}>Имэйл</span>
+            <span style={{ fontSize: 14, color: "#6b7280" }}>И-мэйл</span>
             <span style={{ fontSize: 14, color: "#111827", fontWeight: 500 }}>{user.email}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
-            <span style={{ fontSize: 14, color: "#6b7280" }}>Роль</span>
+            <span style={{ fontSize: 14, color: "#6b7280" }}>Үүрэг</span>
             <span
               style={{
                 fontSize: 12,
@@ -89,6 +93,10 @@ export default function DoctorProfilePage() {
             >
               Эмч
             </span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
+            <span style={{ fontSize: 14, color: "#6b7280" }}>РД</span>
+            <span style={{ fontSize: 14, color: "#111827", fontWeight: 500 }}>{user.regNo || "-"}</span>
           </div>
           {user.branchId && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
