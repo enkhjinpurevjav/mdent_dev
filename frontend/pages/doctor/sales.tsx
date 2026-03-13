@@ -111,31 +111,56 @@ function DrillDownRows({ lines }: { lines: SalesLineItem[] }) {
   if (lines.length === 0) {
     return (
       <tr>
-        <td colSpan={8} className="px-8 py-4 text-center text-xs text-gray-500">
+        {/* ✅ updated: expanded table now includes Үйлдэл column */}
+        <td colSpan={9} className="px-8 py-4 text-center text-xs text-gray-500">
           Энэ ангилалд мэдээлэл олдсонгүй.
         </td>
       </tr>
     );
   }
+
   return (
     <>
       {lines.map((line, idx) => {
         const dateStr = salesFormatDate(line.appointmentScheduledAt || line.visitDate);
         const patientStr = salesFormatPatient(line.patientOvog, line.patientName);
+
         return (
           <tr key={`${line.invoiceId}-${idx}`} className="border-t border-blue-100 bg-blue-50/30">
             <td className="hidden xl:table-cell py-2 pl-8 pr-3 text-xs text-gray-700">#{line.invoiceId}</td>
+
             <td className="px-3 py-2 text-xs text-gray-700">{dateStr}</td>
+
             <td className="px-3 py-2 text-xs text-gray-700">{patientStr}</td>
+
             <td className="hidden sm:table-cell px-3 py-2 text-xs text-gray-700">{line.serviceName}</td>
+
             <td className="hidden lg:table-cell px-3 py-2 text-right text-xs text-gray-700">{fmtMnt(line.priceMnt)}</td>
+
             <td className="hidden lg:table-cell px-3 py-2 text-right text-xs text-gray-700">
               {line.discountMnt > 0 ? fmtMnt(line.discountMnt) : "-"}
             </td>
+
             <td className="px-3 py-2 text-right text-xs font-semibold text-gray-800">
               {fmtMnt(line.allocatedPaidMnt)}
             </td>
+
             <td className="hidden md:table-cell px-3 py-2 text-xs text-gray-700">{line.paymentMethodLabel || "-"}</td>
+
+            {/* ✅ NEW: Үйлдэл (always visible) */}
+            <td className="px-3 py-2 text-center text-xs">
+              <button
+                type="button"
+                aria-label="Дэлгэрэнгүй харах"
+                onClick={() => {
+                  // TODO: wire to a modal or route later
+                  console.log("View sales line:", line);
+                }}
+                className="inline-flex items-center justify-center rounded border border-blue-200 bg-white p-1.5 text-blue-600 hover:bg-blue-50"
+              >
+                <EyeIcon />
+              </button>
+            </td>
           </tr>
         );
       })}
@@ -173,7 +198,7 @@ export default function DoctorSalesPage() {
       setCategoryLines({});
       setCategoryErrors({});
     } catch (e: any) {
-      setSalesError(e?.message || "Борлуулалтын мэдээлэл ачаалахад алдаа гарлаа.");
+      setSalesError(e?.message || "Борлуулалтын мэдээлэ�� ачаалахад алдаа гарлаа.");
       setSalesData(null);
     } finally {
       setSalesLoading(false);
@@ -225,257 +250,266 @@ export default function DoctorSalesPage() {
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px 12px 0" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, color: "#0f2044" }}>
-          Борлуулалт
-        </h1>
+      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, color: "#0f2044" }}>
+        Борлуулалт
+      </h1>
 
-        {/* Date range filter */}
+      {/* Date range filter */}
+      <div
+        style={{
+          background: "white",
+          borderRadius: 12,
+          padding: "12px 16px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+          marginBottom: 12,
+        }}
+      >
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#374151", marginBottom: 4 }}>
+              Эхлэх өдөр:
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "7px 10px", fontSize: 13 }}
+            />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#374151", marginBottom: 4 }}>
+              Дуусах өдөр:
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "7px 10px", fontSize: 13 }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={fetchSalesData}
+            disabled={salesLoading || !startDate || !endDate}
+            style={{
+              background: salesLoading ? "#9ca3af" : "#3b82f6",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              padding: "8px 18px",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: salesLoading ? "not-allowed" : "pointer",
+            }}
+          >
+            {salesLoading ? "Ачаалж байна..." : "Харах"}
+          </button>
+        </div>
+      </div>
+
+      {salesError && (
         <div
           style={{
-            background: "white",
-            borderRadius: 12,
-            padding: "12px 16px",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+            background: "#fee2e2",
+            color: "#dc2626",
+            padding: "10px 14px",
+            borderRadius: 8,
+            fontSize: 13,
             marginBottom: 12,
           }}
         >
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#374151", marginBottom: 4 }}>
-                Эхлэх өдөр:
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "7px 10px", fontSize: 13 }}
-              />
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#374151", marginBottom: 4 }}>
-                Дуусах өдөр:
-              </label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "7px 10px", fontSize: 13 }}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={fetchSalesData}
-              disabled={salesLoading || !startDate || !endDate}
-              style={{
-                background: salesLoading ? "#9ca3af" : "#3b82f6",
-                color: "white",
-                border: "none",
-                borderRadius: 6,
-                padding: "8px 18px",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: salesLoading ? "not-allowed" : "pointer",
-              }}
-            >
-              {salesLoading ? "Ачаалж байна..." : "Харах"}
-            </button>
-          </div>
+          {salesError}
         </div>
+      )}
 
-        {salesError && (
+      {!salesLoading && salesData && (
+        <>
+          {/* Totals summary */}
           <div
             style={{
-              background: "#fee2e2",
-              color: "#dc2626",
-              padding: "10px 14px",
-              borderRadius: 8,
-              fontSize: 13,
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 12,
               marginBottom: 12,
             }}
           >
-            {salesError}
-          </div>
-        )}
-
-        {!salesLoading && salesData && (
-          <>
-            {/* Totals summary */}
             <div
               style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 12,
-                marginBottom: 12,
-              }}
-            >
-              <div
-                style={{
-                  flex: "1 1 140px",
-                  background: "white",
-                  borderRadius: 12,
-                  padding: "14px 18px",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
-                }}
-              >
-                <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>Нийт борлуулалт</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#111827" }}>
-                  {fmtMnt(salesData.totals.totalSalesMnt)}
-                </div>
-              </div>
-              <div
-                style={{
-                  flex: "1 1 140px",
-                  background: "white",
-                  borderRadius: 12,
-                  padding: "14px 18px",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
-                }}
-              >
-                <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>Нийт эмчийн хувь</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#111827" }}>
-                  {fmtMnt(salesData.totals.totalIncomeMnt)}
-                </div>
-              </div>
-            </div>
-
-            {/* Categories table */}
-            <div
-              style={{
+                flex: "1 1 140px",
                 background: "white",
                 borderRadius: 12,
-                overflow: "hidden",
+                padding: "14px 18px",
                 boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
-                marginBottom: 24,
               }}
             >
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                  <thead style={{ background: "#f9fafb" }}>
-                    <tr>
-                      <th style={{ textAlign: "left", padding: "10px 14px", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb" }}>
-                        Ангилал
-                      </th>
-                      <th className="hidden sm:table-cell" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb" }}>
-                        Хувь (%)
-                      </th>
-                      <th style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb" }}>
-                        Борлуулалт
-                      </th>
-                      <th style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb" }}>
-                        Эмчийн хувь
-                      </th>
-                      <th style={{ textAlign: "center", padding: "10px 14px", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb" }}>
-                        Үйлдэл
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {salesData.categories.map((row) => {
-                      const isOpen = expandedCategories.has(row.key);
-                      const lines = categoryLines[row.key];
-                      const lineError = categoryErrors[row.key];
-                      return (
-                        <React.Fragment key={row.key}>
-                          <tr style={{ borderTop: "1px solid #f3f4f6" }}>
-                            <td style={{ padding: "10px 14px" }}>{row.label}</td>
-                            <td className="hidden sm:table-cell" style={{ padding: "10px 14px", textAlign: "right" }}>{Number(row.pctUsed || 0)}%</td>
-                            <td style={{ padding: "10px 14px", textAlign: "right" }}>{fmtMnt(row.salesMnt)}</td>
-                            <td style={{ padding: "10px 14px", textAlign: "right" }}>{fmtMnt(row.incomeMnt)}</td>
-                            <td style={{ padding: "10px 14px", textAlign: "center" }}>
-                              <button
-                                type="button"
-                                aria-label={isOpen ? "Хаах" : "Дэлгэрэнгүй харах"}
-                                onClick={() => toggleCategory(row.key)}
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  border: "1px solid #d1d5db",
-                                  borderRadius: 4,
-                                  background: "white",
-                                  padding: 5,
-                                  cursor: "pointer",
-                                  color: "#4b5563",
-                                }}
-                              >
-                                <ChevronIcon open={isOpen} />
-                              </button>
-                            </td>
-                          </tr>
-                          {isOpen && (
-                            <tr>
-                              <td colSpan={5} style={{ padding: 0 }}>
-                                <div style={{ borderTop: "1px solid #bfdbfe", background: "rgba(239,246,255,0.5)" }}>
-                                  {lines === null ? (
-                                    <p style={{ padding: "10px 32px", fontSize: 12, color: "#6b7280" }}>
-                                      Ачаалж байна...
-                                    </p>
-                                  ) : lineError ? (
-                                    <p style={{ padding: "10px 32px", fontSize: 12, color: "#dc2626" }}>{lineError}</p>
-                                  ) : (
-                                    <div style={{ overflowX: "auto" }}>
-                                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                                        <thead style={{ background: "#eff6ff" }}>
-                                          <tr>
-                                            <th className="hidden xl:table-cell" style={{ textAlign: "left", padding: "7px 10px 7px 32px", fontWeight: 600, color: "#374151" }}>
-                                              Нэхэмжлэл #
-                                            </th>
-                                            <th style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
-                                              Огноо
-                                            </th>
-                                            <th style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
-                                              Үйлчлүүлэгч
-                                            </th>
-                                            <th className="hidden sm:table-cell" style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
-                                              Үйлчилгээ
-                                            </th>
-                                            <th className="hidden lg:table-cell" style={{ textAlign: "right", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
-                                              Үнийн дүн
-                                            </th>
-                                            <th className="hidden lg:table-cell" style={{ textAlign: "right", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
-                                              Хөнгөлөлт
-                                            </th>
-                                            <th style={{ textAlign: "right", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
-                                              Нийт
-                                            </th>
-                                            <th className="hidden md:table-cell" style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
-                                              Төлбөрийн хэрэгсэл
-                                            </th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          <DrillDownRows lines={lines ?? []} />
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                   <tfoot style={{ background: "#f9fafb" }}>
-                    <tr style={{ borderTop: "2px solid #e5e7eb", fontWeight: 700 }}>
-                      <td style={{ padding: "10px 14px" }}>Нийт</td>
-                      <td className="hidden sm:table-cell" style={{ padding: "10px 14px" }} />
-                      <td style={{ padding: "10px 14px", textAlign: "right" }}>
-                        {fmtMnt(salesData.totals.totalSalesMnt)}
-                      </td>
-                      <td style={{ padding: "10px 14px", textAlign: "right" }}>
-                        {fmtMnt(salesData.totals.totalIncomeMnt)}
-                      </td>
-                      <td style={{ padding: "10px 14px" }} />
-                    </tr>
-                  </tfoot>
-                </table>
+              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>Нийт борлуулалт</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#111827" }}>
+                {fmtMnt(salesData.totals.totalSalesMnt)}
               </div>
             </div>
-          </>
-        )}
-      </div>
+            <div
+              style={{
+                flex: "1 1 140px",
+                background: "white",
+                borderRadius: 12,
+                padding: "14px 18px",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+              }}
+            >
+              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>Нийт эмчийн хувь</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#111827" }}>
+                {fmtMnt(salesData.totals.totalIncomeMnt)}
+              </div>
+            </div>
+          </div>
+
+          {/* Categories table */}
+          <div
+            style={{
+              background: "white",
+              borderRadius: 12,
+              overflow: "hidden",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+              marginBottom: 24,
+            }}
+          >
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead style={{ background: "#f9fafb" }}>
+                  <tr>
+                    <th style={{ textAlign: "left", padding: "10px 14px", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb" }}>
+                      Ангилал
+                    </th>
+                    <th className="hidden sm:table-cell" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb" }}>
+                      Хувь (%)
+                    </th>
+                    <th style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb" }}>
+                      Борлуулалт
+                    </th>
+                    <th style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb" }}>
+                      Эмчийн хувь
+                    </th>
+                    <th style={{ textAlign: "center", padding: "10px 14px", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb" }}>
+                      Үйлдэл
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {salesData.categories.map((row) => {
+                    const isOpen = expandedCategories.has(row.key);
+                    const lines = categoryLines[row.key];
+                    const lineError = categoryErrors[row.key];
+
+                    return (
+                      <React.Fragment key={row.key}>
+                        <tr style={{ borderTop: "1px solid #f3f4f6" }}>
+                          <td style={{ padding: "10px 14px" }}>{row.label}</td>
+                          <td className="hidden sm:table-cell" style={{ padding: "10px 14px", textAlign: "right" }}>
+                            {Number(row.pctUsed || 0)}%
+                          </td>
+                          <td style={{ padding: "10px 14px", textAlign: "right" }}>{fmtMnt(row.salesMnt)}</td>
+                          <td style={{ padding: "10px 14px", textAlign: "right" }}>{fmtMnt(row.incomeMnt)}</td>
+                          <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                            <button
+                              type="button"
+                              aria-label={isOpen ? "Хаах" : "Дэлгэрэнгүй харах"}
+                              onClick={() => toggleCategory(row.key)}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                border: "1px solid #d1d5db",
+                                borderRadius: 4,
+                                background: "white",
+                                padding: 5,
+                                cursor: "pointer",
+                                color: "#4b5563",
+                              }}
+                            >
+                              <ChevronIcon open={isOpen} />
+                            </button>
+                          </td>
+                        </tr>
+
+                        {isOpen && (
+                          <tr>
+                            <td colSpan={5} style={{ padding: 0 }}>
+                              <div style={{ borderTop: "1px solid #bfdbfe", background: "rgba(239,246,255,0.5)" }}>
+                                {lines === null ? (
+                                  <p style={{ padding: "10px 32px", fontSize: 12, color: "#6b7280" }}>
+                                    Ачаалж байна...
+                                  </p>
+                                ) : lineError ? (
+                                  <p style={{ padding: "10px 32px", fontSize: 12, color: "#dc2626" }}>{lineError}</p>
+                                ) : (
+                                  <div style={{ overflowX: "auto" }}>
+                                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                                      <thead style={{ background: "#eff6ff" }}>
+                                        <tr>
+                                          <th className="hidden xl:table-cell" style={{ textAlign: "left", padding: "7px 10px 7px 32px", fontWeight: 600, color: "#374151" }}>
+                                            Нэхэмжлэл #
+                                          </th>
+                                          <th style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
+                                            Огноо
+                                          </th>
+                                          <th style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
+                                            Үйлчлүүлэгч
+                                          </th>
+                                          <th className="hidden sm:table-cell" style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
+                                            Үйлчилгээ
+                                          </th>
+                                          <th className="hidden lg:table-cell" style={{ textAlign: "right", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
+                                            Үнийн дүн
+                                          </th>
+                                          <th className="hidden lg:table-cell" style={{ textAlign: "right", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
+                                            Хөнгөлөлт
+                                          </th>
+                                          <th style={{ textAlign: "right", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
+                                            Нийт
+                                          </th>
+                                          <th className="hidden md:table-cell" style={{ textAlign: "left", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
+                                            Төлбөрийн хэрэгсэл
+                                          </th>
+                                          {/* ✅ NEW header */}
+                                          <th style={{ textAlign: "center", padding: "7px 10px", fontWeight: 600, color: "#374151" }}>
+                                            Үйлдэл
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        <DrillDownRows lines={lines ?? []} />
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+
+                <tfoot style={{ background: "#f9fafb" }}>
+                  <tr style={{ borderTop: "2px solid #e5e7eb", fontWeight: 700 }}>
+                    <td style={{ padding: "10px 14px" }}>Нийт</td>
+                    <td className="hidden sm:table-cell" style={{ padding: "10px 14px" }} />
+                    <td style={{ padding: "10px 14px", textAlign: "right" }}>
+                      {fmtMnt(salesData.totals.totalSalesMnt)}
+                    </td>
+                    <td style={{ padding: "10px 14px", textAlign: "right" }}>
+                      {fmtMnt(salesData.totals.totalIncomeMnt)}
+                    </td>
+                    <td style={{ padding: "10px 14px" }} />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
-
