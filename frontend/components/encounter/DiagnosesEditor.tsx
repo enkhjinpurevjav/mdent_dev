@@ -498,11 +498,11 @@ export default function DiagnosesEditor({
                             val === "" ? null : Number(val)
                           );
                         }}
+                        className="text-base sm:text-xs"
                         style={{
                           padding: "4px 8px",
                           borderRadius: 4,
                           border: row.nurseId == null ? "1.5px solid #ef4444" : "1px solid #d1d5db",
-                          fontSize: 12,
                           minWidth: 160,
                           background: isLocked ? "#f3f4f6" : "white",
                         }}

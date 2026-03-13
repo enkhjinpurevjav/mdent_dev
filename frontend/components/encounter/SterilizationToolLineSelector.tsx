@@ -40,6 +40,7 @@ export default function SterilizationToolLineSelector({
   const [toolLineResults, setToolLineResults] = useState<ToolLineSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -184,6 +185,7 @@ export default function SterilizationToolLineSelector({
           style={{ position: "relative", minWidth: 260, flex: "0 0 auto" }}
         >
           <input
+            ref={inputRef}
             placeholder="Багаж эсвэл циклын кодоор хайх..."
             value={searchText}
             onChange={(e) => {
@@ -240,6 +242,9 @@ export default function SterilizationToolLineSelector({
                       e.preventDefault();
                       onAddToolLine(result.toolLineId);
                       onSearchTextChange("");
+                      // Refocus the search input so the user can immediately search
+                      // for the next indicator without clicking back into the field.
+                      requestAnimationFrame(() => inputRef.current?.focus());
                     }}
                     style={{
                       padding: "6px 8px",
