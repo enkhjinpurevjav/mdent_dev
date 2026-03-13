@@ -356,7 +356,7 @@ export default function DoctorSalesPage() {
                       <th style={{ textAlign: "left", padding: "10px 14px", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb" }}>
                         Ангилал
                       </th>
-                      <th style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb" }}>
+                      <th className="hidden sm:table-cell" style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb" }}>
                         Хувь (%)
                       </th>
                       <th style={{ textAlign: "right", padding: "10px 14px", fontWeight: 600, color: "#374151", borderBottom: "1px solid #e5e7eb" }}>
@@ -379,7 +379,7 @@ export default function DoctorSalesPage() {
                         <React.Fragment key={row.key}>
                           <tr style={{ borderTop: "1px solid #f3f4f6" }}>
                             <td style={{ padding: "10px 14px" }}>{row.label}</td>
-                            <td style={{ padding: "10px 14px", textAlign: "right" }}>{Number(row.pctUsed || 0)}%</td>
+                            <td className="hidden sm:table-cell" style={{ padding: "10px 14px", textAlign: "right" }}>{Number(row.pctUsed || 0)}%</td>
                             <td style={{ padding: "10px 14px", textAlign: "right" }}>{fmtMnt(row.salesMnt)}</td>
                             <td style={{ padding: "10px 14px", textAlign: "right" }}>{fmtMnt(row.incomeMnt)}</td>
                             <td style={{ padding: "10px 14px", textAlign: "center" }}>
@@ -461,10 +461,10 @@ export default function DoctorSalesPage() {
                       );
                     })}
                   </tbody>
-                  <tfoot style={{ background: "#f9fafb" }}>
+                   <tfoot style={{ background: "#f9fafb" }}>
                     <tr style={{ borderTop: "2px solid #e5e7eb", fontWeight: 700 }}>
                       <td style={{ padding: "10px 14px" }}>Нийт</td>
-                      <td style={{ padding: "10px 14px" }} />
+                      <td className="hidden sm:table-cell" style={{ padding: "10px 14px" }} />
                       <td style={{ padding: "10px 14px", textAlign: "right" }}>
                         {fmtMnt(salesData.totals.totalSalesMnt)}
                       </td>
