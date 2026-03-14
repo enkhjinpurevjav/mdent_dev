@@ -799,7 +799,7 @@ const PatientHistoryBook: React.FC<Props> = ({
               ЭМЧИЛГЭЭНИЙ БҮРТГЭЛ
             </div>
             <div className="overflow-x-auto max-w-full" style={{ WebkitOverflowScrolling: "touch" }}>
-            <table className="border-collapse text-[10px] border border-black">
+            <table className="border-collapse text-[10px] border border-black min-w-[640px] md:min-w-[900px]">
               <thead>
                 <tr className="bg-gray-100">
                   <th className="border border-black p-[4px_6px] text-left font-semibold whitespace-nowrap min-w-[80px]">
@@ -841,32 +841,20 @@ const PatientHistoryBook: React.FC<Props> = ({
                     <td className="border border-black p-[4px_6px] align-top whitespace-nowrap">
                       {row.toothCode}
                     </td>
-                    <td className="border border-black p-[4px_6px] align-top whitespace-nowrap">
-                      {isDoctor ? (
-                        row.complaints.length > 0 ? row.complaints.join(" / ") : "-"
-                      ) : (
-                        <>
-                          {row.complaints.map((c, i) => (
-                            <div key={i}>{c}</div>
-                          ))}
-                          {row.complaints.length === 0 && "-"}
-                        </>
-                      )}
+                    <td className="border border-black p-[4px_6px] align-top break-words">
+                      {row.complaints.map((c, i) => (
+                        <div key={i}>{c}</div>
+                      ))}
+                      {row.complaints.length === 0 && "-"}
                     </td>
                     <td className="border border-black p-[4px_6px] align-top whitespace-nowrap">
                       {row.diagnosis}
                     </td>
-                    <td className="border border-black p-[4px_6px] align-top whitespace-nowrap">
-                      {isDoctor ? (
-                        row.treatment.length > 0 ? row.treatment.join(" / ") : "-"
-                      ) : (
-                        <>
-                          {row.treatment.map((t, i) => (
-                            <div key={i}>{t}</div>
-                          ))}
-                          {row.treatment.length === 0 && "-"}
-                        </>
-                      )}
+                    <td className="border border-black p-[4px_6px] align-top break-words">
+                      {row.treatment.map((t, i) => (
+                        <div key={i}>{t}</div>
+                      ))}
+                      {row.treatment.length === 0 && "-"}
                     </td>
                     <td
                       className={`border border-black p-[4px_6px] align-top whitespace-nowrap ${isDoctor ? "hidden md:table-cell" : ""}`}
@@ -916,10 +904,23 @@ const PatientHistoryBook: React.FC<Props> = ({
       left: 0 !important;
       top: 0 !important;
       width: 100% !important;
+      max-width: 100% !important;
       border: none !important;
       padding: 0 !important;
       margin: 0 !important;
       background: white !important;
+    }
+
+    /* Allow scroll wrappers to fully render in print */
+    .overflow-x-auto {
+      overflow: visible !important;
+    }
+
+    /* Fit tables to printable A4 width */
+    #patient-history-book-printable table {
+      min-width: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
     }
 
     /* Existing rules */
