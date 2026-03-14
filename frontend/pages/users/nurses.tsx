@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import UsersTabs from "../../components/UsersTabs";
 import SendResetLinkButton from "../../components/SendResetLinkButton";
+import { getMe } from "../../utils/auth";
 
 type Branch = {
   id: number;
@@ -230,6 +231,7 @@ export default function NursesPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
   const [summary, setSummary] = useState<{
     total: number;
@@ -301,10 +303,14 @@ export default function NursesPage() {
   };
 
   useEffect(() => {
+    getMe().then((u) => setCurrentUserRole(u?.role ?? null));
     loadBranches();
     loadUsers();
     loadSummary();
   }, []);
+
+  const isAdminRole =
+    currentUserRole === "admin" || currentUserRole === "super_admin";
 
   return (
     <main className="max-w-7xl px-4 lg:px-8 my-4 font-sans">
@@ -408,6 +414,15 @@ export default function NursesPage() {
                             </a>
                             <span className={tooltipCls}>Ажлын хуваарь</span>
                           </div>
+                          {/* Орлого */}
+                          {isAdminRole && (
+                            <div className="group relative inline-block">
+                              <a href={`${baseUrl}?tab=income`} aria-label="Орлого" className={btnCls}>
+                                <span className="text-xs font-bold leading-none">₮</span>
+                              </a>
+                              <span className={tooltipCls}>Орлого</span>
+                            </div>
+                          )}
                           {/* Нууц үг сэргээх */}
                           <SendResetLinkButton email={u.email} />
                         </div>

@@ -826,7 +826,7 @@ export default function ReceptionProfilePage() {
   }
 
   return (
-    <main className="p-6 font-sans">
+    <main className="max-w-7xl px-4 lg:px-8 my-4 font-sans">
       <button
         type="button"
         onClick={() => {
@@ -896,7 +896,7 @@ export default function ReceptionProfilePage() {
         </div>
 
         {/* RIGHT CONTENT */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 min-w-0">
           {/* PROFILE TAB */}
           {activeTab === "profile" && (
             <>
