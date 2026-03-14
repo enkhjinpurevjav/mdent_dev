@@ -16,12 +16,14 @@ interface Props {
   /**
    * Nurse ID — used for the admin API URL when apiBaseUrl is not provided.
    * Not required when using apiBaseUrl (nurse portal).
+   * At least one of nurseId or apiBaseUrl must be provided.
    */
   nurseId?: number;
   /**
    * Optional override for the income details API base URL.
    * When provided, fetches from `${apiBaseUrl}?startDate=...&endDate=...`
    * Use this for the nurse portal: `/api/nurse/income/details`
+   * At least one of nurseId or apiBaseUrl must be provided.
    */
   apiBaseUrl?: string;
 }

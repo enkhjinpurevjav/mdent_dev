@@ -5,7 +5,13 @@ export default function NurseIndexPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/nurse/schedule");
+    let cancelled = false;
+    if (!cancelled) {
+      router.replace("/nurse/schedule");
+    }
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   return null;
