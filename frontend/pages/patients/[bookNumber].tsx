@@ -856,7 +856,11 @@ export default function PatientProfilePage() {
                               <td className={`border-b border-gray-100 py-1.5 px-2 ${isDoctor ? "whitespace-nowrap overflow-hidden text-ellipsis truncate" : ""}`}>
   {a.branch?.name || "-"}
 </td>
-                              <td className={`border-b border-gray-100 py-1.5 px-2 ${isDoctor ? "whitespace-nowrap overflow-hidden text-ellipsis truncate" : ""}`}>
+                              <td
+  className={`border-b border-gray-100 py-1.5 px-2 ${
+    isDoctor ? "whitespace-nowrap" : ""
+  }`}
+>
   {formatDoctorName(a.doctor)}
 </td>
                               <td className={`border-b border-gray-100 py-1.5 px-2${isDoctor ? " hidden md:table-cell" : ""}`}>
