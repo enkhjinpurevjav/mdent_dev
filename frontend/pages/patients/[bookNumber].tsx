@@ -349,7 +349,7 @@ export default function PatientProfilePage() {
       {/* In DoctorLayout: sticky top-11 clears the fixed 44px header; no negative margins needed */}
      {patient && pb && (
   <div className={`z-[90] border-b border-white/10 bg-[#061325]${isDoctor ? " fixed top-11 left-0 right-0" : " relative"}`}>
-    <div className={isDoctor ? "px-3 sm:px-4 sm:max-w-[720px] sm:mx-auto" : "max-w-7xl mx-auto px-5"}>
+    <div className={isDoctor ? "px-3 sm:px-4 sm:max-w-[720px] sm:mx-auto" : "max-w-7xl mx-auto px-4 lg:px-8"}>
       <div className="flex items-center">
         <div className="flex-1 overflow-x-auto">
           <div className="flex items-center gap-1 py-2 min-w-max">
@@ -403,7 +403,7 @@ export default function PatientProfilePage() {
   </div>
 )}
 
-      <main className={`${isDoctor ? "pt-14" : "pt-4"} pb-6 font-sans`}>
+      <main className={isDoctor ? "pt-14 pb-6 font-sans" : "max-w-7xl px-4 lg:px-8 my-4 font-sans"}>
       {loading && <div>Ачааллаж байна...</div>}
       {!loading && error && <div className="text-red-600">{error}</div>}
 
