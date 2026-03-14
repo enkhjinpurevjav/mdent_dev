@@ -6,6 +6,7 @@ import {
   Bell,
   BarChart3,
   ClipboardList,
+  Clock,
   LogOut,
   CalendarDays,
   CalendarRange,
@@ -146,6 +147,20 @@ export default function DoctorLayout({ children, showDashboardSummary = false }:
             >
               <Bell className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
             </button>
+
+            <Link
+              href="/doctor/attendance"
+              title="Ирц"
+              aria-label="Ирц"
+              className={classNames(
+                "p-1.5 sm:p-2 rounded-lg inline-flex items-center no-underline",
+                isActive("/doctor/attendance")
+                  ? "text-white"
+                  : "text-white/75 hover:text-white"
+              )}
+            >
+              <Clock className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
+            </Link>
 
             <Link
               href="/doctor/performance"
