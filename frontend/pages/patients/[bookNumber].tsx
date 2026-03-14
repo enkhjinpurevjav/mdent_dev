@@ -815,99 +815,158 @@ export default function PatientProfilePage() {
                     )}
                   </div>
                   {filteredAppointments.length === 0 ? (
-                    <div className="text-sm text-gray-500">
-                      Цаг захиалгын бүртгэл алга.
-                    </div>
-                  ) : (
-                    <>
-                      <div className="overflow-x-auto max-w-full" style={{ WebkitOverflowScrolling: "touch" }}>
-                      <table className={`w-full border-collapse text-sm ${isDoctor ? "table-fixed" : ""} ${isDoctor ? "min-w-0" : "min-w-[600px]"}`}>
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className={`text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap ${isDoctor ? "w-[140px]" : ""}`}>
-  Огноо / цаг
-</th>
-<th className={`text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap ${isDoctor ? "w-[120px]" : ""}`}>
-  Салбар
-</th>
-<th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap">
-  Эмч
-</th>
+  <div className="text-sm text-gray-500">Цаг захиалгын бүртгэл алга.</div>
+) : (
+  <>
+    <div
+      className="overflow-x-auto max-w-full"
+      style={{ WebkitOverflowScrolling: "touch" }}
+    >
+      <table
+        className={`w-full border-collapse text-sm ${
+          // Doctor portal: force horizontal scroll so "Үйлдэл" is a real next column (no overlap)
+          isDoctor ? "min-w-[720px]" : "min-w-[600px]"
+        }`}
+      >
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap">
+              Огноо / цаг
+            </th>
+            <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap">
+              Салбар
+            </th>
+            <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap">
+              Эмч
+            </th>
 
-{/* keep these hidden on doctor mobile */}
-<th className={`text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap${isDoctor ? " hidden md:table-cell w-[110px]" : ""}`}>
-  Төлөв
-</th>
-<th className={`text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap${isDoctor ? " hidden md:table-cell w-[160px]" : ""}`}>
-  Тэмдэглэл
-</th>
+            {/* keep these hidden on doctor mobile */}
+            <th
+              className={`text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap${
+                isDoctor ? " hidden md:table-cell" : ""
+              }`}
+            >
+              Төлөв
+            </th>
+            <th
+              className={`text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap${
+                isDoctor ? " hidden md:table-cell" : ""
+              }`}
+            >
+              Тэмдэглэл
+            </th>
 
-<th className={`text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap ${isDoctor ? "w-[84px]" : ""}`}>
-  Үйлдэл
-</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {pagedAppointments.map((a) => (
-                            <tr key={a.id} className="odd:bg-white even:bg-gray-50">
-                              <td className={`border-b border-gray-100 py-1.5 px-2 ${isDoctor ? "whitespace-nowrap" : ""}`}>
-  {formatDateTime(a.scheduledAt)}
-</td>
-                              <td className={`border-b border-gray-100 py-1.5 px-2 ${isDoctor ? "whitespace-nowrap overflow-hidden text-ellipsis truncate" : ""}`}>
-  {a.branch?.name || "-"}
-</td>
-                              <td
-  className={`border-b border-gray-100 py-1.5 px-2 ${
-    isDoctor ? "whitespace-nowrap" : ""
-  }`}
->
-  {formatDoctorName(a.doctor)}
-</td>
-                              <td className={`border-b border-gray-100 py-1.5 px-2${isDoctor ? " hidden md:table-cell" : ""}`}>
-                                {formatStatus(a.status)}
-                              </td>
-                              <td className={`border-b border-gray-100 py-1.5 px-2${isDoctor ? " hidden md:table-cell" : ""}`}>
-                                {displayOrDash(a.notes ?? null)}
-                              </td>
-                              <td className="border-b border-gray-100 py-1.5 px-2">
-                                {a.status === "completed" && (
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      title="Дэлгэрэнгүй"
-                                      onClick={() => {
-                                        setReportAppointmentId(a.id);
-                                        setReportModalOpen(true);
-                                      }}
-                                      className={iconBtnBlueClass}
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                                        <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
-                                        <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                                      </svg>
-                                    </button>
-                                    <button
-                                      title="Хавсралтууд"
-                                      disabled={(a.materialsCount ?? 0) < 1}
-                                      onClick={() => {
-                                        if (a.encounterId) {
-                                          setMaterialsEncounterId(a.encounterId);
-                                          setMaterialsModalOpen(true);
-                                        }
-                                      }}
-                                      className={iconBtnGhostClass}
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                                        <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-                                      </svg>
-                                    </button>
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      </div>
+            <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap">
+              Үйлдэл
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {pagedAppointments.map((a) => (
+            <tr key={a.id} className="odd:bg-white even:bg-gray-50">
+              <td
+                className={`border-b border-gray-100 py-1.5 px-2 ${
+                  isDoctor ? "whitespace-nowrap" : ""
+                }`}
+              >
+                {formatDateTime(a.scheduledAt)}
+              </td>
+
+              <td
+                className={`border-b border-gray-100 py-1.5 px-2 ${
+                  isDoctor ? "whitespace-nowrap" : ""
+                }`}
+              >
+                {a.branch?.name || "-"}
+              </td>
+
+              <td
+                className={`border-b border-gray-100 py-1.5 px-2 ${
+                  isDoctor ? "whitespace-nowrap" : ""
+                }`}
+              >
+                {formatDoctorName(a.doctor)}
+              </td>
+
+              <td
+                className={`border-b border-gray-100 py-1.5 px-2${
+                  isDoctor ? " hidden md:table-cell" : ""
+                }`}
+              >
+                {formatStatus(a.status)}
+              </td>
+
+              <td
+                className={`border-b border-gray-100 py-1.5 px-2${
+                  isDoctor ? " hidden md:table-cell" : ""
+                }`}
+              >
+                {displayOrDash(a.notes ?? null)}
+              </td>
+
+              <td
+                className={`border-b border-gray-100 py-1.5 px-2 ${
+                  isDoctor ? "whitespace-nowrap" : ""
+                }`}
+              >
+                {a.status === "completed" && (
+                  <div
+                    className={`flex items-center gap-1 ${
+                      isDoctor ? "flex-nowrap" : ""
+                    }`}
+                  >
+                    <button
+                      title="Дэлгэрэнгүй"
+                      onClick={() => {
+                        setReportAppointmentId(a.id);
+                        setReportModalOpen(true);
+                      }}
+                      className={iconBtnBlueClass}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="w-4 h-4"
+                      >
+                        <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+                        <path
+                          fillRule="evenodd"
+                          d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
+
+                    <button
+                      title="Хавсралтууд"
+                      disabled={(a.materialsCount ?? 0) < 1}
+                      onClick={() => {
+                        if (a.encounterId) {
+                          setMaterialsEncounterId(a.encounterId);
+                          setMaterialsModalOpen(true);
+                        }
+                      }}
+                      className={iconBtnGhostClass}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="w-4 h-4"
+                      >
+                        <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
                       {/* Pagination */}
                       <div className="flex items-center justify-between mt-3 text-sm text-gray-600">
                         <span>
