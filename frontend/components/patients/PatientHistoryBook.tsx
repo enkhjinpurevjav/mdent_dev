@@ -799,35 +799,35 @@ const PatientHistoryBook: React.FC<Props> = ({
               ЭМЧИЛГЭЭНИЙ БҮРТГЭЛ
             </div>
             <div className="overflow-x-auto max-w-full" style={{ WebkitOverflowScrolling: "touch" }}>
-            <table className="w-full border-collapse text-[10px] border border-black min-w-[900px]">
+            <table className="border-collapse text-[10px] border border-black">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="border border-black p-[4px_6px] text-left font-semibold w-[8%]">
+                  <th className="border border-black p-[4px_6px] text-left font-semibold whitespace-nowrap min-w-[80px]">
                     Огноо
                   </th>
-                  <th className="border border-black p-[4px_6px] text-left font-semibold w-[8%]">
+                  <th className="border border-black p-[4px_6px] text-left font-semibold whitespace-nowrap min-w-[72px]">
                     Шүдний дугаар
                   </th>
-                  <th className="border border-black p-[4px_6px] text-left font-semibold w-[18%]">
+                  <th className="border border-black p-[4px_6px] text-left font-semibold whitespace-nowrap min-w-[110px]">
                     Бодит үзлэг, зовиур
                   </th>
-                  <th className="border border-black p-[4px_6px] text-left font-semibold w-[8%]">
+                  <th className="border border-black p-[4px_6px] text-left font-semibold whitespace-nowrap min-w-[60px]">
                     Онош
                   </th>
-                  <th className="border border-black p-[4px_6px] text-left font-semibold w-[20%]">
+                  <th className="border border-black p-[4px_6px] text-left font-semibold whitespace-nowrap min-w-[110px]">
                     Эмчилгээ
                   </th>
                   <th
-                    className={`border border-black p-[4px_6px] text-left font-semibold w-[12%] ${isDoctor ? "hidden md:table-cell" : ""}`}
+                    className={`border border-black p-[4px_6px] text-left font-semibold whitespace-nowrap min-w-[80px] ${isDoctor ? "hidden md:table-cell" : ""}`}
                   >
                     Индикатор
                   </th>
                   <th
-                    className={`border border-black p-[4px_6px] text-left font-semibold w-[14%] ${isDoctor ? "hidden md:table-cell" : ""}`}
+                    className={`border border-black p-[4px_6px] text-left font-semibold whitespace-nowrap min-w-[80px] ${isDoctor ? "hidden md:table-cell" : ""}`}
                   >
                     Тэмдэглэл
                   </th>
-                  <th className="border border-black p-[4px_6px] text-left font-semibold w-[12%]">
+                  <th className="border border-black p-[4px_6px] text-left font-semibold whitespace-nowrap min-w-[100px]">
                     Эмч болон сувилагч
                   </th>
                 </tr>
@@ -835,38 +835,50 @@ const PatientHistoryBook: React.FC<Props> = ({
               <tbody>
                 {diagnosisRows.map((row, idx) => (
                   <tr key={idx}>
-                    <td className="border border-black p-[4px_6px] align-top">
+                    <td className="border border-black p-[4px_6px] align-top whitespace-nowrap">
                       {row.date}
                     </td>
-                    <td className="border border-black p-[4px_6px] align-top">
+                    <td className="border border-black p-[4px_6px] align-top whitespace-nowrap">
                       {row.toothCode}
                     </td>
-                    <td className="border border-black p-[4px_6px] align-top">
-                      {row.complaints.map((c, i) => (
-                        <div key={i}>{c}</div>
-                      ))}
-                      {row.complaints.length === 0 && "-"}
+                    <td className="border border-black p-[4px_6px] align-top whitespace-nowrap">
+                      {isDoctor ? (
+                        row.complaints.length > 0 ? row.complaints.join(" / ") : "-"
+                      ) : (
+                        <>
+                          {row.complaints.map((c, i) => (
+                            <div key={i}>{c}</div>
+                          ))}
+                          {row.complaints.length === 0 && "-"}
+                        </>
+                      )}
                     </td>
-                    <td className="border border-black p-[4px_6px] align-top">
+                    <td className="border border-black p-[4px_6px] align-top whitespace-nowrap">
                       {row.diagnosis}
                     </td>
-                    <td className="border border-black p-[4px_6px] align-top">
-                      {row.treatment.map((t, i) => (
-                        <div key={i}>{t}</div>
-                      ))}
-                      {row.treatment.length === 0 && "-"}
+                    <td className="border border-black p-[4px_6px] align-top whitespace-nowrap">
+                      {isDoctor ? (
+                        row.treatment.length > 0 ? row.treatment.join(" / ") : "-"
+                      ) : (
+                        <>
+                          {row.treatment.map((t, i) => (
+                            <div key={i}>{t}</div>
+                          ))}
+                          {row.treatment.length === 0 && "-"}
+                        </>
+                      )}
                     </td>
                     <td
-                      className={`border border-black p-[4px_6px] align-top ${isDoctor ? "hidden md:table-cell" : ""}`}
+                      className={`border border-black p-[4px_6px] align-top whitespace-nowrap ${isDoctor ? "hidden md:table-cell" : ""}`}
                     >
                       {row.indicators.length > 0 ? row.indicators.join(", ") : "-"}
                     </td>
                     <td
-                      className={`border border-black p-[4px_6px] align-top ${isDoctor ? "hidden md:table-cell" : ""}`}
+                      className={`border border-black p-[4px_6px] align-top whitespace-nowrap ${isDoctor ? "hidden md:table-cell" : ""}`}
                     >
                       {row.note || "-"}
                     </td>
-                    <td className="border border-black p-[4px_6px] align-top">
+                    <td className="border border-black p-[4px_6px] align-top whitespace-nowrap">
                       {row.doctorNurse}
                     </td>
                   </tr>
