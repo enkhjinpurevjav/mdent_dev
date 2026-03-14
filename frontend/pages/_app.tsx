@@ -1,6 +1,7 @@
 import type { AppProps } from "next/app";
 import AdminLayout from "../components/AdminLayout";
 import DoctorLayout from "../components/DoctorLayout";
+import NurseLayout from "../components/NurseLayout";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { getMe } from "../utils/auth";
@@ -15,6 +16,10 @@ function isPublicPath(pathname: string) {
 
 function isDoctorPath(pathname: string) {
   return pathname === "/doctor" || pathname.startsWith("/doctor/");
+}
+
+function isNursePath(pathname: string) {
+  return pathname === "/nurse" || pathname.startsWith("/nurse/");
 }
 
 export default function MyApp({ Component, pageProps }: AppProps) {
@@ -42,16 +47,28 @@ export default function MyApp({ Component, pageProps }: AppProps) {
         return;
       }
 
+      // Non-nurses cannot access /nurse/*
+      if (isNursePath(router.pathname) && user.role !== "nurse") {
+        router.replace("/");
+        return;
+      }
+
       // Doctors cannot access anything outside /doctor/* EXCEPT /patients/* and /encounters/*
-if (
-  user.role === "doctor" &&
-  !isDoctorPath(router.pathname) &&
-  !router.pathname.startsWith("/patients") &&
-  !router.pathname.startsWith("/encounters")
-) {
-  router.replace("/doctor/appointments");
-  return;
-}
+      if (
+        user.role === "doctor" &&
+        !isDoctorPath(router.pathname) &&
+        !router.pathname.startsWith("/patients") &&
+        !router.pathname.startsWith("/encounters")
+      ) {
+        router.replace("/doctor/appointments");
+        return;
+      }
+
+      // Nurses cannot access anything outside /nurse/*
+      if (user.role === "nurse" && !isNursePath(router.pathname)) {
+        router.replace("/nurse/schedule");
+        return;
+      }
 
       setUserRole(user.role);
       setAuthChecked(true);
@@ -70,6 +87,7 @@ if (
   const isPatientPath = router.pathname.startsWith("/patients/");
   const isEncounterPath = router.pathname.startsWith("/encounters/");
   const useDoctorLayout = isDoctorPath(router.pathname) || ((isPatientPath || isEncounterPath) && userRole === "doctor");
+  const useNurseLayout = isNursePath(router.pathname);
 
   if (useDoctorLayout) {
     // Only show the dashboard summary cards on the doctor appointments page
@@ -78,6 +96,14 @@ if (
       <DoctorLayout showDashboardSummary={showDashboardSummary}>
         <Component {...pageProps} />
       </DoctorLayout>
+    );
+  }
+
+  if (useNurseLayout) {
+    return (
+      <NurseLayout>
+        <Component {...pageProps} />
+      </NurseLayout>
     );
   }
 

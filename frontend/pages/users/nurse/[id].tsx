@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import { getMe } from "../../../utils/auth";
-import NurseIncomeDetails from "../../../components/nurses/NurseIncomeDetails";
+import NurseIncomeView from "../../../components/nurses/NurseIncomeView";
 
 type Branch = {
   id: number;
@@ -79,11 +79,7 @@ export default function NurseProfilePage() {
   // Current viewer role (for admin-only tabs)
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
-  // Income tab state
-  const [incomeInputStart, setIncomeInputStart] = useState(() => getDefaultIncomeDates().start);
-  const [incomeInputEnd, setIncomeInputEnd] = useState(() => getDefaultIncomeDates().end);
-  const [incomeStart, setIncomeStart] = useState(() => getDefaultIncomeDates().start);
-  const [incomeEnd, setIncomeEnd] = useState(() => getDefaultIncomeDates().end);
+  // Income tab state moved to NurseIncomeView component
 
   useEffect(() => {
     getMe().then((u) => setCurrentUserRole(u?.role ?? null));
@@ -1699,50 +1695,7 @@ export default function NurseProfilePage() {
               {!isAdminRole ? (
                 <p className="text-gray-600">Хандах эрхгүй.</p>
               ) : (
-                <>
-                  <h2 className="text-base font-bold mb-3">
-                    Сувилагчийн орлогын дэлгэрэнгүй
-                  </h2>
-                  <div className="flex items-end gap-3 mb-5 flex-wrap">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">
-                        Эхлэх огноо
-                      </label>
-                      <input
-                        type="date"
-                        value={incomeInputStart}
-                        onChange={(e) => setIncomeInputStart(e.target.value)}
-                        className="border border-gray-300 rounded-md px-2 py-1.5 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">
-                        Дуусах огноо
-                      </label>
-                      <input
-                        type="date"
-                        value={incomeInputEnd}
-                        onChange={(e) => setIncomeInputEnd(e.target.value)}
-                        className="border border-gray-300 rounded-md px-2 py-1.5 text-sm"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIncomeStart(incomeInputStart);
-                        setIncomeEnd(incomeInputEnd);
-                      }}
-                      className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-sm cursor-pointer hover:bg-blue-700"
-                    >
-                      Харах
-                    </button>
-                  </div>
-                  <NurseIncomeDetails
-                    nurseId={Number(id)}
-                    startDate={incomeStart}
-                    endDate={incomeEnd}
-                  />
-                </>
+                <NurseIncomeView nurseId={Number(id)} />
               )}
             </div>
           )}

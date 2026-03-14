@@ -34,16 +34,25 @@ type NurseIncomeDetailsData = {
 };
 
 interface Props {
-  nurseId: number;
+  /** Nurse ID — used to build the admin API URL when apiBaseUrl is not provided. */
+  nurseId?: number;
   startDate: string;
   endDate: string;
+  /**
+   * Optional override for the income details API base URL.
+   * When provided, the component fetches:
+   *   `${apiBaseUrl}?startDate=${startDate}&endDate=${endDate}`
+   * instead of the default admin URL.
+   * Use this for the nurse portal: `/api/nurse/income/details`
+   */
+  apiBaseUrl?: string;
 }
 
-export default function NurseIncomeDetails({ nurseId, startDate, endDate }: Props) {
+export default function NurseIncomeDetails({ nurseId, startDate, endDate, apiBaseUrl }: Props) {
   const PAGE_SIZE = 15;
 
   const [loading, setLoading] = useState(
-    () => !!(nurseId && startDate && endDate)
+    () => !!((nurseId || apiBaseUrl) && startDate && endDate)
   );
   const [details, setDetails] = useState<NurseIncomeDetailsData | null>(null);
   const [error, setError] = useState<string>("");
@@ -52,12 +61,15 @@ export default function NurseIncomeDetails({ nurseId, startDate, endDate }: Prop
   const [assistPage, setAssistPage] = useState(1);
 
   const fetchDetails = async () => {
-    if (!nurseId || !startDate || !endDate) return;
+    if (!startDate || !endDate) return;
+    if (!apiBaseUrl && !nurseId) return;
     setLoading(true);
     setError("");
     try {
-      const url = `/api/admin/nurses-income/${nurseId}/details?startDate=${startDate}&endDate=${endDate}`;
-      const res = await fetch(url);
+      const url = apiBaseUrl
+        ? `${apiBaseUrl}?startDate=${startDate}&endDate=${endDate}`
+        : `/api/admin/nurses-income/${nurseId}/details?startDate=${startDate}&endDate=${endDate}`;
+      const res = await fetch(url, { credentials: "include" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch nurse income details");
       setDetails(data);
@@ -71,11 +83,11 @@ export default function NurseIncomeDetails({ nurseId, startDate, endDate }: Prop
   };
 
   useEffect(() => {
-    if (nurseId && startDate && endDate) {
+    if ((nurseId || apiBaseUrl) && startDate && endDate) {
       void fetchDetails();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nurseId, startDate, endDate]);
+  }, [nurseId, startDate, endDate, apiBaseUrl]);
 
   // Reset pagination when details change
   useEffect(() => {
