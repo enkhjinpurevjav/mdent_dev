@@ -932,6 +932,7 @@ const PatientHistoryBook: React.FC<Props> = ({
     </tbody>
   </table>
 </div>
+            </div>
         )}
 
         {showTable && diagnosisRows.length === 0 && (
