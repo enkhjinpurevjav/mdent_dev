@@ -48,6 +48,7 @@ import uploadsRouter from "./routes/uploads.js";
 import authRouter from "./routes/auth.js";
 import attendanceRouter from "./routes/attendance.js";
 import doctorPortalRouter from "./routes/doctor.js";
+import nursePortalRouter from "./routes/nurse.js";
 import attendanceReportRouter from "./routes/admin/attendanceReport.js";
 import { authenticateJWT, requireRole } from "./middleware/auth.js";
 import rateLimit from "express-rate-limit";
@@ -221,6 +222,9 @@ app.use("/api/attendance", attendanceRouter);
 
 // Doctor portal routes (authenticateJWT + requireRole("doctor") enforced inside the router)
 app.use("/api/doctor", doctorPortalRouter);
+
+// Nurse portal routes (authenticateJWT + requireRole("nurse") enforced inside the router)
+app.use("/api/nurse", nursePortalRouter);
 
 // Admin attendance report
 app.use("/api/admin", attendanceReportRouter);

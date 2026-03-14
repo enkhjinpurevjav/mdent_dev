@@ -21,15 +21,26 @@ export default function LoginForm() {
         typeof router.query.redirect === "string" ? router.query.redirect : "";
 
       const isDoctor = user?.role === "doctor";
+      const isNurse = user?.role === "nurse";
 
-      // Doctors should always land inside /doctor/*
-      // Only honor redirect if it already targets /doctor
-      const safeRedirect =
-        redirectParam && (!isDoctor || redirectParam.startsWith("/doctor"))
-          ? redirectParam
-          : "";
+      // Role-scoped redirect safety:
+      // Doctors stay in /doctor/*, nurses stay in /nurse/*, others go to /
+      let safeRedirect = "";
+      if (redirectParam) {
+        if (isDoctor && redirectParam.startsWith("/doctor")) {
+          safeRedirect = redirectParam;
+        } else if (isNurse && redirectParam.startsWith("/nurse")) {
+          safeRedirect = redirectParam;
+        } else if (!isDoctor && !isNurse) {
+          safeRedirect = redirectParam;
+        }
+      }
 
-      const fallback = isDoctor ? "/doctor/appointments" : "/";
+      const fallback = isDoctor
+        ? "/doctor/appointments"
+        : isNurse
+        ? "/nurse/schedule"
+        : "/";
 
       router.replace(safeRedirect || fallback);
     } catch (err: any) {
