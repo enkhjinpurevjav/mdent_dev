@@ -241,6 +241,7 @@ export default function DoctorAppointmentsPage() {
   const [doctorId, setDoctorId] = useState<number | null>(null);
 
   const [appointments, setAppointments] = useState<DoctorAppointment[]>([]);
+  const [scheduleRange, setScheduleRange] = useState<DoctorScheduleDay[]>([]);
   const [scheduleToday, setScheduleToday] = useState<DoctorScheduleDay | null>(
     null
   );
@@ -307,12 +308,51 @@ export default function DoctorAppointmentsPage() {
     return () => { cancelled = true; };
   }, [doctorId]);
 
+  // ---- fetch schedule once (not tied to range changes) ----
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/doctor/schedule", { credentials: "include" });
+        const data = await res.json().catch(() => null);
+        if (!cancelled && res.ok && Array.isArray(data)) {
+          setScheduleRange(data);
+        }
+      } catch {
+        // schedule fetch failure is non-fatal; scheduleToday stays null
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ---- derive scheduleToday from scheduleRange ----
+  useEffect(() => {
+    const todays = scheduleRange.filter((e) => e.date.split("T")[0] === today);
+    if (todays.length === 0) {
+      setScheduleToday(null);
+      return;
+    }
+    const picked = todays.reduce((acc, s) => {
+      if (!acc) return s;
+      const accStart = minutesFromHHMM(acc.startTime);
+      const accEnd = minutesFromHHMM(acc.endTime);
+      const sStart = minutesFromHHMM(s.startTime);
+      const sEnd = minutesFromHHMM(s.endTime);
+      return {
+        ...acc,
+        startTime: sStart < accStart ? s.startTime : acc.startTime,
+        endTime: sEnd > accEnd ? s.endTime : acc.endTime,
+      };
+    }, null as DoctorScheduleDay | null);
+    setScheduleToday(picked);
+  }, [scheduleRange, today]);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     setError("");
 
     try {
-      // 1) appointments (range)
+      // appointments (range) — schedule is fetched separately
       const apptRes = await fetch(
         `/api/doctor/appointments?from=${from}&to=${to}`,
         {
@@ -334,42 +374,13 @@ export default function DoctorAppointmentsPage() {
 
       const visible = apptsRaw.filter((a) => a?.status !== "cancelled");
       setAppointments(visible);
-
-      // 2) schedule for today only — use the doctor-scoped endpoint (admin-only /api/users is not accessible to doctors)
-      const schedRes = await fetch(
-        `/api/doctor/schedule?date=${today}`,
-        { credentials: "include" }
-      );
-      const schedJson = await schedRes.json().catch(() => null);
-
-      if (schedRes.ok && Array.isArray(schedJson) && schedJson.length > 0) {
-        // If multiple entries exist (multiple branches), pick earliest start + latest end for today
-        const entries: DoctorScheduleDay[] = schedJson;
-        const picked = entries.reduce((acc, s) => {
-          if (!acc) return s;
-          const accStart = minutesFromHHMM(acc.startTime);
-          const accEnd = minutesFromHHMM(acc.endTime);
-          const sStart = minutesFromHHMM(s.startTime);
-          const sEnd = minutesFromHHMM(s.endTime);
-          return {
-            ...acc,
-            startTime: sStart < accStart ? s.startTime : acc.startTime,
-            endTime: sEnd > accEnd ? s.endTime : acc.endTime,
-          };
-        }, null as DoctorScheduleDay | null);
-
-        setScheduleToday(picked);
-      } else {
-        setScheduleToday(null);
-      }
     } catch (e: any) {
       setError(e?.message || "Алдаа гарлаа");
       setAppointments([]);
-      setScheduleToday(null);
     } finally {
       setLoading(false);
     }
-  }, [doctorId, from, to, today]);
+  }, [doctorId, from, to]);
 
   useEffect(() => {
     loadAll();
