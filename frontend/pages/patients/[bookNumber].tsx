@@ -814,10 +814,10 @@ export default function PatientProfilePage() {
                       </button>
                     )}
                   </div>
-                   ? (
-  <div className="text-sm text-gray-500">Цаг захиалгын бүртгэл алга.</div>
-) : (
-  <>
+                  {filteredAppointments.length === 0 ? (
+                    <div className="text-sm text-gray-500">Цаг захиалгын бүртгэл алга.</div>
+                  ) : (
+                  <>
     <div
       className="overflow-x-auto max-w-full"
       style={{ WebkitOverflowScrolling: "touch" }}
@@ -832,8 +832,10 @@ export default function PatientProfilePage() {
         {isDoctor ? (
           <colgroup>
             <col style={{ width: "132px" }} /> {/* Огноо / цаг */}
-            <col style={{ width: "110px" }} /> {/* Салбар */}
+            <col />                             {/* Салбар - hidden on mobile, auto on md+ */}
             <col style={{ width: "140px" }} /> {/* Эмч */}
+            <col />                             {/* Төлөв - hidden on doctor mobile */}
+            <col />                             {/* Тэмдэглэл - hidden on doctor mobile */}
             <col style={{ width: "84px" }} />  {/* Үйлдэл */}
           </colgroup>
         ) : null}
@@ -844,7 +846,7 @@ export default function PatientProfilePage() {
               Огноо / цаг
             </th>
 
-            <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap">
+            <th className={`text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700 whitespace-nowrap${isDoctor ? " hidden md:table-cell" : ""}`}>
               Салбар
             </th>
 
@@ -881,7 +883,7 @@ export default function PatientProfilePage() {
                 {formatDateTime(a.scheduledAt)}
               </td>
 
-              <td className="border-b border-gray-100 py-1.5 px-2 whitespace-nowrap">
+              <td className={`border-b border-gray-100 py-1.5 px-2 whitespace-nowrap${isDoctor ? " hidden md:table-cell" : ""}`}>
                 {a.branch?.name || "-"}
               </td>
 
