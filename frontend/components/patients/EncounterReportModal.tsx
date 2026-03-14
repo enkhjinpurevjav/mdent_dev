@@ -230,77 +230,36 @@ export default function EncounterReportModal({
   // Modal backdrop
   return (
     <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(0, 0, 0, 0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-        padding: 16,
-      }}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4"
       onClick={onClose}
     >
       <div
-        style={{
-          background: "white",
-          borderRadius: 8,
-          maxWidth: 1200,
-          width: "100%",
-          maxHeight: "90vh",
-          overflow: "auto",
-          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-        }}
+        className="bg-white rounded-lg w-full max-w-[1200px] max-h-[90vh] overflow-auto shadow"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div
-          style={{
-            padding: 16,
-            borderBottom: "1px solid #e5e7eb",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+          <h2 className="m-0 text-lg font-semibold">
             Үзлэгийн тайлан
           </h2>
           <button
             onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: 24,
-              cursor: "pointer",
-              color: "#6b7280",
-            }}
+            className="bg-transparent border-none text-2xl cursor-pointer text-gray-500"
           >
             ×
           </button>
         </div>
 
         {/* Content */}
-        <div style={{ padding: 16 }}>
+        <div className="p-4">
           {loading && (
-            <div style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>
+            <div className="text-center py-10 text-gray-500">
               Уншиж байна...
             </div>
           )}
 
           {error && (
-            <div
-              style={{
-                padding: 16,
-                background: "#fee",
-                color: "#c00",
-                borderRadius: 4,
-              }}
-            >
+            <div className="p-4 bg-red-50 text-red-600 rounded">
               {error}
             </div>
           )}
@@ -308,16 +267,8 @@ export default function EncounterReportModal({
           {data && !loading && (
             <div>
               {/* Patient Info Header */}
-              <div
-                style={{
-                  marginBottom: 16,
-                  padding: 12,
-                  background: "#f9fafb",
-                  borderRadius: 4,
-                  fontSize: 13,
-                }}
-              >
-                <div style={{ marginBottom: 4 }}>
+              <div className="mb-4 p-3 bg-gray-50 rounded text-[13px]">
+                <div className="mb-1">
                   <strong>Өвчтөн:</strong>{" "}
                   {[data.patient.ovog, data.patient.name]
                     .filter(Boolean)
@@ -325,11 +276,11 @@ export default function EncounterReportModal({
                   {data.patient.regNo && ` (РД: ${data.patient.regNo})`}
                   {data.patientBook && ` | Карт: ${data.patientBook.bookNumber}`}
                 </div>
-                <div style={{ marginBottom: 4 }}>
+                <div className="mb-1">
                   <strong>Үзлэгийн огноо:</strong>{" "}
                   {formatDateTime(data.encounter.visitDate)}
                 </div>
-                <div style={{ marginBottom: 4 }}>
+                <div className="mb-1">
                   <strong>Салбар:</strong> {data.branch.name}
                 </div>
                 <div>
@@ -339,32 +290,25 @@ export default function EncounterReportModal({
               </div>
 
               {/* Diagnosis Table */}
-              <section style={{ marginBottom: 24 }}>
-                <h3 style={{ fontSize: 14, marginBottom: 8, fontWeight: 600 }}>
+              <section className="mb-6">
+                <h3 className="text-sm mb-2 font-semibold">
                   Оношлогоо ба эмчилгээ
                 </h3>
-                <div style={{ overflowX: "auto" }}>
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      fontSize: 12,
-                      border: "1px solid #e5e7eb",
-                    }}
-                  >
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-xs border border-gray-200">
                     <thead>
-                      <tr style={{ background: "#f3f4f6" }}>
-                        <th style={tableCellStyle}>№</th>
-                        <th style={tableCellStyle}>Шүд</th>
-                        <th style={tableCellStyle}>Оношилгоо код</th>
-                        <th style={tableCellStyle}>Оношилгоо нэр</th>
-                        <th style={tableCellStyle}>Ариутгал</th>
-                        <th style={tableCellStyle}>Эмчилгээ</th>
-                        <th style={tableCellStyle}>Төлбөр</th>
-                        <th style={tableCellStyle}>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-200 p-[6px] text-left">№</th>
+                        <th className="border border-gray-200 p-[6px] text-left">Шүд</th>
+                        <th className="border border-gray-200 p-[6px] text-left">Оношилгоо код</th>
+                        <th className="border border-gray-200 p-[6px] text-left">Оношилгоо нэр</th>
+                        <th className="border border-gray-200 p-[6px] text-left">Ариутгал</th>
+                        <th className="border border-gray-200 p-[6px] text-left">Эмчилгээ</th>
+                        <th className="border border-gray-200 p-[6px] text-left">Төлбөр</th>
+                        <th className="border border-gray-200 p-[6px] text-left">
                           Бодит үзлэг, зөвлүүр
                         </th>
-                        <th style={tableCellStyle}>Тэмдэглэл</th>
+                        <th className="border border-gray-200 p-[6px] text-left">Тэмдэглэл</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -389,30 +333,30 @@ export default function EncounterReportModal({
 
                           return (
                             <tr key={`diag-${diag.id}`}>
-                              <td style={tableCellStyle}>{idx + 1}</td>
-                              <td style={tableCellStyle}>
+                              <td className="border border-gray-200 p-[6px] text-left">{idx + 1}</td>
+                              <td className="border border-gray-200 p-[6px] text-left">
                                 {diag.toothCode || "-"}
                               </td>
-                              <td style={tableCellStyle}>
+                              <td className="border border-gray-200 p-[6px] text-left">
                                 {diag.diagnosis?.code || "-"}
                               </td>
-                              <td style={tableCellStyle}>
+                              <td className="border border-gray-200 p-[6px] text-left">
                                 {diag.diagnosis?.name || "-"}
                               </td>
-                              <td style={tableCellStyle}>{indicatorCodes}</td>
-                              <td style={tableCellStyle}>
+                              <td className="border border-gray-200 p-[6px] text-left">{indicatorCodes}</td>
+                              <td className="border border-gray-200 p-[6px] text-left">
                                 {matchedService ? matchedService.name : "-"}
                               </td>
-                              <td style={tableCellStyle}>
+                              <td className="border border-gray-200 p-[6px] text-left">
                                 {matchedService
                                   ? formatNumber(matchedService.lineTotal)
                                   : "0"}
                               </td>
-                              <td style={tableCellStyle}>
+                              <td className="border border-gray-200 p-[6px] text-left">
                                 {diag.note || "-"}
                               </td>
                               {/* Per spec: "Тэмдэглэл" column remains blank (distinct from diagnosis note) */}
-                              <td style={tableCellStyle}>-</td>
+                              <td className="border border-gray-200 p-[6px] text-left">-</td>
                             </tr>
                           );
                         });
@@ -424,17 +368,17 @@ export default function EncounterReportModal({
                             const rowNum = data.diagnoses.length + i + 1;
                             return (
                               <tr key={`svc-${item.id}`}>
-                                <td style={tableCellStyle}>{rowNum}</td>
-                                <td style={tableCellStyle}>{formatTeethNumbers(item.teethNumbers)}</td>
-                                <td style={tableCellStyle}>-</td>
-                                <td style={tableCellStyle}>-</td>
-                                <td style={tableCellStyle}>-</td>
-                                <td style={tableCellStyle}>{item.name}</td>
-                                <td style={tableCellStyle}>
+                                <td className="border border-gray-200 p-[6px] text-left">{rowNum}</td>
+                                <td className="border border-gray-200 p-[6px] text-left">{formatTeethNumbers(item.teethNumbers)}</td>
+                                <td className="border border-gray-200 p-[6px] text-left">-</td>
+                                <td className="border border-gray-200 p-[6px] text-left">-</td>
+                                <td className="border border-gray-200 p-[6px] text-left">-</td>
+                                <td className="border border-gray-200 p-[6px] text-left">{item.name}</td>
+                                <td className="border border-gray-200 p-[6px] text-left">
                                   {formatNumber(item.lineTotal)}
                                 </td>
-                                <td style={tableCellStyle}>-</td>
-                                <td style={tableCellStyle}>-</td>
+                                <td className="border border-gray-200 p-[6px] text-left">-</td>
+                                <td className="border border-gray-200 p-[6px] text-left">-</td>
                               </tr>
                             );
                           });
@@ -444,17 +388,17 @@ export default function EncounterReportModal({
                           data.diagnoses.length + extraServiceRows.length;
                         const extraProductRows = productItems.map((item, i) => (
                           <tr key={`prod-${item.id}`}>
-                            <td style={tableCellStyle}>{baseProductRow + i + 1}</td>
-                            <td style={tableCellStyle}>{formatTeethNumbers(item.teethNumbers)}</td>
-                            <td style={tableCellStyle}>-</td>
-                            <td style={tableCellStyle}>-</td>
-                            <td style={tableCellStyle}>-</td>
-                            <td style={tableCellStyle}>{item.name}</td>
-                            <td style={tableCellStyle}>
+                            <td className="border border-gray-200 p-[6px] text-left">{baseProductRow + i + 1}</td>
+                            <td className="border border-gray-200 p-[6px] text-left">{formatTeethNumbers(item.teethNumbers)}</td>
+                            <td className="border border-gray-200 p-[6px] text-left">-</td>
+                            <td className="border border-gray-200 p-[6px] text-left">-</td>
+                            <td className="border border-gray-200 p-[6px] text-left">-</td>
+                            <td className="border border-gray-200 p-[6px] text-left">{item.name}</td>
+                            <td className="border border-gray-200 p-[6px] text-left">
                               {formatNumber(item.lineTotal)}
                             </td>
-                            <td style={tableCellStyle}>-</td>
-                            <td style={tableCellStyle}>-</td>
+                            <td className="border border-gray-200 p-[6px] text-left">-</td>
+                            <td className="border border-gray-200 p-[6px] text-left">-</td>
                           </tr>
                         ));
 
@@ -469,11 +413,7 @@ export default function EncounterReportModal({
                             <tr>
                               <td
                                 colSpan={9}
-                                style={{
-                                  ...tableCellStyle,
-                                  textAlign: "center",
-                                  color: "#6b7280",
-                                }}
+                                className="border border-gray-200 p-[6px] text-center text-gray-500"
                               >
                                 Оношилгоо бүртгээгүй байна.
                               </td>
@@ -490,25 +430,16 @@ export default function EncounterReportModal({
 
               {/* Totals Block */}
               {data.invoice && (
-                <section style={{ marginBottom: 24 }}>
-                  <h3
-                    style={{ fontSize: 14, marginBottom: 8, fontWeight: 600 }}
-                  >
+                <section className="mb-6">
+                  <h3 className="text-sm mb-2 font-semibold">
                     Төлбөрийн мэдээлэл
                   </h3>
-                  <div
-                    style={{
-                      padding: 12,
-                      background: "#f9fafb",
-                      borderRadius: 4,
-                      fontSize: 13,
-                    }}
-                  >
-                    <div style={{ marginBottom: 4 }}>
+                  <div className="p-3 bg-gray-50 rounded text-[13px]">
+                    <div className="mb-1">
                       <strong>Нийт дүн (хөнгөлөлт өгөхөөс өмнө):</strong>{" "}
                       {formatNumber(data.invoice.totalBeforeDiscount)} ₮
                     </div>
-                    <div style={{ marginBottom: 4 }}>
+                    <div className="mb-1">
                       <strong>Хөнгөлөлт:</strong>{" "}
                       {getDiscountLabel(data.invoice.discountPercent)}
                       {data.invoice.collectionDiscountAmount > 0 &&
@@ -516,11 +447,11 @@ export default function EncounterReportModal({
                           data.invoice.collectionDiscountAmount
                         )} ₮)`}
                     </div>
-                    <div style={{ marginBottom: 4 }}>
+                    <div className="mb-1">
                       <strong>Эцсийн дүн:</strong>{" "}
                       {formatNumber(data.invoice.finalAmount)} ₮
                     </div>
-                    <div style={{ marginBottom: 4 }}>
+                    <div className="mb-1">
                       <strong>Төлсөн:</strong>{" "}
                       {formatNumber(
                         data.invoice.payments.reduce(
@@ -545,35 +476,26 @@ export default function EncounterReportModal({
 
                   {/* Payments by method */}
                   {data.invoice.payments.length > 0 && (
-                    <div style={{ marginTop: 12 }}>
-                      <strong
-                        style={{ fontSize: 13, display: "block", marginBottom: 4 }}
-                      >
+                    <div className="mt-3">
+                      <strong className="text-[13px] block mb-1">
                         Төлбөрийн дэлгэрэнгүй:
                       </strong>
-                      <table
-                        style={{
-                          width: "100%",
-                          borderCollapse: "collapse",
-                          fontSize: 12,
-                          border: "1px solid #e5e7eb",
-                        }}
-                      >
+                      <table className="w-full border-collapse text-xs border border-gray-200">
                         <thead>
-                          <tr style={{ background: "#f3f4f6" }}>
-                            <th style={tableCellStyle}>Огноо</th>
-                            <th style={tableCellStyle}>Төлбөрийн хэрэгсэл</th>
-                            <th style={tableCellStyle}>Дүн</th>
+                          <tr className="bg-gray-100">
+                            <th className="border border-gray-200 p-[6px] text-left">Огноо</th>
+                            <th className="border border-gray-200 p-[6px] text-left">Төлбөрийн хэрэгсэл</th>
+                            <th className="border border-gray-200 p-[6px] text-left">Дүн</th>
                           </tr>
                         </thead>
                         <tbody>
                           {data.invoice.payments.map((payment) => (
                             <tr key={payment.id}>
-                              <td style={tableCellStyle}>
+                              <td className="border border-gray-200 p-[6px] text-left">
                                 {formatDateTime(payment.timestamp)}
                               </td>
-                              <td style={tableCellStyle}>{formatPaymentMethod(payment.method)}</td>
-                              <td style={tableCellStyle}>
+                              <td className="border border-gray-200 p-[6px] text-left">{formatPaymentMethod(payment.method)}</td>
+                              <td className="border border-gray-200 p-[6px] text-left">
                                 {formatNumber(payment.amount)} ₮
                               </td>
                             </tr>
@@ -585,7 +507,7 @@ export default function EncounterReportModal({
 
                   {/* E-Barimt Receipt */}
                   {data.invoice.eBarimtReceipt && (
-                    <div style={{ marginTop: 12, fontSize: 13 }}>
+                    <div className="mt-3 text-[13px]">
                       <strong>Э-Баримт:</strong> №
                       {data.invoice.eBarimtReceipt.receiptNumber} (
                       {formatDateTime(data.invoice.eBarimtReceipt.timestamp)})
@@ -598,27 +520,18 @@ export default function EncounterReportModal({
               {data.invoice &&
                 data.invoice.items.filter((item) => item.itemType === "PRODUCT")
                   .length > 0 && (
-                  <section style={{ marginBottom: 24 }}>
-                    <h3
-                      style={{ fontSize: 14, marginBottom: 8, fontWeight: 600 }}
-                    >
+                  <section className="mb-6">
+                    <h3 className="text-sm mb-2 font-semibold">
                       Бүтээгдэхүүн
                     </h3>
-                    <table
-                      style={{
-                        width: "100%",
-                        borderCollapse: "collapse",
-                        fontSize: 12,
-                        border: "1px solid #e5e7eb",
-                      }}
-                    >
+                    <table className="w-full border-collapse text-xs border border-gray-200">
                       <thead>
-                        <tr style={{ background: "#f3f4f6" }}>
-                          <th style={tableCellStyle}>№</th>
-                          <th style={tableCellStyle}>Нэр</th>
-                          <th style={tableCellStyle}>Нэгж үнэ</th>
-                          <th style={tableCellStyle}>Тоо ширхэг</th>
-                          <th style={tableCellStyle}>Нийт</th>
+                        <tr className="bg-gray-100">
+                          <th className="border border-gray-200 p-[6px] text-left">№</th>
+                          <th className="border border-gray-200 p-[6px] text-left">Нэр</th>
+                          <th className="border border-gray-200 p-[6px] text-left">Нэгж үнэ</th>
+                          <th className="border border-gray-200 p-[6px] text-left">Тоо ширхэг</th>
+                          <th className="border border-gray-200 p-[6px] text-left">Нийт</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -626,13 +539,13 @@ export default function EncounterReportModal({
                           .filter((item) => item.itemType === "PRODUCT")
                           .map((item, idx) => (
                             <tr key={item.id}>
-                              <td style={tableCellStyle}>{idx + 1}</td>
-                              <td style={tableCellStyle}>{item.name}</td>
-                              <td style={tableCellStyle}>
+                              <td className="border border-gray-200 p-[6px] text-left">{idx + 1}</td>
+                              <td className="border border-gray-200 p-[6px] text-left">{item.name}</td>
+                              <td className="border border-gray-200 p-[6px] text-left">
                                 {formatNumber(item.unitPrice)} ₮
                               </td>
-                              <td style={tableCellStyle}>{item.quantity}</td>
-                              <td style={tableCellStyle}>
+                              <td className="border border-gray-200 p-[6px] text-left">{item.quantity}</td>
+                              <td className="border border-gray-200 p-[6px] text-left">
                                 {formatNumber(item.lineTotal)} ₮
                               </td>
                             </tr>
@@ -644,43 +557,34 @@ export default function EncounterReportModal({
 
               {/* Prescription Section */}
               {data.prescription && data.prescription.items.length > 0 && (
-                <section style={{ marginBottom: 24 }}>
-                  <h3
-                    style={{ fontSize: 14, marginBottom: 8, fontWeight: 600 }}
-                  >
+                <section className="mb-6">
+                  <h3 className="text-sm mb-2 font-semibold">
                     Жор
                   </h3>
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      fontSize: 12,
-                      border: "1px solid #e5e7eb",
-                    }}
-                  >
+                  <table className="w-full border-collapse text-xs border border-gray-200">
                     <thead>
-                      <tr style={{ background: "#f3f4f6" }}>
-                        <th style={tableCellStyle}>№</th>
-                        <th style={tableCellStyle}>Эмийн нэр</th>
-                        <th style={tableCellStyle}>Хугацаа (өдөр)</th>
-                        <th style={tableCellStyle}>Нэг удаагийн тоо</th>
-                        <th style={tableCellStyle}>Өдөрт</th>
-                        <th style={tableCellStyle}>Тэмдэглэл</th>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-200 p-[6px] text-left">№</th>
+                        <th className="border border-gray-200 p-[6px] text-left">Эмийн нэр</th>
+                        <th className="border border-gray-200 p-[6px] text-left">Хугацаа (өдөр)</th>
+                        <th className="border border-gray-200 p-[6px] text-left">Нэг удаагийн тоо</th>
+                        <th className="border border-gray-200 p-[6px] text-left">Өдөрт</th>
+                        <th className="border border-gray-200 p-[6px] text-left">Тэмдэглэл</th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.prescription.items.map((item, idx) => (
                         <tr key={item.id}>
-                          <td style={tableCellStyle}>{idx + 1}</td>
-                          <td style={tableCellStyle}>{item.drugName}</td>
-                          <td style={tableCellStyle}>{item.durationDays}</td>
-                          <td style={tableCellStyle}>
+                          <td className="border border-gray-200 p-[6px] text-left">{idx + 1}</td>
+                          <td className="border border-gray-200 p-[6px] text-left">{item.drugName}</td>
+                          <td className="border border-gray-200 p-[6px] text-left">{item.durationDays}</td>
+                          <td className="border border-gray-200 p-[6px] text-left">
                             {item.quantityPerTake}
                           </td>
-                          <td style={tableCellStyle}>
+                          <td className="border border-gray-200 p-[6px] text-left">
                             {item.frequencyPerDay}
                           </td>
-                          <td style={tableCellStyle}>{item.note || "-"}</td>
+                          <td className="border border-gray-200 p-[6px] text-left">{item.note || "-"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -690,19 +594,11 @@ export default function EncounterReportModal({
 
               {/* Media Section */}
               {data.media.length > 0 && (
-                <section style={{ marginBottom: 24 }}>
-                  <h3
-                    style={{ fontSize: 14, marginBottom: 8, fontWeight: 600 }}
-                  >
+                <section className="mb-6">
+                  <h3 className="text-sm mb-2 font-semibold">
                     Зураг / Файл
                   </h3>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-                      gap: 8,
-                    }}
-                  >
+                  <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(120px,1fr))]">
                     {data.media.map((m) => {
                       const t = (m.type || "").toLowerCase();
                       const isImage =
@@ -713,12 +609,7 @@ export default function EncounterReportModal({
                       return (
                         <div
                           key={m.id}
-                          style={{
-                            border: "1px solid #e5e7eb",
-                            borderRadius: 4,
-                            padding: 4,
-                            textAlign: "center",
-                          }}
+                          className="border border-gray-200 rounded p-1 text-center"
                         >
                           {isImage ? (
                             <a
@@ -729,12 +620,7 @@ export default function EncounterReportModal({
                               <img
                                 src={m.filePath}
                                 alt={`Media ${m.id}`}
-                                style={{
-                                  width: "100%",
-                                  height: 100,
-                                  objectFit: "cover",
-                                  borderRadius: 4,
-                                }}
+                                className="w-full h-[100px] object-cover rounded"
                               />
                             </a>
                           ) : (
@@ -742,23 +628,12 @@ export default function EncounterReportModal({
                               href={m.filePath}
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={{
-                                display: "block",
-                                padding: 12,
-                                color: "#3b82f6",
-                                fontSize: 12,
-                              }}
+                              className="block p-3 text-blue-500 text-xs"
                             >
                               Файл үзэх
                             </a>
                           )}
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: "#6b7280",
-                              marginTop: 4,
-                            }}
-                          >
+                          <div className="text-[11px] text-gray-500 mt-1">
                             {t === "xray" && "(X-ray) "}
                             {m.toothCode && `Шүд: ${m.toothCode}`}
                           </div>
@@ -770,15 +645,9 @@ export default function EncounterReportModal({
               )}
 
               {/* Doctor Signature Block */}
-              <section style={{ marginTop: 24 }}>
-                <div
-                  style={{
-                    padding: 12,
-                    background: "#f9fafb",
-                    borderRadius: 4,
-                  }}
-                >
-                  <div style={{ fontSize: 13, marginBottom: 8 }}>
+              <section className="mt-6">
+                <div className="p-3 bg-gray-50 rounded">
+                  <div className="text-[13px] mb-2">
                     <strong>Эмч:</strong>{" "}
                     {formatDoctorName(data.doctor)}
                   </div>
@@ -787,12 +656,7 @@ export default function EncounterReportModal({
                       <img
                         src={data.doctor.signatureImagePath}
                         alt="Doctor signature"
-                        style={{
-                          maxWidth: 200,
-                          maxHeight: 80,
-                          border: "1px solid #e5e7eb",
-                          borderRadius: 4,
-                        }}
+                        className="max-w-[200px] max-h-[80px] border border-gray-200 rounded"
                       />
                     </div>
                   )}
@@ -805,9 +669,3 @@ export default function EncounterReportModal({
     </div>
   );
 }
-
-const tableCellStyle: React.CSSProperties = {
-  border: "1px solid #e5e7eb",
-  padding: 6,
-  textAlign: "left",
-};

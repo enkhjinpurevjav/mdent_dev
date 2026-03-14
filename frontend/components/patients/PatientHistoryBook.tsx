@@ -514,7 +514,7 @@ const PatientHistoryBook: React.FC<Props> = ({
   const renderQuestionnaireSection = () => {
     if (!visitCard) {
       return (
-        <div style={{ color: "#6b7280", fontSize: 13, marginTop: 16 }}>
+        <div className="text-gray-500 text-[13px] mt-4">
           Үзлэгийн карт бөглөөгүй байна.
         </div>
       );
@@ -543,23 +543,15 @@ const PatientHistoryBook: React.FC<Props> = ({
     const yesFindings = collectYesFindings(answers, !isAdult);
 
     return (
-      <div style={{ marginTop: 16 }}>
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            marginBottom: 8,
-            borderBottom: "1px solid #e5e7eb",
-            paddingBottom: 4,
-          }}
-        >
+      <div className="mt-4">
+        <div className="text-sm font-semibold mb-2 border-b border-gray-200 pb-1">
           УРЬДЧИЛАН СЭРГИЙЛЭХ АСУУМЖ
         </div>
         
         {/* Reason to visit - bullet format */}
         {reasonBullets.length > 0 && (
-          <div style={{ fontSize: 12, marginBottom: 8 }}>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>
+          <div className="text-xs mb-2">
+            <div className="font-semibold mb-1">
               Таны эмнэлэгт хандах болсон шалтгаан юу вэ?
             </div>
             {reasonBullets.map((reason, idx) => (
@@ -571,11 +563,11 @@ const PatientHistoryBook: React.FC<Props> = ({
         {/* Previous dental visit section - only show if hasVisited is yes */}
         {prevDental.hasVisited === "yes" && (
           <>
-            <div style={{ fontSize: 12, marginBottom: 4 }}>
+            <div className="text-xs mb-1">
               • Өмнө нь шүдний эмнэлэгт үзүүлж байсан: Тийм
             </div>
             {hasText(prevDental.clinicName) && (
-              <div style={{ fontSize: 12, marginBottom: 4 }}>
+              <div className="text-xs mb-1">
                 • Өмнө үзүүлж байсан эмнэлгийн нэр: {prevDental.clinicName}
               </div>
             )}
@@ -585,11 +577,11 @@ const PatientHistoryBook: React.FC<Props> = ({
         {/* Complication section - NOT nested under hasVisited */}
         {prevDental.hadComplication === "yes" && (
           <>
-            <div style={{ fontSize: 12, marginBottom: 4 }}>
+            <div className="text-xs mb-1">
               • Өмнө шүдний эмчилгээ хийхэд хүндрэл гарч байсан: Тийм
             </div>
             {hasText(prevDental.reactionOrComplication) && (
-              <div style={{ fontSize: 12, marginBottom: 4 }}>
+              <div className="text-xs mb-1">
                 • Тайлбар: {prevDental.reactionOrComplication}
               </div>
             )}
@@ -598,24 +590,15 @@ const PatientHistoryBook: React.FC<Props> = ({
 
         {/* Dentist attention notes - only if has text */}
         {hasText(answers.dentistAttentionNotes) && (
-          <div style={{ fontSize: 12, marginBottom: 4 }}>
+          <div className="text-xs mb-1">
             • Шүдний эмчилгээний үед эмчийн зүгээс анхаарах зүйлс: {answers.dentistAttentionNotes}
           </div>
         )}
 
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            marginTop: 16,
-            marginBottom: 8,
-            borderBottom: "1px solid #e5e7eb",
-            paddingBottom: 4,
-          }}
-        >
+        <div className="text-sm font-semibold mt-4 mb-2 border-b border-gray-200 pb-1">
           ЕРӨНХИЙ БИЕИЙН ТАЛААРХИ АСУУМЖ
         </div>
-        <div style={{ fontSize: 12 }}>
+        <div className="text-xs">
           {yesFindings.length > 0 ? (
             yesFindings.map((finding, idx) => (
               <div key={idx}>
@@ -624,17 +607,17 @@ const PatientHistoryBook: React.FC<Props> = ({
               </div>
             ))
           ) : (
-            <div style={{ color: "#6b7280" }}>Мэдээлэл ороогүй байна.</div>
+            <div className="text-gray-500">Мэдээлэл ороогүй байна.</div>
           )}
         </div>
 
         {answers.mainComplaint && (
-          <div style={{ fontSize: 12, marginTop: 12 }}>
+          <div className="text-xs mt-3">
             <strong>Гол гомдол:</strong> {answers.mainComplaint}
           </div>
         )}
         {answers.pastHistory && (
-          <div style={{ fontSize: 12, marginTop: 4 }}>
+          <div className="text-xs mt-1">
             <strong>Өмнөх түүх:</strong> {answers.pastHistory}
           </div>
         )}
@@ -645,33 +628,18 @@ const PatientHistoryBook: React.FC<Props> = ({
   return (
     <div>
       {/* Print and filter controls (hide in print) */}
-      <div className="no-print" style={{ marginBottom: 16 }}>
+      <div className="no-print mb-4">
         {!isDoctor && (
-        <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+        <div className="flex gap-3 mb-3">
           <button
             onClick={() => window.print()}
-            style={{
-              padding: "8px 16px",
-              background: "#2563eb",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-              fontWeight: 500,
-            }}
+            className="px-4 py-2 bg-blue-600 text-white border-none rounded-md cursor-pointer font-medium"
           >
             🖨 Хэвлэх
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            style={{
-              padding: "8px 16px",
-              background: "#6b7280",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
+            className="px-4 py-2 bg-gray-500 text-white border-none rounded-md cursor-pointer"
           >
             {showFilters ? "Шүүлтүүр хаах" : "Шүүлтүүр нээх"}
           </button>
@@ -679,87 +647,59 @@ const PatientHistoryBook: React.FC<Props> = ({
         )}
 
         {showFilters && (
-          <div
-            style={{
-              padding: 12,
-              background: "#f9fafb",
-              borderRadius: 6,
-              border: "1px solid #e5e7eb",
-            }}
-          >
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+          <div className="p-3 bg-gray-50 rounded-md border border-gray-200">
+            <div className="text-sm font-semibold mb-2">
               Шүүлтүүр
             </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
-                marginBottom: 12,
-              }}
-            >
+            <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
-                <label
-                  style={{ fontSize: 12, color: "#6b7280", display: "block" }}
-                >
+                <label className="text-xs text-gray-500 block">
                   Эхлэх огноо:
                 </label>
                 <input
                   type="date"
                   value={filterStartDate}
                   onChange={(e) => setFilterStartDate(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "4px 6px",
-                    borderRadius: 4,
-                    border: "1px solid #d1d5db",
-                  }}
+                  className="w-full px-[6px] py-1 rounded border border-gray-300"
                 />
               </div>
               <div>
-                <label
-                  style={{ fontSize: 12, color: "#6b7280", display: "block" }}
-                >
+                <label className="text-xs text-gray-500 block">
                   Дуусах огноо:
                 </label>
                 <input
                   type="date"
                   value={filterEndDate}
                   onChange={(e) => setFilterEndDate(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "4px 6px",
-                    borderRadius: 4,
-                    border: "1px solid #d1d5db",
-                  }}
+                  className="w-full px-[6px] py-1 rounded border border-gray-300"
                 />
               </div>
             </div>
-            <div style={{ fontSize: 12 }}>
-              <label style={{ display: "block", marginBottom: 4 }}>
+            <div className="text-xs">
+              <label className="block mb-1">
                 <input
                   type="checkbox"
                   checked={showHeader}
                   onChange={(e) => setShowHeader(e.target.checked)}
-                  style={{ marginRight: 6 }}
+                  className="mr-1.5"
                 />
                 Толгой хэсэг харуулах
               </label>
-              <label style={{ display: "block", marginBottom: 4 }}>
+              <label className="block mb-1">
                 <input
                   type="checkbox"
                   checked={showQuestionnaire}
                   onChange={(e) => setShowQuestionnaire(e.target.checked)}
-                  style={{ marginRight: 6 }}
+                  className="mr-1.5"
                 />
                 Асуумж харуулах
               </label>
-              <label style={{ display: "block" }}>
+              <label className="block">
                 <input
                   type="checkbox"
                   checked={showTable}
                   onChange={(e) => setShowTable(e.target.checked)}
-                  style={{ marginRight: 6 }}
+                  className="mr-1.5"
                 />
                 Онош эмчилгээний хүснэгт харуулах
               </label>
@@ -771,26 +711,12 @@ const PatientHistoryBook: React.FC<Props> = ({
       {/* Printable content */}
       <div
         id="patient-history-book-printable"
-        className="printable-content"
-        style={{
-          background: "white",
-          padding: 24,
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-        }}
+        className="printable-content bg-white p-6 rounded-lg border border-gray-200"
       >
         {showHeader && !isDoctor && (
           <>
             {/* Logo and header */}
-<div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "160px 1fr 160px",
-    alignItems: "start",
-    marginBottom: 16,
-    columnGap: 12,
-  }}
->
+<div className="grid [grid-template-columns:160px_1fr_160px] items-start gap-3 mb-4">
   {/* Left: logo + date (left aligned) */}
   <div>
     <img
@@ -805,52 +731,29 @@ const PatientHistoryBook: React.FC<Props> = ({
         placeholder.textContent = "CLINIC LOGO";
         e.currentTarget.parentElement?.insertBefore(placeholder, e.currentTarget);
       }}
-      style={{
-        width: 100,
-        height: "auto",
-        objectFit: "contain",
-        display: "block",
-        marginBottom: 6,
-      }}
+      className="w-[100px] h-auto object-contain block mb-1.5"
     />
 
-    <div style={{ fontSize: 12, textAlign: "left", whiteSpace: "nowrap" }}>
+    <div className="text-xs text-left whitespace-nowrap">
       <strong>Огноо:</strong> {getCardFillDate()}
     </div>
   </div>
 
   {/* Middle: title centered */}
-  <div style={{ textAlign: "center" }}>
-    <h1
-      style={{
-        fontSize: 18,
-        fontWeight: 700,
-        margin: 0,
-        marginTop: 6,
-      }}
-    >
+  <div className="text-center">
+    <h1 className="text-lg font-bold m-0 mt-1.5">
       ҮЙЛЧЛҮҮЛЭГЧИЙН КАРТ
     </h1>
   </div>
 
   {/* Right: book number on far right */}
-  <div style={{ fontSize: 12, textAlign: "right", whiteSpace: "nowrap" }}>
+  <div className="text-xs text-right whitespace-nowrap">
     <strong>Дугаар:</strong> {patientBook.bookNumber}
   </div>
 </div>
 
             {/* Patient information grid */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
-                gap: 8,
-                fontSize: 12,
-                marginBottom: 16,
-                paddingBottom: 16,
-                borderBottom: "2px solid #e5e7eb",
-              }}
-            >
+            <div className="grid grid-cols-2 gap-2 text-xs mb-4 pb-4 border-b-2 border-gray-200">
               <div>
                 <strong>Овог Нэр:</strong>{" "}
                 {patient.ovog
@@ -879,7 +782,7 @@ const PatientHistoryBook: React.FC<Props> = ({
               <div>
                 <strong>Гэрийн хаяг:</strong> {displayOrEmpty(patient.address)}
               </div>
-              <div style={{ gridColumn: "1 / -1" }}>
+              <div className="col-span-2">
                 <strong>Ажлын газар:</strong> {displayOrEmpty(patient.workPlace)}
               </div>
             </div>
@@ -891,115 +794,39 @@ const PatientHistoryBook: React.FC<Props> = ({
 
         {/* Diagnosis/Treatment table */}
         {showTable && diagnosisRows.length > 0 && (
-          <div style={{ marginTop: 24 }}>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                marginBottom: 12,
-                textAlign: "center",
-              }}
-            >
+          <div className="mt-6">
+            <div className="text-sm font-semibold mb-3 text-center">
               ЭМЧИЛГЭЭНИЙ БҮРТГЭЛ
             </div>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 10,
-                border: "1px solid #000",
-              }}
-            >
+            <table className="w-full border-collapse text-[10px] border border-black">
               <thead>
-                <tr style={{ background: "#f3f4f6" }}>
-                  <th
-                    style={{
-                      border: "1px solid #000",
-                      padding: "4px 6px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      width: "8%",
-                    }}
-                  >
+                <tr className="bg-gray-100">
+                  <th className="border border-black p-[4px_6px] text-left font-semibold w-[8%]">
                     Огноо
                   </th>
-                  <th
-                    style={{
-                      border: "1px solid #000",
-                      padding: "4px 6px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      width: "8%",
-                    }}
-                  >
+                  <th className="border border-black p-[4px_6px] text-left font-semibold w-[8%]">
                     Шүдний дугаар
                   </th>
-                  <th
-                    style={{
-                      border: "1px solid #000",
-                      padding: "4px 6px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      width: "18%",
-                    }}
-                  >
+                  <th className="border border-black p-[4px_6px] text-left font-semibold w-[18%]">
                     Бодит үзлэг, зовиур
                   </th>
-                  <th
-                    style={{
-                      border: "1px solid #000",
-                      padding: "4px 6px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      width: "8%",
-                    }}
-                  >
+                  <th className="border border-black p-[4px_6px] text-left font-semibold w-[8%]">
                     Онош
                   </th>
-                  <th
-                    style={{
-                      border: "1px solid #000",
-                      padding: "4px 6px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      width: "20%",
-                    }}
-                  >
+                  <th className="border border-black p-[4px_6px] text-left font-semibold w-[20%]">
                     Эмчилгээ
                   </th>
                   <th
-                    className={isDoctor ? "hidden md:table-cell" : undefined}
-                    style={{
-                      border: "1px solid #000",
-                      padding: "4px 6px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      width: "12%",
-                    }}
+                    className={`border border-black p-[4px_6px] text-left font-semibold w-[12%]${isDoctor ? " hidden md:table-cell" : ""}`}
                   >
                     Индикатор
                   </th>
                   <th
-                    className={isDoctor ? "hidden md:table-cell" : undefined}
-                    style={{
-                      border: "1px solid #000",
-                      padding: "4px 6px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      width: "14%",
-                    }}
+                    className={`border border-black p-[4px_6px] text-left font-semibold w-[14%]${isDoctor ? " hidden md:table-cell" : ""}`}
                   >
                     Тэмдэглэл
                   </th>
-                  <th
-                    style={{
-                      border: "1px solid #000",
-                      padding: "4px 6px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      width: "12%",
-                    }}
-                  >
+                  <th className="border border-black p-[4px_6px] text-left font-semibold w-[12%]">
                     Эмч болон сувилагч
                   </th>
                 </tr>
@@ -1007,84 +834,38 @@ const PatientHistoryBook: React.FC<Props> = ({
               <tbody>
                 {diagnosisRows.map((row, idx) => (
                   <tr key={idx}>
-                    <td
-                      style={{
-                        border: "1px solid #000",
-                        padding: "4px 6px",
-                        verticalAlign: "top",
-                      }}
-                    >
+                    <td className="border border-black p-[4px_6px] align-top">
                       {row.date}
                     </td>
-                    <td
-                      style={{
-                        border: "1px solid #000",
-                        padding: "4px 6px",
-                        verticalAlign: "top",
-                      }}
-                    >
+                    <td className="border border-black p-[4px_6px] align-top">
                       {row.toothCode}
                     </td>
-                    <td
-                      style={{
-                        border: "1px solid #000",
-                        padding: "4px 6px",
-                        verticalAlign: "top",
-                      }}
-                    >
+                    <td className="border border-black p-[4px_6px] align-top">
                       {row.complaints.map((c, i) => (
                         <div key={i}>{c}</div>
                       ))}
                       {row.complaints.length === 0 && "-"}
                     </td>
-                    <td
-                      style={{
-                        border: "1px solid #000",
-                        padding: "4px 6px",
-                        verticalAlign: "top",
-                      }}
-                    >
+                    <td className="border border-black p-[4px_6px] align-top">
                       {row.diagnosis}
                     </td>
-                    <td
-                      style={{
-                        border: "1px solid #000",
-                        padding: "4px 6px",
-                        verticalAlign: "top",
-                      }}
-                    >
+                    <td className="border border-black p-[4px_6px] align-top">
                       {row.treatment.map((t, i) => (
                         <div key={i}>{t}</div>
                       ))}
                       {row.treatment.length === 0 && "-"}
                     </td>
                     <td
-                      className={isDoctor ? "hidden md:table-cell" : undefined}
-                      style={{
-                        border: "1px solid #000",
-                        padding: "4px 6px",
-                        verticalAlign: "top",
-                      }}
+                      className={`border border-black p-[4px_6px] align-top${isDoctor ? " hidden md:table-cell" : ""}`}
                     >
                       {row.indicators.length > 0 ? row.indicators.join(", ") : "-"}
                     </td>
                     <td
-                      className={isDoctor ? "hidden md:table-cell" : undefined}
-                      style={{
-                        border: "1px solid #000",
-                        padding: "4px 6px",
-                        verticalAlign: "top",
-                      }}
+                      className={`border border-black p-[4px_6px] align-top${isDoctor ? " hidden md:table-cell" : ""}`}
                     >
                       {row.note || "-"}
                     </td>
-                    <td
-                      style={{
-                        border: "1px solid #000",
-                        padding: "4px 6px",
-                        verticalAlign: "top",
-                      }}
-                    >
+                    <td className="border border-black p-[4px_6px] align-top">
                       {row.doctorNurse}
                     </td>
                   </tr>
@@ -1095,14 +876,7 @@ const PatientHistoryBook: React.FC<Props> = ({
         )}
 
         {showTable && diagnosisRows.length === 0 && (
-          <div
-            style={{
-              marginTop: 24,
-              color: "#6b7280",
-              fontSize: 13,
-              textAlign: "center",
-            }}
-          >
+          <div className="mt-6 text-gray-500 text-[13px] text-center">
             Онош эмчилгээний бүртгэл алга.
           </div>
         )}

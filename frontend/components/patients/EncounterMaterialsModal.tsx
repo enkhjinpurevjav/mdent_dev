@@ -12,57 +12,22 @@ export default function EncounterMaterialsModal({ open, onClose, encounterId }: 
 
   return (
     <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(0,0,0,0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1100,
-        padding: 16,
-      }}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1100] p-4"
       onClick={onClose}
     >
       <div
-        style={{
-          background: "white",
-          borderRadius: 8,
-          maxWidth: 800,
-          width: "100%",
-          maxHeight: "90vh",
-          overflow: "auto",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.18)",
-        }}
+        className="bg-white rounded-lg w-full max-w-[800px] max-h-[90vh] overflow-auto shadow-[0_4px_24px_rgba(0,0,0,0.18)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div
-          style={{
-            padding: "12px 16px",
-            borderBottom: "1px solid #e5e7eb",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600 }}>
+        <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+          <h2 className="m-0 text-[17px] font-semibold">
             Хавсралтууд
           </h2>
           <button
             type="button"
             onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: 22,
-              cursor: "pointer",
-              color: "#6b7280",
-              lineHeight: 1,
-            }}
+            className="bg-transparent border-none text-[22px] cursor-pointer text-gray-500 leading-none"
             aria-label="Хаах"
           >
             ×
@@ -70,7 +35,7 @@ export default function EncounterMaterialsModal({ open, onClose, encounterId }: 
         </div>
 
         {/* Content */}
-        <div style={{ padding: 16 }}>
+        <div className="p-4">
           <BillingMaterialsView encounterId={encounterId} />
         </div>
       </div>
