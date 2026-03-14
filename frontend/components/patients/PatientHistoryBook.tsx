@@ -798,7 +798,8 @@ const PatientHistoryBook: React.FC<Props> = ({
             <div className="text-sm font-semibold mb-3 text-center">
               ЭМЧИЛГЭЭНИЙ БҮРТГЭЛ
             </div>
-            <table className="w-full border-collapse text-[10px] border border-black">
+            <div className="overflow-x-auto max-w-full" style={{ WebkitOverflowScrolling: "touch" }}>
+            <table className="w-full border-collapse text-[10px] border border-black min-w-[900px]">
               <thead>
                 <tr className="bg-gray-100">
                   <th className="border border-black p-[4px_6px] text-left font-semibold w-[8%]">
@@ -872,6 +873,7 @@ const PatientHistoryBook: React.FC<Props> = ({
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 

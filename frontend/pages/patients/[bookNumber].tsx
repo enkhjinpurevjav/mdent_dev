@@ -349,7 +349,7 @@ export default function PatientProfilePage() {
       {/* In DoctorLayout: sticky top-11 clears the fixed 44px header; no negative margins needed */}
      {patient && pb && (
   <div className="fixed top-11 left-0 right-0 z-[90] border-b border-white/10 bg-[#061325]">
-    <div className={isDoctor ? "px-3 sm:px-4 sm:max-w-[720px] sm:mx-auto" : "px-5"}>
+    <div className={isDoctor ? "px-3 sm:px-4 sm:max-w-[720px] sm:mx-auto" : "max-w-7xl mx-auto px-5"}>
       <div className="flex items-center">
         <div className="flex-1 overflow-x-auto">
           <div className="flex items-center gap-1 py-2 min-w-max">
@@ -820,7 +820,8 @@ export default function PatientProfilePage() {
                     </div>
                   ) : (
                     <>
-                      <table className="w-full border-collapse text-sm">
+                      <div className="overflow-x-auto max-w-full" style={{ WebkitOverflowScrolling: "touch" }}>
+                      <table className="w-full border-collapse text-sm min-w-[600px]">
                         <thead className="bg-gray-50">
                           <tr>
                             <th className="text-left border-b border-gray-200 py-2 px-2 font-semibold text-gray-700">
@@ -899,6 +900,7 @@ export default function PatientProfilePage() {
                           ))}
                         </tbody>
                       </table>
+                      </div>
                       {/* Pagination */}
                       <div className="flex items-center justify-between mt-3 text-sm text-gray-600">
                         <span>
