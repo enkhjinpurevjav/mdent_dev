@@ -24,20 +24,10 @@ function formatNurseDisplayName(d: NurseDetails | null, fallbackEmail?: string |
 }
 
 interface Props {
-  /**
-   * API URL to fetch the nurse profile from.
-   * Defaults to `/api/nurse/me` when not provided.
-   */
   meUrl?: string;
-  /** When true, shows a logout button at the bottom. Default false. */
   showLogout?: boolean;
 }
 
-/**
- * NurseProfileSummaryView — display-only nurse profile.
- * Used by:
- *   - Nurse portal profile page (meUrl="/api/nurse/me", showLogout=true)
- */
 export default function NurseProfileSummaryView({
   meUrl = "/api/nurse/me",
   showLogout = false,
@@ -48,8 +38,11 @@ export default function NurseProfileSummaryView({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
 
-  // Change password form state
-  const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [pwForm, setPwForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
   const [pwLoading, setPwLoading] = useState(false);
   const [pwError, setPwError] = useState("");
   const [pwSuccess, setPwSuccess] = useState(false);
@@ -130,11 +123,6 @@ export default function NurseProfileSummaryView({
     [nurse]
   );
 
-  const avatarLetter = useMemo(() => {
-    const n = (nurse?.name || "").toString().trim();
-    return n ? n[0].toUpperCase() : "?";
-  }, [nurse?.name]);
-
   if (loading) {
     return (
       <div style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>
@@ -165,42 +153,17 @@ export default function NurseProfileSummaryView({
           boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
         }}
       >
-        {/* Avatar */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            marginBottom: 20,
-          }}
-        >
-          <div
-            style={{
-              width: 110,
-              height: 110,
-              borderRadius: 12,
-              background: "#0f2044",
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 36,
-              fontWeight: 700,
-              marginBottom: 10,
-            }}
-          >
-            {avatarLetter}
-          </div>
-
+        <div style={{ marginBottom: 20 }}>
           <div style={{ fontWeight: 700, fontSize: 18, color: "#111827" }}>
             {displayName}
           </div>
-          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>Сувилагч</div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
+            Сувилагч
+          </div>
         </div>
 
         {/* Info rows */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* И-мэйл */}
           <div
             style={{
               display: "flex",
@@ -216,7 +179,6 @@ export default function NurseProfileSummaryView({
             </span>
           </div>
 
-          {/* Үүрэг */}
           <div
             style={{
               display: "flex",
@@ -241,7 +203,6 @@ export default function NurseProfileSummaryView({
             </span>
           </div>
 
-          {/* РД */}
           <div
             style={{
               display: "flex",
@@ -257,7 +218,6 @@ export default function NurseProfileSummaryView({
             </span>
           </div>
 
-          {/* Утас */}
           <div
             style={{
               display: "flex",
@@ -273,7 +233,6 @@ export default function NurseProfileSummaryView({
             </span>
           </div>
 
-          {/* Салбар */}
           {nurse.branchId ? (
             <div
               style={{
@@ -293,7 +252,6 @@ export default function NurseProfileSummaryView({
         </div>
       </div>
 
-      {/* Change password section */}
       <div
         style={{
           background: "white",
