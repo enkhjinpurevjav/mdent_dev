@@ -1,7 +1,13 @@
 import React, { useEffect, useState, useCallback } from "react";
 
+type Branch = {
+  id: number;
+  name: string;
+};
+
 type AttendanceSession = {
   id: number;
+  branchId: number;
   checkInAt: string;
   checkOutAt?: string | null;
   checkInLat: number;
@@ -16,6 +22,7 @@ type MeResponse = {
   checkedIn: boolean;
   openSession: AttendanceSession | null;
   recent: AttendanceSession[];
+  allowedBranches: Branch[];
 };
 
 function formatDateTime(iso: string) {
@@ -48,6 +55,7 @@ export default function AttendancePage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
+  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
 
   const fetchStatus = useCallback(async () => {
     setLoadingStatus(true);
@@ -60,6 +68,13 @@ export default function AttendancePage() {
       }
       const data: MeResponse = await res.json();
       setStatus(data);
+      // Auto-select branch: keep existing selection if still valid, else default to first
+      setSelectedBranchId((prev) => {
+        const branches = data.allowedBranches ?? [];
+        if (branches.length === 0) return null;
+        if (prev !== null && branches.some((b) => b.id === prev)) return prev;
+        return branches[0].id;
+      });
     } catch (err: unknown) {
       setStatusError(err instanceof Error ? err.message : "Алдаа гарлаа.");
     } finally {
@@ -75,6 +90,13 @@ export default function AttendancePage() {
     setActionLoading(true);
     setActionError("");
     setActionSuccess("");
+
+    // For check-in a branch must be selected
+    if (type === "check-in" && selectedBranchId === null) {
+      setActionError("Салбар сонгоно уу.");
+      setActionLoading(false);
+      return;
+    }
 
     let position: GeolocationPosition;
     try {
@@ -110,11 +132,16 @@ export default function AttendancePage() {
     const accuracyM = position.coords.accuracy;
 
     try {
+      const body: Record<string, unknown> = { lat, lng, accuracyM };
+      if (type === "check-in") {
+        body.branchId = selectedBranchId;
+      }
+
       const res = await fetch(`/api/attendance/${type}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lat, lng, accuracyM }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -175,6 +202,45 @@ export default function AttendancePage() {
           </div>
         )}
       </div>
+
+      {/* Branch selector — shown only when not yet checked in */}
+      {canShowAction && !checkedIn && (
+        <div className="mb-4">
+          {(status?.allowedBranches ?? []).length === 0 ? (
+            <p className="text-[13px] text-amber-600">
+              Таны бүртгэлд салбар холбогдоогүй байна. Администраторт хандана уу.
+            </p>
+          ) : (status?.allowedBranches ?? []).length === 1 ? (
+            <p className="text-[13px] text-gray-600">
+              Салбар:{" "}
+              <span className="font-semibold text-gray-800">
+                {status?.allowedBranches[0]?.name}
+              </span>
+            </p>
+          ) : (
+            <div>
+              <label
+                htmlFor="branch-select"
+                className="mb-1 block text-[13px] font-medium text-gray-700"
+              >
+                Салбар сонгох
+              </label>
+              <select
+                id="branch-select"
+                value={selectedBranchId ?? ""}
+                onChange={(e) => setSelectedBranchId(Number(e.target.value))}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                {(status?.allowedBranches ?? []).map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Action button */}
       {canShowAction && (

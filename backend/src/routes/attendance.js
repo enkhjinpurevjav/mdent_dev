@@ -34,10 +34,78 @@ function parseGeoBody(body) {
 }
 
 /**
- * Enforce geofence: accuracy must be <=100m and distance <=150m.
+ * Validate and parse branchId from request body.
+ * Returns branchId (integer) on success or throws with status 400.
+ */
+function parseBranchId(body) {
+  const { branchId } = body || {};
+  if (typeof branchId !== "number" || !Number.isFinite(branchId)) {
+    const err = new Error("branchId тоон утгаар илгээх шаардлагатай.");
+    err.status = 400;
+    throw err;
+  }
+  return branchId;
+}
+
+/**
+ * Returns the list of branch objects the user is allowed to check in/out at,
+ * based on their role:
+ *   doctor       → DoctorBranch join table
+ *   nurse        → NurseBranch join table
+ *   receptionist → ReceptionBranch join table
+ *   other roles  → primary user.branchId
+ */
+async function getAllowedBranches(userId, role) {
+  if (role === "doctor") {
+    const rows = await prisma.doctorBranch.findMany({
+      where: { doctorId: userId },
+      include: { branch: { select: { id: true, name: true } } },
+    });
+    return rows.map((r) => r.branch);
+  }
+  if (role === "nurse") {
+    const rows = await prisma.nurseBranch.findMany({
+      where: { nurseId: userId },
+      include: { branch: { select: { id: true, name: true } } },
+    });
+    return rows.map((r) => r.branch);
+  }
+  if (role === "receptionist") {
+    const rows = await prisma.receptionBranch.findMany({
+      where: { receptionId: userId },
+      include: { branch: { select: { id: true, name: true } } },
+    });
+    return rows.map((r) => r.branch);
+  }
+  // All other roles: use the single primary branch
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { branch: { select: { id: true, name: true } } },
+  });
+  return user?.branch ? [user.branch] : [];
+}
+
+/**
+ * Assert that the authenticated user is authorized to record attendance for
+ * the given branchId. Throws 403 if not allowed.
+ */
+async function assertBranchAllowed(userId, role, branchId) {
+  const branches = await getAllowedBranches(userId, role);
+  if (!branches.some((b) => b.id === branchId)) {
+    const err = new Error(
+      "Та энэ салбарт ирц бүртгэх эрхгүй байна. Администраторт хандана уу."
+    );
+    err.status = 403;
+    throw err;
+  }
+}
+
+/**
+ * Enforce geofence against a specific branch.
+ * Accuracy must be <=MAX_ACCURACY_M and GPS distance <= branch radius.
  * Throws with status 403 on violation.
  */
-async function enforceGeofence(userId, lat, lng, accuracyM) {
+async function enforceGeofenceForBranch(branchId, lat, lng, accuracyM) {
   if (accuracyM > MAX_ACCURACY_M) {
     const err = new Error(
       `Таны байршлын нарийвчлал ${accuracyM}м байна (хязгаар: ${MAX_ACCURACY_M}м). ` +
@@ -47,21 +115,8 @@ async function enforceGeofence(userId, lat, lng, accuracyM) {
     throw err;
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { branchId: true },
-  });
-
-  if (!user?.branchId) {
-    const err = new Error(
-      "Таны бүртгэлд салбар холбогдоогүй байна. Администраторт хандана уу."
-    );
-    err.status = 400;
-    throw err;
-  }
-
   const branch = await prisma.branch.findUnique({
-    where: { id: user.branchId },
+    where: { id: branchId },
     select: { id: true, name: true, geoLat: true, geoLng: true, geoRadiusM: true },
   });
 
@@ -84,20 +139,17 @@ async function enforceGeofence(userId, lat, lng, accuracyM) {
     err.status = 403;
     throw err;
   }
-
-  return { branchId: branch.id };
 }
 
 /**
  * GET /api/attendance/me
- * Returns today's attendance status: open session (if any) and recent history.
+ * Returns today's attendance status: open session (if any), recent history,
+ * and the list of branches this user is allowed to check in/out at.
  */
 router.get("/me", async (req, res) => {
   try {
     const userId = req.user.id;
-
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const role = req.user.role;
 
     // Find open session (checked in but not yet checked out)
     const openSession = await prisma.attendanceSession.findFirst({
@@ -115,10 +167,13 @@ router.get("/me", async (req, res) => {
       take: 10,
     });
 
+    const allowedBranches = await getAllowedBranches(userId, role);
+
     res.json({
       checkedIn: !!openSession,
       openSession: openSession ?? null,
       recent,
+      allowedBranches,
     });
   } catch (err) {
     console.error("GET /api/attendance/me error:", err);
@@ -128,15 +183,20 @@ router.get("/me", async (req, res) => {
 
 /**
  * POST /api/attendance/check-in
- * Body: { lat, lng, accuracyM }
+ * Body: { lat: number, lng: number, accuracyM: number, branchId: number }
  */
 router.post("/check-in", async (req, res) => {
   try {
     const userId = req.user.id;
+    const role = req.user.role;
     const { lat, lng, accuracyM } = parseGeoBody(req.body);
+    const branchId = parseBranchId(req.body);
 
-    // Enforce geofence
-    const { branchId } = await enforceGeofence(userId, lat, lng, accuracyM);
+    // Verify the user is authorized to check in at this branch
+    await assertBranchAllowed(userId, role, branchId);
+
+    // Enforce geofence against the requested branch
+    await enforceGeofenceForBranch(branchId, lat, lng, accuracyM);
 
     // Check for existing open session
     const existing = await prisma.attendanceSession.findFirst({
@@ -171,7 +231,9 @@ router.post("/check-in", async (req, res) => {
 
 /**
  * POST /api/attendance/check-out
- * Body: { lat, lng, accuracyM }
+ * Body: { lat: number, lng: number, accuracyM: number }
+ * Geofence is enforced against the branch recorded at check-in time to
+ * prevent switching branches between check-in and check-out.
  */
 router.post("/check-out", async (req, res) => {
   try {
@@ -189,8 +251,8 @@ router.post("/check-out", async (req, res) => {
         .json({ error: "Ирц бүртгэл олдсонгүй. Эхлээд ирц бүртгэнэ үү." });
     }
 
-    // Enforce geofence
-    await enforceGeofence(userId, lat, lng, accuracyM);
+    // Use the session's branchId to prevent branch-switching on check-out
+    await enforceGeofenceForBranch(openSession.branchId, lat, lng, accuracyM);
 
     const updated = await prisma.attendanceSession.update({
       where: { id: openSession.id },
