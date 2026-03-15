@@ -361,7 +361,7 @@ export default function DoctorProfilePage() {
                   fontSize: 14,
                   boxSizing: "border-box",
                 }}
-                placeholder="Дор хаяж 6 тэмдэгт"
+                placeholder="Доод тал нь 6 тэмдэгт"
               />
             </div>
             <div>
