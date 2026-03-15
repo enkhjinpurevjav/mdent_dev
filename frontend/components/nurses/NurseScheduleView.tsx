@@ -141,7 +141,7 @@ export default function NurseScheduleView({ scheduleUrl, historyUrl }: Props) {
         }}
       >
         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8, color: "#374151" }}>
-          Дараагийн ажлын хуваарь
+          Сувилагчийн ажлын хуваарь
         </div>
 
         {loading && (
