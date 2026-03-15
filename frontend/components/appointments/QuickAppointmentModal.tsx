@@ -4,6 +4,7 @@ import { formatDoctorName, historyDoctorToDoctor, formatPatientSearchLabel, form
 import { SLOT_MINUTES, addMinutesToTimeString, generateTimeSlotsForDay, getSlotTimeString, isTimeWithinRange } from "./time";
 
 const PATIENT_RESULTS_LIMIT = 10;
+const COMPLETED_READONLY_MSG = "Дууссан цаг засварлах боломжгүй.";
 
 type QuickAppointmentModalProps = {
   open: boolean;
@@ -28,6 +29,9 @@ type QuickAppointmentModalProps = {
   defaultPatientId?: number | null;
   /** Display label for the pre-selected patient. */
   defaultPatientQuery?: string;
+
+  /** Current user role for permission checks (e.g. "super_admin") */
+  currentUserRole?: string | null;
 };
 
 export default function QuickAppointmentModal({
@@ -47,8 +51,13 @@ export default function QuickAppointmentModal({
   allowAutoDefaultBranch = true,
   defaultPatientId,
   defaultPatientQuery,
+  currentUserRole,
 }: QuickAppointmentModalProps) {
   const isEditMode = Boolean(editingAppointment);
+  const isCompletedReadOnly =
+    isEditMode &&
+    editingAppointment?.status === "completed" &&
+    currentUserRole !== "super_admin";
 
   const [form, setForm] = useState({
     patientQuery: "",
@@ -576,6 +585,12 @@ export default function QuickAppointmentModal({
     e.preventDefault();
     setError("");
 
+    // Block submit for completed appointments when non-super_admin
+    if (isCompletedReadOnly) {
+      setError(COMPLETED_READONLY_MSG);
+      return;
+    }
+
     // --- validations ---
     if (!form.date || !form.startTime || !form.endTime) {
       setError("Огноо, эхлэх/дуусах цаг талбаруудыг бөглөнө үү.");
@@ -751,6 +766,22 @@ export default function QuickAppointmentModal({
             gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
           }}
         >
+          {/* View-only notice for completed appointments */}
+          {isCompletedReadOnly && (
+            <div
+              style={{
+                gridColumn: "1 / -1",
+                padding: "8px 12px",
+                borderRadius: 6,
+                background: "#fef9c3",
+                border: "1px solid #fde68a",
+                color: "#92400e",
+                fontSize: 13,
+              }}
+            >
+              {COMPLETED_READONLY_MSG}
+            </div>
+          )}
           {/* Patient (locked in edit mode) */}
           <div
             style={{
@@ -962,10 +993,12 @@ export default function QuickAppointmentModal({
               value={form.startTime}
               onChange={handleChange}
               required
+              disabled={isCompletedReadOnly}
               style={{
                 borderRadius: 6,
                 border: "1px solid #d1d5db",
                 padding: "6px 8px",
+                background: isCompletedReadOnly ? "#f9fafb" : "white",
               }}
             >
               <option value="">Эхлэх цаг</option>
@@ -1021,10 +1054,12 @@ export default function QuickAppointmentModal({
               value={form.endTime}
               onChange={handleChange}
               required
+              disabled={isCompletedReadOnly}
               style={{
                 borderRadius: 6,
                 border: "1px solid #d1d5db",
                 padding: "6px 8px",
+                background: isCompletedReadOnly ? "#f9fafb" : "white",
               }}
             >
               <option value="">Дуусах цаг</option>
@@ -1078,10 +1113,12 @@ export default function QuickAppointmentModal({
               value={form.notes}
               onChange={handleChange}
               placeholder="Захиалгын товч тэмдэглэл"
+              disabled={isCompletedReadOnly}
               style={{
                 borderRadius: 6,
                 border: "1px solid #d1d5db",
                 padding: "6px 8px",
+                background: isCompletedReadOnly ? "#f9fafb" : "white",
               }}
             />
           </div>
@@ -1122,19 +1159,21 @@ export default function QuickAppointmentModal({
               Хаах
             </button>
 
-            <button
-              type="submit"
-              style={{
-                padding: "6px 12px",
-                borderRadius: 6,
-                border: "none",
-                background: "#2563eb",
-                color: "white",
-                cursor: "pointer",
-              }}
-            >
-              Хадгалах
-            </button>
+            {!isCompletedReadOnly && (
+              <button
+                type="submit"
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 6,
+                  border: "none",
+                  background: "#2563eb",
+                  color: "white",
+                  cursor: "pointer",
+                }}
+              >
+                Хадгалах
+              </button>
+            )}
           </div>
 
           {/* Quick new patient modal (create only) */}

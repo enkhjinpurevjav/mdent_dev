@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import { useRouter } from "next/router";
+import { getMe } from "../utils/auth";
 import { useBranchLock } from "../components/appointments/useBranchLock";
 import type { Branch, Doctor, ScheduledDoctor, PatientLite, Appointment, DoctorScheduleDay, TimeSlot, CompletedHistoryItem } from "../components/appointments/types";
 import { SLOT_MINUTES, floorToSlotStart, addMinutes, getSlotKey, enumerateSlotStartsOverlappingRange, generateTimeSlotsForDay, getSlotTimeString, addMinutesToTimeString, isTimeWithinRange, getDateFromYMD, pad2 } from "../components/appointments/time";
@@ -28,6 +29,14 @@ function groupByDate(appointments: Appointment[]) {
 
 function canReceptionEditAppointment(status: string) {
   return ["booked", "confirmed", "online", "other"].includes(String(status || "").toLowerCase());
+}
+
+/** Returns true if the current user is allowed to edit the given appointment. */
+function canEditAppointment(status: string, role: string | null | undefined): boolean {
+  if (String(status || "").toLowerCase() === "completed") {
+    return role === "super_admin";
+  }
+  return canReceptionEditAppointment(status);
 }
 
 // ✅ Helper: is this appointment in “Явагдаж байна” state?
@@ -1313,6 +1322,7 @@ export default function AppointmentsPage() {
   const [scheduledDoctors, setScheduledDoctors] = useState<ScheduledDoctor[]>(
     []
   );
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [gridDoctorsOverride, setGridDoctorsOverride] = useState<ScheduledDoctor[] | null>(null);
   const [reorderSaving, setReorderSaving] = useState(false);
   const [error, setError] = useState("");
@@ -1619,6 +1629,13 @@ const workingDoctorsForFilter = scheduledDoctors.length
 
   useEffect(() => {
     setHasMounted(true);
+  }, []);
+
+  // Fetch current user role for permission checks
+  useEffect(() => {
+    getMe().then((u) => setCurrentUserRole(u?.role ?? null)).catch(() => {
+      setCurrentUserRole(null);
+    });
   }, []);
 
   // keep state in sync when URL branchId changes (from left menu)
@@ -3305,7 +3322,7 @@ const handleCancelDraft = (appointmentId: number) => {
                         : 0;
 
                       // Check if this appointment can be dragged/resized
-                      const canEdit = canReceptionEditAppointment(a.status);
+                      const canEdit = canEditAppointment(a.status, currentUserRole);
                       const isDragging = activeDrag?.appointmentId === a.id;
                       const hasPendingSave = pendingSaveId === a.id;
 
@@ -3516,6 +3533,7 @@ const handleCancelDraft = (appointmentId: number) => {
   date={detailsModalState.date}
   appointments={detailsModalState.appointments}
   slotAppointmentCount={detailsModalState.slotAppointmentCount}
+  currentUserRole={currentUserRole}
   onStatusUpdated={(updated) => {
     // update main list
     setAppointments((prev) =>
@@ -3572,6 +3590,7 @@ const handleCancelDraft = (appointmentId: number) => {
   allowAutoDefaultBranch={false}
   defaultPatientId={bookingIntent?.patientId ?? null}
   defaultPatientQuery={bookingIntent?.patientLabel ?? ""}
+  currentUserRole={currentUserRole}
   onCreated={(a) => {
   setAppointments((prev) => [a, ...prev]);
 

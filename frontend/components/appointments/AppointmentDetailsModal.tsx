@@ -20,6 +20,8 @@ type AppointmentDetailsModalProps = {
   doctorMode?: boolean;
   /** Override the default encounter-start behaviour (used by doctor portal) */
   onStartEncounter?: (a: Appointment) => Promise<void> | void;
+  /** Current user role for permission checks (e.g. "super_admin") */
+  currentUserRole?: string | null;
 };
 
 function formatDetailedTimeRange(start: Date, end: Date | null): string {
@@ -49,6 +51,8 @@ function isOngoing(status: string) {
   return status === "ongoing";
 }
 
+const COMPLETED_READONLY_MSG = "Дууссан цаг засварлах боломжгүй.";
+
 export default function AppointmentDetailsModal({
   open,
   onClose,
@@ -63,6 +67,7 @@ export default function AppointmentDetailsModal({
   onCreateAppointmentInSlot,
   doctorMode = false,
   onStartEncounter: onStartEncounterProp,
+  currentUserRole,
 }: AppointmentDetailsModalProps) {
   const router = useRouter();
 
@@ -473,44 +478,52 @@ export default function AppointmentDetailsModal({
                   >
                   
                     {!isEditing && !doctorMode && (
-  <div style={{ display: "flex", gap: 6 }}>
-    <button
-      type="button"
-      onClick={() => handleStartEdit(a)}
-      style={{
-        fontSize: 11,
-        padding: "2px 8px",
-        borderRadius: 999,
-        border: "1px solid #2563eb",
-        background: "#eff6ff",
-        color: "#1d4ed8",
-        cursor: "pointer",
-      }}
-    >
-      Төлөв засах
-    </button>
+  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+    {a.status === "completed" && currentUserRole !== "super_admin" ? (
+      <span style={{ fontSize: 11, color: "#6b7280", fontStyle: "italic" }}>
+        {COMPLETED_READONLY_MSG}
+      </span>
+    ) : (
+      <>
+        <button
+          type="button"
+          onClick={() => handleStartEdit(a)}
+          style={{
+            fontSize: 11,
+            padding: "2px 8px",
+            borderRadius: 999,
+            border: "1px solid #2563eb",
+            background: "#eff6ff",
+            color: "#1d4ed8",
+            cursor: "pointer",
+          }}
+        >
+          Төлөв засах
+        </button>
 
-    {canReceptionEditAppointment(a.status) && (
-      <button
-        type="button"
-        onClick={() => {
-  // close the details modal so edit modal won't be behind
-  onClose();
-  // open edit modal
-  onEditAppointment?.(a);
-}}
-        style={{
-          fontSize: 11,
-          padding: "2px 8px",
-          borderRadius: 999,
-          border: "1px solid #7c3aed",
-          background: "#f3e8ff",
-          color: "#6d28d9",
-          cursor: "pointer",
-        }}
-      >
-        Засварлах
-      </button>
+        {canReceptionEditAppointment(a.status) && (
+          <button
+            type="button"
+            onClick={() => {
+              // close the details modal so edit modal won't be behind
+              onClose();
+              // open edit modal
+              onEditAppointment?.(a);
+            }}
+            style={{
+              fontSize: 11,
+              padding: "2px 8px",
+              borderRadius: 999,
+              border: "1px solid #7c3aed",
+              background: "#f3e8ff",
+              color: "#6d28d9",
+              cursor: "pointer",
+            }}
+          >
+            Засварлах
+          </button>
+        )}
+      </>
     )}
   </div>
 )}
