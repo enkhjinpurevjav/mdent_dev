@@ -6,6 +6,9 @@ const router = express.Router();
 
 const MAX_ACCURACY_M = 100;
 const DEFAULT_RADIUS_M = 150;
+const EARLY_CHECKIN_MINUTES = 120;
+const MONGOLIA_OFFSET_MS = 8 * 60 * 60_000; // UTC+8
+const MS_PER_MINUTE = 60_000;
 
 /**
  * Validate and parse geo body { lat, lng, accuracyM }.
@@ -33,71 +36,90 @@ function parseGeoBody(body) {
   return { lat, lng, accuracyM };
 }
 
-/**
- * Validate and parse branchId from request body.
- * Returns branchId (integer) on success or throws with status 400.
- */
-function parseBranchId(body) {
-  const { branchId } = body || {};
-  if (typeof branchId !== "number" || !Number.isFinite(branchId)) {
-    const err = new Error("branchId тоон утгаар илгээх шаардлагатай.");
-    err.status = 400;
-    throw err;
-  }
-  return branchId;
+/** Returns today's date string (YYYY-MM-DD) in Mongolia timezone (UTC+8). */
+function mongoliaDateString(now) {
+  const shifted = new Date(now.getTime() + MONGOLIA_OFFSET_MS);
+  return shifted.toISOString().slice(0, 10);
 }
 
 /**
- * Returns the list of branch objects the user is allowed to check in/out at,
- * based on their role:
- *   doctor       → DoctorBranch join table
- *   nurse        → NurseBranch join table
- *   receptionist → ReceptionBranch join table
- *   other roles  → primary user.branchId
+ * Parse a "HH:MM" schedule time string on a given YYYY-MM-DD date
+ * in Mongolia timezone (UTC+8). Returns a UTC Date.
  */
-async function getAllowedBranches(userId, role) {
-  if (role === "doctor") {
-    const rows = await prisma.doctorBranch.findMany({
-      where: { doctorId: userId },
-      include: { branch: { select: { id: true, name: true } } },
-    });
-    return rows.map((r) => r.branch);
+function parseScheduleTime(ymd, timeStr) {
+  return new Date(`${ymd}T${timeStr}:00.000+08:00`);
+}
+
+/**
+ * Automatically resolve the attendance branchId for the given user and role.
+ *
+ * - doctor / nurse / receptionist: look up today's schedule in the respective
+ *   schedule table and verify that `now` is within the early check-in window
+ *   [startTime - EARLY_CHECKIN_MINUTES, endTime].
+ *   Throws 403 if no schedule exists for today or the window has not opened/closed.
+ * - all other roles: return the user's primary User.branchId.
+ */
+async function resolveAttendanceBranch(userId, role, now) {
+  if (role === "doctor" || role === "nurse" || role === "receptionist") {
+    const todayYmd = mongoliaDateString(now);
+    const dayStart = new Date(`${todayYmd}T00:00:00.000+08:00`);
+    const dayEnd = new Date(`${todayYmd}T23:59:59.999+08:00`);
+
+    let schedule = null;
+    if (role === "doctor") {
+      schedule = await prisma.doctorSchedule.findFirst({
+        where: { doctorId: userId, date: { gte: dayStart, lte: dayEnd } },
+        select: { branchId: true, startTime: true, endTime: true },
+      });
+    } else if (role === "nurse") {
+      schedule = await prisma.nurseSchedule.findFirst({
+        where: { nurseId: userId, date: { gte: dayStart, lte: dayEnd } },
+        select: { branchId: true, startTime: true, endTime: true },
+      });
+    } else {
+      schedule = await prisma.receptionSchedule.findFirst({
+        where: { receptionId: userId, date: { gte: dayStart, lte: dayEnd } },
+        select: { branchId: true, startTime: true, endTime: true },
+      });
+    }
+
+    if (!schedule) {
+      const err = new Error("Өнөөдрийн ажлын хуваарь олдсонгүй. Администраторт хандана уу.");
+      err.status = 403;
+      throw err;
+    }
+
+    // Enforce early check-in window: [startTime - EARLY_CHECKIN_MINUTES, endTime]
+    const startDt = parseScheduleTime(todayYmd, schedule.startTime);
+    const endDt = parseScheduleTime(todayYmd, schedule.endTime);
+    const earlyStart = new Date(startDt.getTime() - EARLY_CHECKIN_MINUTES * MS_PER_MINUTE);
+
+    if (now < earlyStart || now > endDt) {
+      const err = new Error(
+        `Ирц бүртгэх цаг болоогүй байна. ` +
+          `Таны хуваарийн цаг: ${schedule.startTime}–${schedule.endTime} ` +
+          `(${EARLY_CHECKIN_MINUTES} минут эрт бүртгэх боломжтой).`
+      );
+      err.status = 403;
+      throw err;
+    }
+
+    return schedule.branchId;
   }
-  if (role === "nurse") {
-    const rows = await prisma.nurseBranch.findMany({
-      where: { nurseId: userId },
-      include: { branch: { select: { id: true, name: true } } },
-    });
-    return rows.map((r) => r.branch);
-  }
-  if (role === "receptionist") {
-    const rows = await prisma.receptionBranch.findMany({
-      where: { receptionId: userId },
-      include: { branch: { select: { id: true, name: true } } },
-    });
-    return rows.map((r) => r.branch);
-  }
-  // All other roles: use the single primary branch
+
+  // Other roles: use the user's primary registered branch
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { branch: { select: { id: true, name: true } } },
+    select: { branchId: true },
   });
-  return user?.branch ? [user.branch] : [];
-}
-
-/**
- * Assert that the authenticated user is authorized to record attendance for
- * the given branchId. Throws 403 if not allowed.
- */
-async function assertBranchAllowed(userId, role, branchId) {
-  const branches = await getAllowedBranches(userId, role);
-  if (!branches.some((b) => b.id === branchId)) {
+  if (!user?.branchId) {
     const err = new Error(
-      "Та энэ салбарт ирц бүртгэх эрхгүй байна. Администраторт хандана уу."
+      "Таны бүртгэлд үндсэн салбар тохируулаагүй байна. Администраторт хандана уу."
     );
     err.status = 403;
     throw err;
   }
+  return user.branchId;
 }
 
 /**
@@ -143,13 +165,11 @@ async function enforceGeofenceForBranch(branchId, lat, lng, accuracyM) {
 
 /**
  * GET /api/attendance/me
- * Returns today's attendance status: open session (if any), recent history,
- * and the list of branches this user is allowed to check in/out at.
+ * Returns today's attendance status: open session (if any) and recent history.
  */
 router.get("/me", async (req, res) => {
   try {
     const userId = req.user.id;
-    const role = req.user.role;
 
     // Find open session (checked in but not yet checked out)
     const openSession = await prisma.attendanceSession.findFirst({
@@ -167,13 +187,10 @@ router.get("/me", async (req, res) => {
       take: 10,
     });
 
-    const allowedBranches = await getAllowedBranches(userId, role);
-
     res.json({
       checkedIn: !!openSession,
       openSession: openSession ?? null,
       recent,
-      allowedBranches,
     });
   } catch (err) {
     console.error("GET /api/attendance/me error:", err);
@@ -183,19 +200,20 @@ router.get("/me", async (req, res) => {
 
 /**
  * POST /api/attendance/check-in
- * Body: { lat: number, lng: number, accuracyM: number, branchId: number }
+ * Body: { lat: number, lng: number, accuracyM: number }
+ * The attendance branch is automatically determined from today's schedule
+ * (for doctor/nurse/receptionist) or the user's primary branch (other roles).
  */
 router.post("/check-in", async (req, res) => {
   try {
     const userId = req.user.id;
     const role = req.user.role;
     const { lat, lng, accuracyM } = parseGeoBody(req.body);
-    const branchId = parseBranchId(req.body);
 
-    // Verify the user is authorized to check in at this branch
-    await assertBranchAllowed(userId, role, branchId);
+    // Automatically resolve which branch this worker is attending today
+    const branchId = await resolveAttendanceBranch(userId, role, new Date());
 
-    // Enforce geofence against the requested branch
+    // Enforce geofence against the resolved branch
     await enforceGeofenceForBranch(branchId, lat, lng, accuracyM);
 
     // Check for existing open session
