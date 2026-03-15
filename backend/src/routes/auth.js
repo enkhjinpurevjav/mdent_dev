@@ -4,6 +4,8 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import prisma from "../db.js";
+import { sendPasswordResetEmail } from "../services/mailer.js";
+import { authenticateJWT } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -155,7 +157,7 @@ const passwordResetRateLimit = rateLimit({
   message: { error: "Too many requests. Please try again later." },
 });
 
-const RESET_TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
+const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 60 minutes
 
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -177,6 +179,16 @@ router.post("/password-reset/request", passwordResetRateLimit, async (req, res) 
       const tokenHash = hashToken(rawToken);
       const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
 
+      // Invalidate previous unused tokens for this user
+      await prisma.passwordResetToken.updateMany({
+        where: {
+          userId: user.id,
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: { usedAt: new Date() },
+      });
+
       await prisma.passwordResetToken.create({
         data: {
           userId: user.id,
@@ -185,9 +197,7 @@ router.post("/password-reset/request", passwordResetRateLimit, async (req, res) 
         },
       });
 
-      const baseUrl = process.env.PUBLIC_APP_URL || "https://mdent.cloud";
-      const resetLink = `${baseUrl}/reset-password?token=${rawToken}`;
-      console.log(`[password-reset] Reset link for ${email}: ${resetLink}`);
+      await sendPasswordResetEmail(user.email, rawToken);
     }
   } catch (err) {
     console.error("Error during password reset request:", err);
@@ -238,6 +248,67 @@ router.post("/password-reset/confirm", async (req, res) => {
     ]);
   } catch (err) {
     console.error("Error during password reset confirm:", err);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+
+  return res.json({ ok: true });
+});
+
+// POST /api/auth/change-password  (requires authentication)
+router.post("/change-password", authenticateJWT, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword) {
+    return res.status(400).json({ error: "Одоогийн нууц үгийг оруулна уу." });
+  }
+  if (!newPassword) {
+    return res.status(400).json({ error: "Шинэ нууц үгийг оруулна уу." });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: "Шинэ нууц үг хамгийн багадаа 6 тэмдэгт байх ёстой." });
+  }
+
+  let user;
+  try {
+    user = await prisma.user.findUnique({ where: { id: req.user.id } });
+  } catch (err) {
+    console.error("DB error during change-password:", err);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+
+  if (!user || !user.password) {
+    return res.status(400).json({ error: "Хэрэглэгч олдсонгүй." });
+  }
+
+  let valid = false;
+  try {
+    if (
+      user.password.startsWith("$2a$") ||
+      user.password.startsWith("$2b$") ||
+      user.password.startsWith("$2y$")
+    ) {
+      valid = await bcrypt.compare(currentPassword, user.password);
+    } else {
+      valid = currentPassword === user.password;
+    }
+  } catch (err) {
+    console.error("Error during password compare:", err);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+
+  if (!valid) {
+    return res.status(400).json({ error: "Одоогийн нууц үг буруу байна." });
+  }
+
+  try {
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { password: hashed },
+    });
+  } catch (err) {
+    console.error("Error during change-password update:", err);
     return res.status(500).json({ error: "Internal server error." });
   }
 

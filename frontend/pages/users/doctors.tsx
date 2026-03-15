@@ -528,7 +528,7 @@ export default function DoctorsPage() {
                           <span className={tooltipCls}>Түүх</span>
                         </div>
                         {/* Нууц үг сэргээх */}
-                        <SendResetLinkButton email={d.email} />
+                        <SendResetLinkButton userId={d.id} />
                       </div>
                     </td>
                   </tr>

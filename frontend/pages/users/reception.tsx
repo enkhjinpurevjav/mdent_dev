@@ -415,7 +415,7 @@ export default function ReceptionPage() {
                             <span className={tooltipCls}>Ажлын хуваарь</span>
                           </div>
                           {/* Нууц үг сэргээх */}
-                          <SendResetLinkButton email={u.email} />
+                          <SendResetLinkButton userId={u.id} />
                         </div>
                       </td>
                     </tr>

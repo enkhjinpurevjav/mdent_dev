@@ -739,7 +739,7 @@ export default function OtherStaffPage() {
                           <span className={tooltipCls}>Устгах</span>
                         </div>
                         {/* Нууц үг сэргээх */}
-                        <SendResetLinkButton email={u.email} />
+                        <SendResetLinkButton userId={u.id} />
                       </div>
                     </td>
                   </tr>

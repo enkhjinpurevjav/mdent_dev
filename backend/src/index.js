@@ -50,6 +50,7 @@ import attendanceRouter from "./routes/attendance.js";
 import doctorPortalRouter from "./routes/doctor.js";
 import nursePortalRouter from "./routes/nurse.js";
 import attendanceReportRouter from "./routes/admin/attendanceReport.js";
+import adminPasswordResetRouter from "./routes/admin/passwordReset.js";
 import { authenticateJWT, requireRole } from "./middleware/auth.js";
 import rateLimit from "express-rate-limit";
 
@@ -228,6 +229,9 @@ app.use("/api/nurse", nursePortalRouter);
 
 // Admin attendance report
 app.use("/api/admin", attendanceReportRouter);
+
+// Admin password reset (send reset link to user by id)
+app.use("/api/admin/users", adminPasswordResetRouter);
 
 // Optional central error handler
 app.use((err, _req, res, _next) => {

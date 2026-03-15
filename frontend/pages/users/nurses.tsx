@@ -424,7 +424,7 @@ export default function NursesPage() {
                             </div>
                           )}
                           {/* Нууц үг сэргээх */}
-                          <SendResetLinkButton email={u.email} />
+                          <SendResetLinkButton userId={u.id} />
                         </div>
                       </td>
                     </tr>

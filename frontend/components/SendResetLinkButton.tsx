@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 
 interface Props {
-  email: string;
+  userId: number;
   className?: string;
 }
 
-export default function SendResetLinkButton({ email, className }: Props) {
+export default function SendResetLinkButton({ userId, className }: Props) {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
   const btnCls = [
@@ -22,10 +22,9 @@ export default function SendResetLinkButton({ email, className }: Props) {
     if (!window.confirm("Нууц үг сэргээх холбоос илгээх үү?")) return;
     setStatus("loading");
     try {
-      const res = await fetch("/api/auth/password-reset/request", {
+      const res = await fetch(`/api/admin/users/${userId}/password-reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
       });
       if (!res.ok) throw new Error("request failed");
       setStatus("success");
