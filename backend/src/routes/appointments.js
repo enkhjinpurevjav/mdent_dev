@@ -5,6 +5,114 @@ import { copyXrayMediaToCanonical } from "../utils/imagingMediaCopy.js";
 
 const router = express.Router();
 
+// ---------------------------------------------------------------------------
+// SSE subscriber store
+// Key: `${date}:${branchId}` where branchId is "" for "all branches" mode.
+// Value: Set of response objects for active SSE connections.
+// ---------------------------------------------------------------------------
+/** @type {Map<string, Set<import('express').Response>>} */
+const sseSubscribers = new Map();
+
+function sseKey(date, branchId) {
+  return `${date}:${branchId ?? ""}`;
+}
+
+/**
+ * Register an SSE response object for a given date + branchId scope.
+ * Returns a cleanup function to call on disconnect.
+ */
+function sseSubscribe(date, branchId, res) {
+  const key = sseKey(date, branchId);
+  if (!sseSubscribers.has(key)) {
+    sseSubscribers.set(key, new Set());
+  }
+  sseSubscribers.get(key).add(res);
+  return () => {
+    const set = sseSubscribers.get(key);
+    if (set) {
+      set.delete(res);
+      if (set.size === 0) sseSubscribers.delete(key);
+    }
+  };
+}
+
+/**
+ * Broadcast an SSE event to all subscribers watching the given appointment.
+ * Delivers to:
+ *  1. Subscribers watching the exact (date, branchId) pair.
+ *  2. Subscribers watching all branches for the date (branchId === "").
+ *
+ * @param {"appointment_created"|"appointment_updated"|"appointment_deleted"} event
+ * @param {object} payload  - The appointment object (or minimal delete info).
+ * @param {string} date     - YYYY-MM-DD
+ * @param {string|number} branchId
+ */
+function sseBroadcast(event, payload, date, branchId) {
+  const data = JSON.stringify(payload);
+  const message = `event: ${event}\ndata: ${data}\n\n`;
+
+  const keysToNotify = new Set([
+    sseKey(date, String(branchId)),  // exact branch match
+    sseKey(date, ""),                // all-branches subscribers for this date
+  ]);
+
+  for (const key of keysToNotify) {
+    const subscribers = sseSubscribers.get(key);
+    if (!subscribers) continue;
+    for (const res of subscribers) {
+      try {
+        res.write(message);
+        if (typeof res.flush === "function") res.flush();
+      } catch {
+        // ignore write errors; connection cleanup is handled by the 'close' event
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/appointments/stream  — SSE endpoint
+// Query params:
+//   date=YYYY-MM-DD  (required)
+//   branchId=<id>    (optional; omit or empty = all branches)
+// ---------------------------------------------------------------------------
+router.get("/stream", (req, res) => {
+  const { date, branchId } = req.query;
+
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: "date query param is required (YYYY-MM-DD)" });
+  }
+
+  const normalizedBranchId = branchId ? String(branchId) : "";
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no"); // disable nginx/caddy response buffering
+  res.flushHeaders();
+
+  // Send an initial comment to establish the connection and confirm the client
+  res.write(`: connected date=${date} branchId=${normalizedBranchId || "all"}\n\n`);
+  if (typeof res.flush === "function") res.flush();
+
+  const unsubscribe = sseSubscribe(date, normalizedBranchId, res);
+
+  // Keep-alive ping every 25 seconds to prevent proxy timeouts
+  const keepAlive = setInterval(() => {
+    try {
+      res.write(`: ping\n\n`);
+      if (typeof res.flush === "function") res.flush();
+    } catch {
+      clearInterval(keepAlive);
+    }
+  }, 25_000);
+
+  req.on("close", () => {
+    clearInterval(keepAlive);
+    unsubscribe();
+  });
+});
+
 /** Format a Prisma user relation object into the { id, name, ovog } shape used by the frontend. */
 function formatAuditUser(user) {
   if (!user) return null;
@@ -593,11 +701,18 @@ router.post("/", async (req, res) => {
       },
     });
 
-    res.status(201).json({
+    const responsePayload = {
       ...appt,
       createdByUser: formatAuditUser(appt.createdBy),
       updatedByUser: null,
-    });
+    };
+    res.status(201).json(responsePayload);
+
+    // Broadcast SSE event to subscribers watching this date+branch
+    if (appt.scheduledAt) {
+      const apptDate = appt.scheduledAt.toISOString().slice(0, 10);
+      sseBroadcast("appointment_created", responsePayload, apptDate, appt.branchId);
+    }
   } catch (err) {
     console.error("Error creating appointment:", err);
     res.status(500).json({ error: "failed to create appointment" });
@@ -787,11 +902,19 @@ router.patch("/:id", async (req, res) => {
       }
     }
 
-    return res.json({
+    const updateResponsePayload = {
       ...appt,
       createdByUser: formatAuditUser(appt.createdBy),
       updatedByUser: formatAuditUser(appt.updatedBy),
-    });
+    };
+
+    // Broadcast SSE event to subscribers watching this date+branch
+    if (appt.scheduledAt) {
+      const apptDate = appt.scheduledAt.toISOString().slice(0, 10);
+      sseBroadcast("appointment_updated", updateResponsePayload, apptDate, appt.branchId);
+    }
+
+    return res.json(updateResponsePayload);
   } catch (err) {
     console.error("Error updating appointment:", err);
     if (err.code === "P2025") {
@@ -1118,6 +1241,7 @@ router.delete("/:id", async (req, res) => {
       select: {
         id: true,
         scheduledAt: true,
+        branchId: true,
         source: true,
         sourceEncounterId: true,
       },
@@ -1173,6 +1297,12 @@ router.delete("/:id", async (req, res) => {
     await prisma.appointment.delete({
       where: { id: apptId },
     });
+
+    // Broadcast SSE delete event to subscribers watching this date+branch
+    if (appointment.scheduledAt) {
+      const apptDate = appointment.scheduledAt.toISOString().slice(0, 10);
+      sseBroadcast("appointment_deleted", { id: apptId }, apptDate, appointment.branchId);
+    }
 
     return res.json({ success: true, message: "Appointment deleted successfully" });
   } catch (err) {
@@ -1282,7 +1412,7 @@ router.patch("/:id/cancel", async (req, res) => {
       },
     });
 
-    return res.json({
+    const cancelResponsePayload = {
       success: true,
       message: "Appointment cancelled successfully",
       appointment: {
@@ -1291,7 +1421,21 @@ router.patch("/:id/cancel", async (req, res) => {
         cancelledAt: updatedAppt.cancelledAt,
         cancelledBy: updatedAppt.cancelledBy,
       },
-    });
+    };
+
+    res.json(cancelResponsePayload);
+
+    // Broadcast SSE update event so calendar clients see the status change
+    if (updatedAppt.scheduledAt) {
+      const apptDate = updatedAppt.scheduledAt.toISOString().slice(0, 10);
+      sseBroadcast("appointment_updated", {
+        id: updatedAppt.id,
+        branchId: updatedAppt.branchId,
+        scheduledAt: updatedAppt.scheduledAt,
+        status: updatedAppt.status,
+        cancelledAt: updatedAppt.cancelledAt,
+      }, apptDate, updatedAppt.branchId);
+    }
   } catch (err) {
     console.error("PATCH /api/appointments/:id/cancel error:", err);
     return res.status(500).json({ error: "Failed to cancel appointment" });

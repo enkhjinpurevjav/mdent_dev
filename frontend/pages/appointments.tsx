@@ -1716,6 +1716,74 @@ const workingDoctorsForFilter = scheduledDoctors.length
     loadAppointments();
   }, [loadAppointments]);
 
+  // ---- SSE real-time subscription ----
+  useEffect(() => {
+    if (!filterDate) return;
+
+    const params = new URLSearchParams({ date: filterDate });
+    if (effectiveBranchId) params.set("branchId", effectiveBranchId);
+
+    let es: EventSource | null = null;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let closed = false;
+
+    function connect() {
+      if (closed) return;
+      es = new EventSource(`/api/appointments/stream?${params.toString()}`);
+
+      es.addEventListener("appointment_created", (e: MessageEvent) => {
+        try {
+          const appt = JSON.parse(e.data) as Appointment;
+          // Only apply if the appointment is for the currently viewed date
+          const apptDate = appt.scheduledAt ? appt.scheduledAt.slice(0, 10) : "";
+          if (apptDate !== filterDate) return;
+          // If viewing a specific branch, filter by branch
+          if (effectiveBranchId && String(appt.branchId) !== effectiveBranchId) return;
+          setAppointments((prev) => {
+            if (prev.some((a) => a.id === appt.id)) return prev; // avoid duplicate
+            return [appt, ...prev];
+          });
+        } catch { /* ignore parse errors */ }
+      });
+
+      es.addEventListener("appointment_updated", (e: MessageEvent) => {
+        try {
+          const appt = JSON.parse(e.data) as Appointment;
+          setAppointments((prev) => {
+            const idx = prev.findIndex((a) => a.id === appt.id);
+            if (idx === -1) return prev; // not in current view, ignore
+            const next = [...prev];
+            next[idx] = { ...next[idx], ...appt };
+            return next;
+          });
+        } catch { /* ignore parse errors */ }
+      });
+
+      es.addEventListener("appointment_deleted", (e: MessageEvent) => {
+        try {
+          const payload = JSON.parse(e.data) as { id: number };
+          setAppointments((prev) => prev.filter((a) => a.id !== payload.id));
+        } catch { /* ignore parse errors */ }
+      });
+
+      es.onerror = () => {
+        if (closed) return;
+        es?.close();
+        es = null;
+        // Simple exponential-ish backoff: retry after 3s
+        retryTimeout = setTimeout(connect, 3000);
+      };
+    }
+
+    connect();
+
+    return () => {
+      closed = true;
+      if (retryTimeout) clearTimeout(retryTimeout);
+      es?.close();
+    };
+  }, [filterDate, effectiveBranchId]);
+
   // ---- load scheduled doctors ----
   const loadScheduledDoctors = useCallback(async () => {
     try {
@@ -2401,6 +2469,18 @@ const handleCancelDraft = (appointmentId: number) => {
       fontFamily: "sans-serif",
     }}
   >
+{/* ready_to_pay blink/pulse animation */}
+<style jsx global>{`
+  @keyframes readyToPayPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+    70%  { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0.00); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.00); }
+  }
+  @keyframes readyToPayBlink {
+    0%, 100% { filter: saturate(1); opacity: 1; }
+    50%      { filter: saturate(1.8); opacity: 0.82; }
+  }
+`}</style>
 {/* Calendar view with doctor-columns time grid (all screen sizes) */}
 <div>
 <h1 style={{ fontSize: 20, margin: "4px 0 8px" }}>Цаг захиалга</h1>
@@ -3418,6 +3498,9 @@ const handleCancelDraft = (appointmentId: number) => {
                             opacity: isDragging ? 0.8 : 1,
                             zIndex: isDragging || hasPendingSave ? 10 : 1,
                             userSelect: "none",
+                            animation: a.status === "ready_to_pay" && !isDragging
+                              ? "readyToPayPulse 1.4s ease-in-out infinite, readyToPayBlink 1.4s ease-in-out infinite"
+                              : undefined,
                           }}
                           title={`${formatPatientLabel(
                             a.patient,
