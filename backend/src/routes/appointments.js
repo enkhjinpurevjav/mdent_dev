@@ -638,6 +638,18 @@ router.patch("/:id", async (req, res) => {
       });
     }
 
+    // Guard: completed appointments cannot be modified except by super_admin
+    const existing = await prisma.appointment.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: "appointment not found" });
+    }
+    if (existing.status === "completed" && req.user?.role !== "super_admin") {
+      return res.status(403).json({ error: "Дууссан цагийн захиалгыг засах эрхгүй." });
+    }
+
     const data = {};
 
     // ---------------- status (optional) ----------------

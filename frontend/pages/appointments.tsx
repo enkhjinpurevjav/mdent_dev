@@ -1016,7 +1016,6 @@ if (quickPatientForm.regNo.trim()) {
 <option value="imaging">Зураг авах</option>
 <option value="ready_to_pay">Төлбөр төлөх</option>
 <option value="partial_paid">Үлдэгдэлтэй</option>
-<option value="completed">Дууссан</option>
 <option value="no_show">Ирээгүй</option>
 <option value="cancelled">Цуцалсан</option>
 <option value="other">Бусад</option>

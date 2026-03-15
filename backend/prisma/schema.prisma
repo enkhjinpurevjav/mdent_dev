@@ -718,6 +718,10 @@ model Patient {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Soft-delete fields
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+
   branchId Int
   branch   Branch @relation(fields: [branchId], references: [id])
 

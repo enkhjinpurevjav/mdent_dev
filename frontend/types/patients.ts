@@ -25,6 +25,8 @@ export type Patient = {
   notes?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  isActive?: boolean;
+  deletedAt?: string | null;
   branchId: number;
   branch?: Branch;
 };

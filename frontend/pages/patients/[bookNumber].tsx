@@ -29,10 +29,12 @@ export default function PatientProfilePage() {
 
   // Detect doctor role
   const [isDoctor, setIsDoctor] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   useEffect(() => {
     getMe()
       .then((user) => {
         setIsDoctor(user?.role === "doctor");
+        setCurrentUserRole(user?.role ?? null);
       })
       .catch(() => {
         // Default to non-doctor on error (safe fallback: shows full UI)
@@ -69,6 +71,11 @@ export default function PatientProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState("");
+
+  // Soft-delete patient state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   // regNo autofill state: true means regNo parsed as valid -> lock birthDate/gender
   const [regNoAutofillLocked, setRegNoAutofillLocked] = useState(false);
@@ -295,6 +302,30 @@ export default function PatientProfilePage() {
     }
   };
 
+  const handleDeletePatient = async () => {
+    if (!data?.patient?.id) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      const res = await fetch(`/api/patients/${data.patient.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDeleteError(json.error || "Устгах үед алдаа гарлаа.");
+        return;
+      }
+      // Redirect to patients list after successful delete
+      router.push("/patients");
+    } catch (err: any) {
+      setDeleteError(err?.message || "Устгах үед алдаа гарлаа.");
+    } finally {
+      setDeleting(false);
+      setDeleteConfirmOpen(false);
+    }
+  };
+
   const sortedAppointments = [...appointments].sort((a, b) =>
     b.scheduledAt.localeCompare(a.scheduledAt)
   );
@@ -343,6 +374,80 @@ export default function PatientProfilePage() {
 
   return (
     <>
+      {/* Delete confirmation dialog */}
+      {deleteConfirmOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 12,
+              padding: "24px 28px",
+              maxWidth: 420,
+              width: "90%",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+            }}
+          >
+            <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 700 }}>
+              Үйлчлүүлэгчийг устгах
+            </h3>
+            <p style={{ margin: "0 0 16px", fontSize: 14, color: "#374151" }}>
+              Та энэ үйлчлүүлэгчийг устгахдаа итгэлтэй байна уу? Устгасны дараа
+              үйлчлүүлэгч жагсаалтаас харагдахгүй болно. Шаардлагатай бол шууд
+              холбоосоор дахин үзэх боломжтой.
+            </p>
+            {deleteError && (
+              <p style={{ margin: "0 0 12px", color: "#dc2626", fontSize: 13 }}>
+                {deleteError}
+              </p>
+            )}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => { setDeleteConfirmOpen(false); setDeleteError(""); }}
+                disabled={deleting}
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: 6,
+                  border: "1px solid #d1d5db",
+                  background: "#f9fafb",
+                  cursor: "pointer",
+                  fontSize: 14,
+                }}
+              >
+                Болих
+              </button>
+              <button
+                type="button"
+                onClick={handleDeletePatient}
+                disabled={deleting}
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: 6,
+                  border: "none",
+                  background: deleting ? "#fca5a5" : "#dc2626",
+                  color: "#fff",
+                  cursor: deleting ? "not-allowed" : "pointer",
+                  fontSize: 14,
+                  fontWeight: 600,
+                }}
+              >
+                {deleting ? "Устгаж байна..." : "Тийм, устгах"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sticky top tabs bar — same dark navy as the app header */}
       {/* In AdminLayout: negative margins negate the 20px padding for full-bleed; top:-20 aligns the */}
       {/*   sticky threshold with the container border so the bar stays flush under the header on scroll */}
@@ -470,13 +575,24 @@ export default function PatientProfilePage() {
                       </h2>
                       {!editMode ? (
                         !isDoctor && (
-                        <button
-                          type="button"
-                          onClick={startEdit}
-                          className={smGhostBtnClass}
-                        >
-                          Засах
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={startEdit}
+                            className={smGhostBtnClass}
+                          >
+                            Засах
+                          </button>
+                          {(currentUserRole === "admin" || currentUserRole === "super_admin" || currentUserRole === "manager") && (
+                            <button
+                              type="button"
+                              onClick={() => { setDeleteConfirmOpen(true); setDeleteError(""); }}
+                              className={dangerBtnClass}
+                            >
+                              Үйлчлүүлэгчийг устгах
+                            </button>
+                          )}
+                        </div>
                         )
                       ) : null}
                     </div>

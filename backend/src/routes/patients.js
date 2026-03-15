@@ -48,6 +48,7 @@ router.get("/", async (req, res) => {
 
     const where = q
       ? {
+          isActive: true,
           OR: [
             { ovog: { contains: q, mode: "insensitive" } },
             { name: { contains: q, mode: "insensitive" } },
@@ -56,7 +57,7 @@ router.get("/", async (req, res) => {
             { patientBook: { bookNumber: { contains: q, mode: "insensitive" } } },
           ],
         }
-      : {};
+      : { isActive: true };
 
     const seventeenYearsAgo = new Date();
     seventeenYearsAgo.setFullYear(seventeenYearsAgo.getFullYear() - 17);
@@ -67,14 +68,14 @@ router.get("/", async (req, res) => {
       // Numeric bookNumber ordering via raw query (non-lexicographic)
       const searchPattern = q ? `%${q}%` : null;
       const whereClause = q
-        ? Prisma.sql`WHERE (
+        ? Prisma.sql`WHERE p."isActive" = true AND (
             p."ovog" ILIKE ${searchPattern} OR
             p."name" ILIKE ${searchPattern} OR
             p."regNo" ILIKE ${searchPattern} OR
             p."phone" ILIKE ${searchPattern} OR
             pb."bookNumber" ILIKE ${searchPattern}
           )`
-        : Prisma.empty;
+        : Prisma.sql`WHERE p."isActive" = true`;
       const orderDir = dir === "ASC" ? Prisma.sql`ASC` : Prisma.sql`DESC`;
 
       const rows = await prisma.$queryRaw`
@@ -129,9 +130,9 @@ router.get("/", async (req, res) => {
 
     const [total, totalMale, totalFemale, totalKids] = await Promise.all([
       prisma.patient.count({ where }),
-      prisma.patient.count({ where: { gender: "эр" } }),
-      prisma.patient.count({ where: { gender: "эм" } }),
-      prisma.patient.count({ where: { birthDate: { gte: seventeenYearsAgo } } }),
+      prisma.patient.count({ where: { isActive: true, gender: "эр" } }),
+      prisma.patient.count({ where: { isActive: true, gender: "эм" } }),
+      prisma.patient.count({ where: { isActive: true, birthDate: { gte: seventeenYearsAgo } } }),
     ]);
 
     res.json({
@@ -423,6 +424,37 @@ router.patch("/:id", async (req, res) => {
         .json({ error: "This regNo is already registered" });
     }
     return res.status(500).json({ error: "failed to update patient" });
+  }
+});
+
+// DELETE /api/patients/:id  — soft-delete (sets isActive=false, deletedAt=now)
+router.delete("/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || Number.isNaN(id)) {
+      return res.status(400).json({ error: "Буруу ID байна." });
+    }
+
+    const patient = await prisma.patient.findUnique({
+      where: { id },
+      select: { id: true, isActive: true },
+    });
+    if (!patient) {
+      return res.status(404).json({ error: "Үйлчлүүлэгч олдсонгүй." });
+    }
+    if (!patient.isActive) {
+      return res.status(409).json({ error: "Үйлчлүүлэгч аль хэдийн устгагдсан байна." });
+    }
+
+    await prisma.patient.update({
+      where: { id },
+      data: { isActive: false, deletedAt: new Date() },
+    });
+
+    return res.json({ success: true, message: "Үйлчлүүлэгч амжилттай устгагдлаа." });
+  } catch (err) {
+    console.error("DELETE /api/patients/:id error:", err);
+    return res.status(500).json({ error: "Устгах үед алдаа гарлаа." });
   }
 });
 
