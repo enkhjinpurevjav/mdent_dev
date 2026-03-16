@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { setBranchLock, clearBranchLock } from "./appointments/storage";
 import { Drawer } from "./ui/Drawer";
-import { logout } from "../utils/auth";
+import { getMe, logout } from "../utils/auth";
 
 type Props = {
   children: React.ReactNode;
@@ -188,6 +188,29 @@ export default function AdminLayout({ children }: Props) {
   const [branchItems, setBranchItems] = useState<{ id: string; name: string }[]>(
     []
   );
+
+  // Logged-in user info for header display
+  const [me, setMe] = useState<{ name: string; email: string; role: string } | null>(null);
+
+  useEffect(() => {
+    getMe().then((u) => setMe(u)).catch(() => {});
+  }, []);
+
+  const meDisplayName = me?.name || me?.email || "—";
+  const meAvatarLetter = (me?.name || me?.email || "?").charAt(0).toUpperCase();
+  const meDisplayRole = (() => {
+    const r = me?.role;
+    if (!r) return "—";
+    const roleMap: Record<string, string> = {
+      admin: "Админ",
+      super_admin: "Супер Админ",
+      nurse: "Сувилагч",
+      doctor: "Эмч",
+      reception: "Ресепшн",
+      staff: "Ажилтан",
+    };
+    return roleMap[r] ?? r;
+  })();
 
   const handleLogout = async () => {
     await logout();
@@ -546,30 +569,6 @@ export default function AdminLayout({ children }: Props) {
           })}
         </nav>
 
-        {/* Bottom-pinned attendance link */}
-        <div style={{ padding: "8px 8px 0" }}>
-          <Link href="/attendance" legacyBehavior>
-            <a
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 12px",
-                margin: "2px 4px",
-                borderRadius: 12,
-                textDecoration: "none",
-                fontSize: 14,
-                color: isActive("/attendance") ? "#0f172a" : "#1f2937",
-                background: isActive("/attendance") ? "#e5f0ff" : "transparent",
-                fontWeight: isActive("/attendance") ? 600 : 500,
-              }}
-            >
-              <span style={{ width: 20, textAlign: "center" }}>🕘</span>
-              <span>Ирц бүртгэл</span>
-            </a>
-          </Link>
-        </div>
-
         {/* Sidebar footer */}
         <div
           style={{
@@ -675,6 +674,28 @@ export default function AdminLayout({ children }: Props) {
               />
             </button>
 
+            {/* Attendance icon - navigates to check-in/out page */}
+            <Link href="/attendance" legacyBehavior>
+              <a
+                title="Ирц бүртгэл"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "999px",
+                  background: isActive("/attendance") ? "rgba(255,255,255,0.2)" : "rgba(15,23,42,0.4)",
+                  color: "white",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  textDecoration: "none",
+                  fontSize: 16,
+                }}
+              >
+                🕘
+              </a>
+            </Link>
+
             <div
               style={{
                 display: "flex",
@@ -683,24 +704,32 @@ export default function AdminLayout({ children }: Props) {
                 fontSize: 13,
               }}
             >
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  background: "white",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#1d4ed8",
-                  fontWeight: 700,
-                }}
-              >
-                E
-              </div>
+              <Link href="/profile" legacyBehavior>
+                <a
+                  title="Профайл"
+                  style={{ textDecoration: "none", display: "flex" }}
+                >
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      background: "white",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#1d4ed8",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {meAvatarLetter}
+                  </div>
+                </a>
+              </Link>
               <div>
-                <div style={{ fontWeight: 500 }}>Enkhjin</div>
-                <div style={{ fontSize: 11, opacity: 0.9 }}>Админ</div>
+                <div style={{ fontWeight: 500 }}>{meDisplayName}</div>
+                <div style={{ fontSize: 11, opacity: 0.9 }}>{meDisplayRole}</div>
               </div>
             </div>
 
@@ -942,31 +971,6 @@ export default function AdminLayout({ children }: Props) {
               );
             })}
           </nav>
-
-          {/* Bottom-pinned attendance link */}
-          <div style={{ padding: "8px 8px 0" }}>
-            <Link href="/attendance" legacyBehavior>
-              <a
-                onClick={() => setNavOpen(false)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "8px 12px",
-                  margin: "2px 4px",
-                  borderRadius: 12,
-                  textDecoration: "none",
-                  fontSize: 14,
-                  color: isActive("/attendance") ? "#0f172a" : "#1f2937",
-                  background: isActive("/attendance") ? "#e5f0ff" : "transparent",
-                  fontWeight: isActive("/attendance") ? 600 : 500,
-                }}
-              >
-                <span style={{ width: 20, textAlign: "center" }}>🕘</span>
-                <span>Ирц бүртгэл</span>
-              </a>
-            </Link>
-          </div>
 
           {/* Footer */}
           <div
