@@ -64,7 +64,7 @@ export async function ensureSaleStockMovementsOnce(trx, invoice, invoiceId, meth
  */
 export async function applyPaymentToInvoice(
   trx,
-  { invoice, payAmount, methodStr, meta = null, qpayTxnId = null }
+  { invoice, payAmount, methodStr, meta = null, qpayTxnId = null, createdByUserId = null }
 ) {
   const invoiceId = invoice.id;
 
@@ -83,6 +83,9 @@ export async function applyPaymentToInvoice(
   };
   if (qpayTxnId) {
     paymentData.qpayTxnId = qpayTxnId;
+  }
+  if (createdByUserId != null) {
+    paymentData.createdByUserId = createdByUserId;
   }
 
   const newPayment = await trx.payment.create({ data: paymentData });
@@ -125,7 +128,11 @@ export async function applyPaymentToInvoice(
   const updatedInvoice = await trx.invoice.update({
     where: { id: invoiceId },
     data: { statusLegacy },
-    include: { items: true, payments: true, eBarimtReceipt: true },
+    include: {
+      items: true,
+      payments: { include: { createdBy: { select: { id: true, name: true, ovog: true } } } },
+      eBarimtReceipt: true,
+    },
   });
 
   // Update appointment status

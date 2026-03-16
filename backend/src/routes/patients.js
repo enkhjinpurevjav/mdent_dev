@@ -9,6 +9,12 @@ import { getPatientBalance } from "./reports-patient-balances.js";
 const router = express.Router();
 const uploadDir = process.env.MEDIA_UPLOAD_DIR || "/data/media";
 
+/** Format a Prisma user relation object into the { id, name, ovog } shape used by the frontend. */
+function formatAuditUser(user) {
+  if (!user) return null;
+  return { id: user.id, name: user.name || null, ovog: user.ovog || null };
+}
+
 // Helper: get next available numeric bookNumber as string (Postgres-optimized)
 async function generateNextBookNumber() {
   // Fetch max numeric bookNumber via raw query for efficiency
@@ -282,6 +288,8 @@ if (finalRegNo && (finalGender === null || finalBirthDate === null)) {
           ? String(emergencyPhone).trim()
           : null,
 
+        createdByUserId: req.user?.id || null,
+
         patientBook: {
           create: {
             bookNumber: finalBookNumber,
@@ -405,6 +413,8 @@ router.patch("/:id", async (req, res) => {
       data.notes = notes === "" ? null : String(notes).trim();
     }
 
+    data.updatedByUserId = req.user?.id || null;
+
     const updated = await prisma.patient.update({
       where: { id },
       data,
@@ -473,6 +483,8 @@ router.get("/profile/by-book/:bookNumber", async (req, res) => {
         patient: {
           include: {
             branch: true,
+            createdBy: { select: { id: true, name: true, ovog: true } },
+            updatedBy: { select: { id: true, name: true, ovog: true } },
           },
         },
         visitCards: true, // Changed to plural
@@ -658,7 +670,11 @@ router.get("/profile/by-book/:bookNumber", async (req, res) => {
     }
 
     res.json({
-      patient,
+      patient: {
+        ...patient,
+        createdByUser: formatAuditUser(patient.createdBy),
+        updatedByUser: formatAuditUser(patient.updatedBy),
+      },
       patientBook: { id: pb.id, bookNumber: pb.bookNumber },
       patientBalance: balanceData.balance,
       encounters,

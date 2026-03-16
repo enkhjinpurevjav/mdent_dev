@@ -202,6 +202,7 @@ router.post("/:id/settlement", async (req, res) => {
             payAmount,
             methodStr,
             meta,
+            createdByUserId: req.user?.id || null,
           });
 
           return { updatedInvoice, paidTotal };
@@ -238,6 +239,7 @@ router.post("/:id/settlement", async (req, res) => {
             amount: p.amount,
             method: p.method,
             timestamp: p.timestamp,
+            createdByUser: p.createdBy ? { id: p.createdBy.id, name: p.createdBy.name || null, ovog: p.createdBy.ovog || null } : null,
           })),
         });
       } catch (err) {
@@ -274,7 +276,7 @@ router.post("/:id/settlement", async (req, res) => {
             where: { id: invoiceId },
             include: {
               items: true,
-              payments: true,
+              payments: { include: { createdBy: { select: { id: true, name: true, ovog: true } } } },
               eBarimtReceipt: true,
             },
           });
@@ -316,6 +318,7 @@ router.post("/:id/settlement", async (req, res) => {
               method: p.method,
               timestamp: p.timestamp,
               qpayTxnId: p.qpayTxnId,
+              createdByUser: p.createdBy ? { id: p.createdBy.id, name: p.createdBy.name || null, ovog: p.createdBy.ovog || null } : null,
             })),
           });
         }
@@ -334,6 +337,7 @@ router.post("/:id/settlement", async (req, res) => {
         methodStr,
         meta,
         qpayTxnId,
+        createdByUserId: req.user?.id || null,
       });
     });
 
@@ -369,6 +373,7 @@ router.post("/:id/settlement", async (req, res) => {
         method: p.method,
         timestamp: p.timestamp,
         qpayTxnId: p.qpayTxnId,
+        createdByUser: p.createdBy ? { id: p.createdBy.id, name: p.createdBy.name || null, ovog: p.createdBy.ovog || null } : null,
       })),
     });
   } catch (err) {

@@ -14,9 +14,17 @@ import { formatDateTime, formatDate, displayOrDash, formatDisplayName, formatDoc
 import { formatStatus } from "../../components/appointments/formatters";
 import { usePatientProfile } from "../../hooks/usePatientProfile";
 import { useVisitCard } from "../../hooks/useVisitCard";
-import type { Encounter, Appointment, PatientProfileResponse } from "../../types/patients";
+import type { Encounter, Appointment, PatientProfileResponse, AuditUser } from "../../types/patients";
 import type { VisitCard } from "../../types/visitCard";
 import { getMe } from "../../utils/auth";
+
+function formatAuditUserDisplay(u: AuditUser | null | undefined): string {
+  if (!u) return "-";
+  const ovog = (u.ovog || "").trim();
+  const name = (u.name || "").trim();
+  if (ovog && name) return `${ovog} ${name}`;
+  return name || ovog || "-";
+}
 
 export default function PatientProfilePage() {
   const router = useRouter();
@@ -730,6 +738,20 @@ export default function PatientProfilePage() {
                           {patient.createdAt
                             ? formatDate(patient.createdAt)
                             : "-"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-500 mb-0.5">Үүсгэсэн</div>
+                        <div>
+                          {formatAuditUserDisplay(patient.createdByUser)}
+                          {patient.createdAt ? ` — ${formatDate(patient.createdAt)}` : ""}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-500 mb-0.5">Шинэчилсэн</div>
+                        <div>
+                          {formatAuditUserDisplay(patient.updatedByUser)}
+                          {patient.updatedAt ? ` — ${formatDate(patient.updatedAt)}` : ""}
                         </div>
                       </div>
                       <div>

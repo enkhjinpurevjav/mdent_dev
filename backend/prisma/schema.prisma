@@ -694,6 +694,11 @@ model User {
 
   // Attendance sessions
   attendanceSessions AttendanceSession[]
+
+  createdPatients   Patient[] @relation("PatientCreator")
+  updatedPatients   Patient[] @relation("PatientUpdater")
+
+  createdPayments   Payment[] @relation("PaymentCreator")
 }
 
 // ==========================================================
@@ -717,6 +722,12 @@ model Patient {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Audit: who created/updated this patient
+  createdByUserId Int?
+  updatedByUserId Int?
+  createdBy       User? @relation("PatientCreator", fields: [createdByUserId], references: [id])
+  updatedBy       User? @relation("PatientUpdater", fields: [updatedByUserId], references: [id])
 
   // Soft-delete fields
   isActive  Boolean   @default(true)
@@ -1292,6 +1303,9 @@ model Payment {
   qpayTxnId String?
   meta      Json?
   timestamp DateTime
+
+  createdByUserId Int?
+  createdBy       User? @relation("PaymentCreator", fields: [createdByUserId], references: [id])
 
   invoice Invoice @relation(fields: [invoiceId], references: [id])
 

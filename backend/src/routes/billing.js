@@ -825,6 +825,7 @@ router.post("/encounters/:id/batch-settlement", async (req, res) => {
             payAmount: chunk,
             methodStr,
             meta,
+            createdByUserId: req.user?.id || null,
           });
         }
       }
@@ -849,6 +850,7 @@ router.post("/encounters/:id/batch-settlement", async (req, res) => {
           payAmount: amountForCurrent,
           methodStr,
           meta,
+          createdByUserId: req.user?.id || null,
         });
 
         currentPaymentId = newPayment.id;
@@ -872,7 +874,11 @@ router.post("/encounters/:id/batch-settlement", async (req, res) => {
       // 4) Reload updated current invoice
       const updatedInvoice = await trx.invoice.findUnique({
         where: { id: invoice.id },
-        include: { items: true, payments: true, eBarimtReceipt: true },
+        include: {
+          items: true,
+          payments: { include: { createdBy: { select: { id: true, name: true, ovog: true } } } },
+          eBarimtReceipt: true,
+        },
       });
 
       return { updatedInvoice };
@@ -913,6 +919,7 @@ router.post("/encounters/:id/batch-settlement", async (req, res) => {
         amount: p.amount,
         method: p.method,
         timestamp: p.timestamp,
+        createdByUser: p.createdBy ? { id: p.createdBy.id, name: p.createdBy.name || null, ovog: p.createdBy.ovog || null } : null,
       })),
     });
   } catch (err) {

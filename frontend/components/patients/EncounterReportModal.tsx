@@ -7,6 +7,8 @@ type EncounterReportModalProps = {
   appointmentId: number | null;
 };
 
+type AuditUser = { id: number; name: string | null; ovog: string | null };
+
 type EncounterDiagnosis = {
   id: number;
   encounterId: number;
@@ -47,6 +49,7 @@ type Payment = {
   amount: number;
   method: string;
   timestamp: string;
+  createdByUser?: AuditUser | null;
 };
 
 type Invoice = {
@@ -165,6 +168,14 @@ function formatPaymentMethod(method: string): string {
     EMPLOYEE_BENEFIT: "Ажилтны хөнгөлөлт",
   };
   return map[method] || method || "-";
+}
+
+function formatAuditUserDisplay(u: AuditUser | null | undefined): string {
+  if (!u) return "-";
+  const ovog = (u.ovog || "").trim();
+  const name = (u.name || "").trim();
+  if (ovog && name) return `${ovog} ${name}`;
+  return name || ovog || "-";
 }
 
 function getDiscountLabel(discountPercent: string): string {
@@ -485,6 +496,7 @@ export default function EncounterReportModal({
                           <tr className="bg-gray-100">
                             <th className="border border-gray-200 p-[6px] text-left">Огноо</th>
                             <th className="border border-gray-200 p-[6px] text-left">Төлбөрийн хэрэгсэл</th>
+                            <th className="border border-gray-200 p-[6px] text-left">Ажилтан</th>
                             <th className="border border-gray-200 p-[6px] text-left">Дүн</th>
                           </tr>
                         </thead>
@@ -495,6 +507,7 @@ export default function EncounterReportModal({
                                 {formatDateTime(payment.timestamp)}
                               </td>
                               <td className="border border-gray-200 p-[6px] text-left">{formatPaymentMethod(payment.method)}</td>
+                              <td className="border border-gray-200 p-[6px] text-left">{formatAuditUserDisplay(payment.createdByUser)}</td>
                               <td className="border border-gray-200 p-[6px] text-left">
                                 {formatNumber(payment.amount)} ₮
                               </td>

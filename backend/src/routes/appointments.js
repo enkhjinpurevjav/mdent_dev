@@ -1170,7 +1170,11 @@ router.get("/:id/report", async (req, res) => {
                 product: true,
               },
             },
-            payments: true,
+            payments: {
+                include: {
+                  createdBy: { select: { id: true, name: true, ovog: true } },
+                },
+              },
             eBarimtReceipt: true,
           },
         },
@@ -1208,7 +1212,19 @@ router.get("/:id/report", async (req, res) => {
         notes: encounter.notes,
       },
       diagnoses: encounter.diagnoses,
-      invoice: encounter.invoice,
+      invoice: encounter.invoice
+        ? {
+            ...encounter.invoice,
+            payments: (encounter.invoice.payments || []).map((p) => ({
+              id: p.id,
+              amount: p.amount,
+              method: p.method,
+              timestamp: p.timestamp,
+              qpayTxnId: p.qpayTxnId ?? null,
+              createdByUser: formatAuditUser(p.createdBy),
+            })),
+          }
+        : null,
       prescription: encounter.prescription,
       media: encounter.media,
     });
