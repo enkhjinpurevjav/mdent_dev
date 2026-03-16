@@ -202,7 +202,7 @@ export default function AppointmentDetailsModal({
       if (currentUserRole === "receptionist") {
         const encId = a.encounterId;
         if (encId) {
-          router.push(`/billing/${encId}`);
+          router.push(`/reception/billing/${encId}`);
         } else {
           setError("Эмч үзлэг эхлүүлээгүй байна. Төлбөр төлөхийн тулд эмч үзлэг эхлүүлэх шаардлагатай.");
         }
@@ -427,6 +427,13 @@ export default function AppointmentDetailsModal({
         `/patients/${encodeURIComponent(
           bookNumber
         )}?tab=patient_history&returnTo=${returnTo}`
+      );
+      return;
+    }
+
+    if (currentUserRole === "receptionist") {
+      router.push(
+        `/reception/patients/${encodeURIComponent(bookNumber)}?tab=patient_history`
       );
       return;
     }

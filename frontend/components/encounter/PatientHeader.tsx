@@ -31,6 +31,7 @@ type PatientHeaderProps = {
   onChangeNurse: (nurseIdStr: string) => void;
   hideMiniNav?: boolean;
   showPatientDetailsButton?: boolean;
+  currentUserRole?: string | null;
 };
 
 export default function PatientHeader({
@@ -41,15 +42,22 @@ export default function PatientHeader({
   onChangeNurse,
   hideMiniNav,
   showPatientDetailsButton,
+  currentUserRole,
 }: PatientHeaderProps) {
   const bookNumber = encodeURIComponent(encounter.patientBook.bookNumber);
 
+  const isReceptionist = currentUserRole === "receptionist";
+
+  const patientBasePath = isReceptionist
+    ? `/reception/patients/${bookNumber}`
+    : `/patients/${bookNumber}`;
+
   const navItems = [
-    { label: "Профайл", href: `/patients/${bookNumber}?tab=profile` },
-    { label: "Үйлчлүүлэгчийн карт", href: `/patients/${bookNumber}?tab=patient_history` },
-    { label: "Цагууд", href: `/patients/${bookNumber}?tab=appointments` },
-    { label: "Карт бөглөх", href: `/patients/${bookNumber}?tab=visit_card` },
-    { label: "Гажиг заслын карт", href: `/patients/${bookNumber}?tab=ortho_card` },
+    { label: "Профайл", href: `${patientBasePath}?tab=profile` },
+    { label: "Үйлчлүүлэгчийн карт", href: `${patientBasePath}?tab=patient_history` },
+    { label: "Цагууд", href: `${patientBasePath}?tab=appointments` },
+    { label: "Карт бөглөх", href: `${patientBasePath}?tab=visit_card` },
+    { label: "Гажиг заслын карт", href: `${patientBasePath}?tab=ortho_card` },
   ];
 
   return (
@@ -97,8 +105,8 @@ export default function PatientHeader({
         {showPatientDetailsButton && (
           <div className="mt-2">
             <a
-              href={`/patients/${bookNumber}`}
-              target="_blank"
+              href={patientBasePath}
+              target={isReceptionist ? undefined : "_blank"}
               rel="noopener noreferrer"
               className="inline-block rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs text-blue-700 hover:bg-blue-100"
             >
