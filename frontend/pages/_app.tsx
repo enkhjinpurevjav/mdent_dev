@@ -2,6 +2,7 @@ import type { AppProps } from "next/app";
 import AdminLayout from "../components/AdminLayout";
 import DoctorLayout from "../components/DoctorLayout";
 import NurseLayout from "../components/NurseLayout";
+import ReceptionLayout from "../components/ReceptionLayout"; // ✅ ADD
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { getMe } from "../utils/auth";
@@ -20,6 +21,11 @@ function isDoctorPath(pathname: string) {
 
 function isNursePath(pathname: string) {
   return pathname === "/nurse" || pathname.startsWith("/nurse/");
+}
+
+// ✅ ADD
+function isReceptionPath(pathname: string) {
+  return pathname === "/reception" || pathname.startsWith("/reception/");
 }
 
 export default function MyApp({ Component, pageProps }: AppProps) {
@@ -49,6 +55,12 @@ export default function MyApp({ Component, pageProps }: AppProps) {
 
       // Non-nurses cannot access /nurse/*
       if (isNursePath(router.pathname) && user.role !== "nurse") {
+        router.replace("/");
+        return;
+      }
+
+      // ✅ OPTIONAL (recommended): only reception can access /reception/*
+      if (isReceptionPath(router.pathname) && user.role !== "receptionist") {
         router.replace("/");
         return;
       }
@@ -86,11 +98,14 @@ export default function MyApp({ Component, pageProps }: AppProps) {
 
   const isPatientPath = router.pathname.startsWith("/patients/");
   const isEncounterPath = router.pathname.startsWith("/encounters/");
-  const useDoctorLayout = isDoctorPath(router.pathname) || ((isPatientPath || isEncounterPath) && userRole === "doctor");
+  const useDoctorLayout =
+    isDoctorPath(router.pathname) || ((isPatientPath || isEncounterPath) && userRole === "doctor");
   const useNurseLayout = isNursePath(router.pathname);
 
+  // ✅ ADD: reception layout selection
+  const useReceptionLayout = isReceptionPath(router.pathname);
+
   if (useDoctorLayout) {
-    // Only show the dashboard summary cards on the doctor appointments page
     const showDashboardSummary = router.pathname === "/doctor/appointments";
     return (
       <DoctorLayout showDashboardSummary={showDashboardSummary}>
@@ -104,6 +119,15 @@ export default function MyApp({ Component, pageProps }: AppProps) {
       <NurseLayout>
         <Component {...pageProps} />
       </NurseLayout>
+    );
+  }
+
+  // ✅ ADD: reception routes should not be wrapped in AdminLayout
+  if (useReceptionLayout) {
+    return (
+      <ReceptionLayout>
+        <Component {...pageProps} />
+      </ReceptionLayout>
     );
   }
 
