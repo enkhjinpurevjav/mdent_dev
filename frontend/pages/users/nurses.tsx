@@ -198,16 +198,17 @@ function NurseForm({
         />
       </div>
 
-      <div className="mb-2">
-        <div className="mb-1 font-medium">Салбар сонгох</div>
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3">
+        <span className="text-sm font-medium text-gray-700 shrink-0">Салбар сонгох</span>
+        <div className="flex flex-wrap gap-2 flex-1 min-w-0">
           {branches.map((b) => (
             <label
               key={b.id}
-              className="inline-flex items-center gap-1 border border-gray-200 rounded px-2 py-1 text-[13px]"
+              className="cursor-pointer select-none inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 transition has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 has-[:checked]:text-blue-700 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-400 has-[:focus-visible]:ring-offset-1"
             >
               <input
                 type="checkbox"
+                className="sr-only"
                 checked={form.branchIds.includes(b.id)}
                 onChange={() => handleBranchToggle(b.id)}
               />
@@ -215,11 +216,14 @@ function NurseForm({
             </label>
           ))}
         </div>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="shrink-0 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 transition"
+        >
+          {submitting ? "Бүртгэж байна..." : "Бүртгэх"}
+        </button>
       </div>
-
-      <button type="submit" disabled={submitting}>
-        {submitting ? "Бүртгэж байна..." : "Бүртгэх"}
-      </button>
 
       {error && <div className="text-red-600 mt-2">{error}</div>}
     </form>
