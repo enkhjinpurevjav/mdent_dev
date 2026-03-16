@@ -2605,11 +2605,23 @@ const handleCancelDraft = (appointmentId: number) => {
         const patientDisplay = [a.patientOvog ? a.patientOvog.charAt(0) + "." : null, a.patientName]
           .filter(Boolean)
           .join("");
-        const doctorDisplay = a.doctorOvog || a.doctorName
-          ? [a.doctorOvog ? a.doctorOvog.charAt(0) + "." : null, a.doctorName]
-              .filter(Boolean)
-              .join("")
-          : null;
+        const doctorDisplay =
+  a.doctorOvog || a.doctorName
+    ? (() => {
+        const initial = a.doctorOvog?.trim()?.[0]
+          ? `${a.doctorOvog.trim()[0]}.`
+          : "";
+
+        const raw = (a.doctorName || "").trim();
+        if (!raw) return initial || null;
+
+        // If doctorName is stored like "Шинэ Туршилтэмч", keep only last token
+        const parts = raw.split(/\s+/).filter(Boolean);
+        const given = parts.length > 1 ? parts[parts.length - 1] : raw;
+
+        return `${initial}${given}`;
+      })()
+    : null;
         const timeStr = a.scheduledAt
           ? (() => {
               const d = new Date(a.scheduledAt);
