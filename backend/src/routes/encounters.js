@@ -75,14 +75,6 @@ async function requireEncounterWriteAccess(req, res, next) {
   return res.status(403).json({ error: "Forbidden. Insufficient role." });
 }
 
-// Block receptionist role from all encounter endpoints
-router.use((req, res, next) => {
-  if (req.user?.role === "receptionist") {
-    return res.status(403).json({ error: "Receptionist cannot access encounter data." });
-  }
-  next();
-});
-
 // --- Media upload config ---
 const uploadDir = process.env.MEDIA_UPLOAD_DIR || "/data/media";
 

@@ -468,7 +468,7 @@ export default function AppointmentDetailsModal({
                   : null;
 
               const isEditing = editingId === a.id;
-              const canStartEncounter = isOngoing(a.status);
+              const canStartEncounter = isOngoing(a.status) && currentUserRole !== "receptionist";
 
               return (
                 <div
