@@ -42,15 +42,11 @@ const navItems: NavItem[] = [
     ],
   },
 
-  // 3. Үзлэг
+  // 3. Захиалгын жагсаалт
   {
-    label: "Үзлэг",
+    label: "Захиалгын жагсаалт",
+    href: "/visits",
     icon: "📋",
-    children: [
-      { label: "Цаг захиалсан", href: "/visits/booked", icon: "🕒" },
-      { label: "Үзлэг хийж буй", href: "/visits/ongoing", icon: "⏱" },
-      { label: "Дууссан", href: "/visits/completed", icon: "✅" },
-    ],
   },
 
  // 4. Үйлчлүүлэгчид  ✅ make it a direct link, remove children
