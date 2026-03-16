@@ -39,6 +39,7 @@ export type AppointmentRow = {
   // new extra fields used by your new UI
   patientOvog?: string | null;
   patientPhone?: string | null;
+  doctorOvog?: string | null;
 
   // optional new canonical fields (if you later switch)
   scheduledAt?: string | null;
