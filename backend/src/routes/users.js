@@ -108,6 +108,21 @@ router.get("/", async (req, res) => {
       createdAt: u.createdAt.toISOString(),
     }));
 
+    // Data minimization: receptionist only receives the fields needed by
+    // billing/appointments UI — no email, phone, salary-related, or audit fields.
+    if (req.user?.role === "receptionist") {
+      const lite = result.map((u) => ({
+        id: u.id,
+        name: u.name,
+        ovog: u.ovog,
+        role: u.role,
+        branchId: u.branchId,
+        branches: u.branches,
+        calendarOrder: u.calendarOrder,
+      }));
+      return res.status(200).json(lite);
+    }
+
     return res.status(200).json(result);
   } catch (err) {
     console.error("GET /api/users error:", err);

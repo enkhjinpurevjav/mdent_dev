@@ -163,10 +163,38 @@ app.use("/api", (req, res, next) => {
   return authenticateJWT(req, res, next);
 });
 
-// RBAC: /api/users and /api/admin/* require admin or super_admin
+// RBAC: /api/admin/* requires admin or super_admin
 const requireAdminRole = requireRole("admin", "super_admin");
-app.use("/api/users", requireAdminRole);
 app.use("/api/admin", requireAdminRole);
+
+// RBAC: /api/users gate
+// - admin/super_admin: full access (required for user-management UI)
+// - receptionist: read-only GET /api/users?role=doctor only
+//   (needed by billing/appointments UI to populate doctor dropdowns;
+//    sensitive fields are stripped by the route handler — see routes/users.js)
+// - all other roles or methods: 403
+app.use("/api/users", (req, res, next) => {
+  if (process.env.DISABLE_AUTH === "true") return next();
+  if (!req.user) {
+    return res.status(401).json({ error: "Authentication required." });
+  }
+  const { role } = req.user;
+
+  // Admin and super_admin retain full access
+  if (role === "admin" || role === "super_admin") return next();
+
+  // Receptionist may only read the doctor list (GET /api/users?role=doctor)
+  if (
+    role === "receptionist" &&
+    req.method === "GET" &&
+    req.path === "/" &&
+    req.query.role === "doctor"
+  ) {
+    return next();
+  }
+
+  return res.status(403).json({ error: "Forbidden. Insufficient role." });
+});
 
 // Check-in tablet routes (public — no auth required)
 app.use("/api/check-in", checkInRouter);
