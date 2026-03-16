@@ -597,11 +597,20 @@ router.post("/", async (req, res) => {
       normalizedStatus = maybe;
     }
 
-    // Receptionist cross-branch rule: can only create with status "booked" in other branches
-    if (req.user?.role === "receptionist" && req.user.branchId !== parsedBranchId) {
-      // Force status to "booked" for cross-branch receptionist creates
-      normalizedStatus = "booked";
+   // Receptionist cross-branch rule: can only create with status "booked" in other branches
+if (req.user?.role === "receptionist" && req.user.branchId !== parsedBranchId) {
+  // If client explicitly provided a status, it must be "booked"
+  if (typeof status === "string" && status.trim()) {
+    if (normalizedStatus !== "booked") {
+      return res.status(403).json({
+        error: 'Receptionist can only create cross-branch appointments with status "booked".',
+      });
     }
+  } else {
+    // If status was omitted, default to booked (already default, but keep explicit)
+    normalizedStatus = "booked";
+  }
+}
 
     // ===== CAPACITY ENFORCEMENT: Max 2 overlapping appointments =====
     // Only enforce capacity when doctorId is set
