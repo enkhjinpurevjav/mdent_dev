@@ -2,21 +2,22 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Install build tools and curl (for healthcheck)
 RUN apt-get update && apt-get install -y --no-install-recommends \
   bash python3 build-essential openssl curl \
   && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
+# Install deps (include dev deps so prisma CLI exists)
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN npm ci
 
-# Copy app (includes prisma schema and seed)
+# Copy app
 COPY . .
 
-# Entrypoint (prisma generate happens at runtime in docker-entrypoint.sh)
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# Generate Prisma Client at build time
+RUN npx prisma generate
+
+# Remove dev deps for smaller production image
+RUN npm prune --omit=dev
 
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
