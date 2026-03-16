@@ -807,9 +807,17 @@ router.patch("/:id", async (req, res) => {
       if (!normalizedStatus) {
         return res.status(400).json({ error: "invalid status" });
       }
-      // Receptionist cannot set status to "ongoing" (that would start an encounter)
-      if (req.user?.role === "receptionist" && normalizedStatus === "ongoing") {
-        return res.status(403).json({ error: "Receptionist cannot set appointment status to 'ongoing'." });
+      // Receptionist-specific status transition rule:
+      // - Receptionist CAN set status to "ongoing" (patient check-in).
+      // - Receptionist CANNOT change status away from "ongoing" once an encounter
+      //   has been created for this appointment (doctor has started the visit).
+      if (req.user?.role === "receptionist" && existing.status === "ongoing" && normalizedStatus !== "ongoing") {
+        const encounterCount = await prisma.encounter.count({
+          where: { appointmentId: id },
+        });
+        if (encounterCount > 0) {
+          return res.status(403).json({ error: "Үзлэг эхэлсэн байна" });
+        }
       }
       data.status = normalizedStatus;
     }
