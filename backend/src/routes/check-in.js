@@ -140,11 +140,20 @@ router.get("/search", async (req, res) => {
 
       const p = chosen.patient;
       const doc = chosen.doctor;
-      const doctorDisplay = doc
-        ? [doc.ovog ? doc.ovog.charAt(0) + "." : null, doc.name]
-            .filter(Boolean)
-            .join("")
-        : null;
+      const doctorDisplay = (() => {
+  if (!doc) return null;
+
+  const ovogInitial = doc.ovog?.trim()?.[0] ? `${doc.ovog.trim()[0]}.` : "";
+
+  const rawName = (doc.name || "").trim();
+  if (!rawName) return null;
+
+  // If doc.name is stored as "Шинэ Туршилтэмч", keep only the last part ("Туршилтэмч")
+  const parts = rawName.split(/\s+/).filter(Boolean);
+  const givenName = parts.length > 1 ? parts[parts.length - 1] : rawName;
+
+  return `${ovogInitial}${givenName}`;
+})();
 
       results.push({
         patientId: p.id,
