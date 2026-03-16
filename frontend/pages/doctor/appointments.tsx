@@ -386,6 +386,45 @@ export default function DoctorAppointmentsPage() {
     loadAll();
   }, [loadAll, refreshKey]);
 
+  // ---- SSE live refresh: when admin/reception changes appointments, reload ----
+  useEffect(() => {
+    if (!doctorId) return;
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const requestRefresh = () => {
+      if (debounceTimer) return;
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        setRefreshKey((k) => k + 1);
+      }, 800);
+    };
+
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource(
+        `/api/appointments/stream?date=${encodeURIComponent(ymdToday())}`
+      );
+    } catch {
+      // EventSource construction failed; skip live updates
+      return;
+    }
+
+    es.addEventListener("appointment_created", requestRefresh);
+    es.addEventListener("appointment_updated", requestRefresh);
+    es.addEventListener("appointment_deleted", requestRefresh);
+
+    es.onerror = () => {
+      // Close on error (e.g. 403 or network loss) without crashing the page
+      es?.close();
+      es = null;
+    };
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      es?.close();
+    };
+  }, [doctorId]);
+
   const handleDoctorStartEncounter = useCallback(async (a: Appointment) => {
     const res = await fetch(`/api/doctor/appointments/${a.id}/encounter`, {
       method: "POST",
