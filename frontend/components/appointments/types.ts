@@ -53,6 +53,8 @@ export type Appointment = {
   updatedByUser?: { id: number; name: string | null; ovog: string | null } | null;
   // Self check-in
   checkedInAt?: string | null;
+  // Encounter linkage (nullable) — populated by appointments list API
+  encounterId?: number | null;
   patient?: {
     id: number;
     name: string;

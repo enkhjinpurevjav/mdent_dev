@@ -420,6 +420,11 @@ router.get("/", async (req, res) => {
     branch: true,
     createdBy: { select: { id: true, name: true, ovog: true } },
     updatedBy: { select: { id: true, name: true, ovog: true } },
+    encounters: {
+      orderBy: { id: "desc" },
+      take: 1,
+      select: { id: true },
+    },
   },
 });
 
@@ -503,6 +508,9 @@ const rows = appointments.map((a) => {
     endTime: endIso,
     regNo: patientRegNo,
     branchName,
+
+    // Encounter linkage (nullable) — used by receptionist billing flow
+    encounterId: a.encounters?.[0]?.id ?? null,
   };
 });
 
