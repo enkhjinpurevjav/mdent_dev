@@ -288,7 +288,7 @@ if (finalRegNo && (finalGender === null || finalBirthDate === null)) {
           ? String(emergencyPhone).trim()
           : null,
 
-        createdByUserId: req.user?.id || null,
+        createdBy: req.user?.id ? { connect: { id: req.user.id } } : undefined,
 
         patientBook: {
           create: {
@@ -413,7 +413,9 @@ router.patch("/:id", async (req, res) => {
       data.notes = notes === "" ? null : String(notes).trim();
     }
 
-    data.updatedByUserId = req.user?.id || null;
+    if (req.user?.id) {
+      data.updatedBy = { connect: { id: req.user.id } };
+    }
 
     const updated = await prisma.patient.update({
       where: { id },
