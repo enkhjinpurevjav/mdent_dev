@@ -8,6 +8,12 @@ export type Branch = {
   address?: string | null;
 };
 
+export type AuditUser = {
+  id: number;
+  name: string | null;
+  ovog: string | null;
+};
+
 export type Patient = {
   id: number;
   regNo: string;
@@ -29,6 +35,8 @@ export type Patient = {
   deletedAt?: string | null;
   branchId: number;
   branch?: Branch;
+  createdByUser?: AuditUser | null;
+  updatedByUser?: AuditUser | null;
 };
 
 export type ActiveTab =

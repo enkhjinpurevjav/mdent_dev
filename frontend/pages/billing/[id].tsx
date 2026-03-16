@@ -41,7 +41,8 @@ type InvoiceItem = {
   meta?: { assignedTo?: "DOCTOR" | "NURSE"; nurseId?: number | null } | null;
 };
 
-type Payment = { id: number; amount: number; method: string; timestamp: string };
+type AuditUser = { id: number; name: string | null; ovog: string | null };
+type Payment = { id: number; amount: number; method: string; timestamp: string; createdByUser?: AuditUser | null };
 
 type InvoiceResponse = {
   id: number | null;
@@ -178,6 +179,14 @@ function formatDoctorName(d: Doctor | null) {
   const name = d.name?.trim();
   if (name) return name;
   return d.email;
+}
+
+function formatAuditUserDisplay(u: AuditUser | null | undefined): string {
+  if (!u) return "-";
+  const ovog = (u.ovog || "").trim();
+  const name = (u.name || "").trim();
+  if (ovog && name) return `${ovog} ${name}`;
+  return name || ovog || "-";
 }
 
 function formatMoney(v: number | null | undefined) {
@@ -1404,7 +1413,7 @@ function BillingPaymentSection({
           <ul className="m-0 pl-4">
             {invoice.payments.map((p) => (
               <li key={p.id}>
-                {formatDateTime(p.timestamp)} — {p.method} —{" "}
+                {formatDateTime(p.timestamp)} — {p.method} — {formatAuditUserDisplay(p.createdByUser)} —{" "}
                 {formatMoney(p.amount)} ₮
               </li>
             ))}

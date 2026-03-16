@@ -733,6 +733,24 @@ export default function PatientProfilePage() {
                         </div>
                       </div>
                       <div>
+                        <div className="text-gray-500 mb-0.5">Үүсгэсэн</div>
+                        <div>
+                          {patient.createdByUser
+                            ? `${((patient.createdByUser.ovog || "").trim() + " " + (patient.createdByUser.name || "").trim()).trim() || "-"}`
+                            : "-"}
+                          {patient.createdAt ? ` — ${formatDate(patient.createdAt)}` : ""}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-500 mb-0.5">Шинэчилсэн</div>
+                        <div>
+                          {patient.updatedByUser
+                            ? `${((patient.updatedByUser.ovog || "").trim() + " " + (patient.updatedByUser.name || "").trim()).trim() || "-"}`
+                            : "-"}
+                          {patient.updatedAt ? ` — ${formatDate(patient.updatedAt)}` : ""}
+                        </div>
+                      </div>
+                      <div>
                         <div className="text-gray-500 mb-0.5">Хүйс</div>
                         {editMode ? (
                           <div>
