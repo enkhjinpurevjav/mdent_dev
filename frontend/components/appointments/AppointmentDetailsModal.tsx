@@ -197,6 +197,18 @@ export default function AppointmentDetailsModal({
   const handleViewEncounterForPayment = async (a: Appointment) => {
     try {
       setError("");
+
+      // Receptionist must use existing encounterId — never create encounters
+      if (currentUserRole === "receptionist") {
+        const encId = a.encounterId;
+        if (encId) {
+          router.push(`/billing/${encId}`);
+        } else {
+          setError("Эмч үзлэг эхлүүлээгүй байна. Төлбөр төлөхийн тулд эмч үзлэг эхлүүлэх шаардлагатай.");
+        }
+        return;
+      }
+
       const res = await fetch(`/api/appointments/${a.id}/ensure-encounter`, {
         method: "POST",
       });
