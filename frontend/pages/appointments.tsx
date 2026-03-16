@@ -264,7 +264,7 @@ function AppointmentForm({
       setForm((prev) => ({ ...prev, endTime: "" }));
     }
   }, [form.date, form.doctorId, scheduledDoctors]);
-// When branch changes in the form, reset dependent fields
+// When branch changes in the form, reset only branch-dependent fields (keep patient selection)
   useEffect(() => {
     if (!form.branchId) return;
 
@@ -273,11 +273,8 @@ function AppointmentForm({
       doctorId: "",
       startTime: "",
       endTime: "",
-      patientQuery: "",
-      notes: "",
-      // keep date & status as is
+      // keep patientQuery, notes, status, date as-is
     }));
-    setSelectedPatientId(null);
     setPatientResults([]);
     setError("");
   }, [form.branchId]);
@@ -784,19 +781,6 @@ if (quickPatientForm.regNo.trim()) {
       >
         <label>Үйлчлүүлэгч</label>
         <div style={{ display: "flex", gap: 6 }}>
-          <input
-            name="patientQuery"
-            placeholder="РД, овог, нэр утсаар хайх"
-            value={form.patientQuery}
-            onChange={handleChange}
-            autoComplete="off"
-            style={{
-              flex: 1,
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              padding: "6px 8px",
-            }}
-          />
           <button
             type="button"
             onClick={() => {
@@ -820,6 +804,19 @@ if (quickPatientForm.regNo.trim()) {
           >
             +
           </button>
+          <input
+            name="patientQuery"
+            placeholder="РД, овог, нэр утсаар хайх"
+            value={form.patientQuery}
+            onChange={handleChange}
+            autoComplete="off"
+            style={{
+              flex: 1,
+              borderRadius: 6,
+              border: "1px solid #d1d5db",
+              padding: "6px 8px",
+            }}
+          />
         </div>
         {patientSearchLoading && (
           <span style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
@@ -2977,7 +2974,7 @@ const handleCancelDraft = (appointmentId: number) => {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "space-between",
+                  gap: 8,
                   marginTop: 4,
                   padding: "5px 8px",
                   borderRadius: 6,
@@ -2987,7 +2984,6 @@ const handleCancelDraft = (appointmentId: number) => {
                   color: "#6b7280",
                 }}
               >
-                <span>Илэрц олдсонгүй. Шинээр бүртгэх</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -3020,6 +3016,7 @@ const handleCancelDraft = (appointmentId: number) => {
                 >
                   +
                 </button>
+                <span>Илэрц олдсонгүй. Шинээр бүртгэх</span>
               </div>
             )}
 
