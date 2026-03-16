@@ -1733,16 +1733,21 @@ const workingDoctorsForFilter = scheduledDoctors.length
     async function loadMeta() {
       try {
         setError("");
-        const [branchesRes, doctorsRes] = await Promise.all([
-          fetch("/api/branches"),
-          fetch("/api/users?role=doctor"),
-        ]);
-        const branchesData = await branchesRes.json().catch(() => []);
-        const doctorsData = await doctorsRes.json().catch(() => []);
-        setBranches(branchesData || []);
-        setDoctors(doctorsData || []);
+        const branchesRes = await fetch("/api/branches");
+        const branchesData = branchesRes.ok
+          ? await branchesRes.json().catch(() => [])
+          : [];
+        setBranches(Array.isArray(branchesData) ? branchesData : []);
+
+        const doctorsRes = await fetch("/api/users?role=doctor");
+        const doctorsData = doctorsRes.ok
+          ? await doctorsRes.json().catch(() => [])
+          : [];
+        setDoctors(Array.isArray(doctorsData) ? doctorsData : []);
       } catch (e) {
         console.error(e);
+        setBranches([]);
+        setDoctors([]);
         setError("Мета мэдээлэл ачаалж чадсангүй.");
       }
     }
@@ -2699,6 +2704,9 @@ const handleCancelDraft = (appointmentId: number) => {
     marginBottom: 16,
   }}
 >
+  {/* Нийт цаг дүүргэлт, Хуваарьт эмчийн тоо, Үйлчлүүлэгчдийн тоо — hidden for receptionist role */}
+  {currentUserRole !== "receptionist" && (
+  <>
   {/* Нийт цаг захиалга */}
   <div
     style={{
@@ -2867,6 +2875,8 @@ const handleCancelDraft = (appointmentId: number) => {
       үйлчлүүлэгч
     </div>
   </div>
+  </>
+  )}
 
   {/* Борлуулалтын орлого — hidden for receptionist role */}
   {currentUserRole !== "receptionist" && (
