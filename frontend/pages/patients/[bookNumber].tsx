@@ -87,6 +87,7 @@ export default function PatientProfilePage() {
 
   // regNo autofill state: true means regNo parsed as valid -> lock birthDate/gender
   const [regNoAutofillLocked, setRegNoAutofillLocked] = useState(false);
+  const [regNoInvalid, setRegNoInvalid] = useState(false);
   const regNoParseAbortRef = useRef<AbortController | null>(null);
 
   // Encounter report modal state
@@ -161,6 +162,8 @@ export default function PatientProfilePage() {
     const trimmed = regNoValue.trim();
     if (!trimmed) {
       setRegNoAutofillLocked(false);
+      setRegNoInvalid(false);
+      setEditForm((prev) => ({ ...prev, gender: "", birthDate: "" }));
       return;
     }
     const controller = new AbortController();
@@ -178,12 +181,16 @@ export default function PatientProfilePage() {
           gender: json.gender,
         }));
         setRegNoAutofillLocked(true);
+        setRegNoInvalid(false);
       } else {
         setRegNoAutofillLocked(false);
+        setRegNoInvalid(true);
+        setEditForm((prev) => ({ ...prev, gender: "", birthDate: "" }));
       }
     } catch (err: any) {
       if (err?.name === "AbortError") return;
       setRegNoAutofillLocked(false);
+      setRegNoInvalid(false);
     }
   }, []);
 
@@ -208,6 +215,7 @@ export default function PatientProfilePage() {
     setSaveError("");
     setSaveSuccess("");
     setRegNoAutofillLocked(false);
+    setRegNoInvalid(false);
     setEditMode(true);
     // Parse the existing regNo on edit start so lock state is correct
     if (initialRegNo) {
@@ -219,6 +227,7 @@ export default function PatientProfilePage() {
     setEditMode(false);
     setEditForm({});
     setRegNoAutofillLocked(false);
+    setRegNoInvalid(false);
     setSaveError("");
     setSaveSuccess("");
   };
@@ -661,12 +670,17 @@ export default function PatientProfilePage() {
                       <div>
                         <div className="text-gray-500 mb-0.5">РД</div>
                         {editMode ? (
-                          <input
-                            name="regNo"
-                            value={editForm.regNo ?? ""}
-                            onChange={handleEditChange}
-                            className={inputClass}
-                          />
+                          <div>
+                            <input
+                              name="regNo"
+                              value={editForm.regNo ?? ""}
+                              onChange={handleEditChange}
+                              className={inputClass}
+                            />
+                            {regNoInvalid && (
+                              <div className="text-xs text-red-500 mt-0.5">РД буруу байна</div>
+                            )}
+                          </div>
                         ) : (
                           <div>{displayOrDash(patient.regNo)}</div>
                         )}

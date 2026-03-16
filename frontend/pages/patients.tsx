@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 
 type Branch = {
   id: number;
@@ -41,11 +41,50 @@ function PatientRegisterForm({
     branchId: "",
     bookNumber: "",
     gender: "", // "" | "эр" | "эм"
+    birthDate: "",
     citizenship: "Монгол",
     emergencyPhone: "",
   });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [regNoAutofillLocked, setRegNoAutofillLocked] = useState(false);
+  const [regNoInvalid, setRegNoInvalid] = useState(false);
+  const regNoParseAbortRef = useRef<AbortController | null>(null);
+
+  const parseRegNoAndFill = useCallback(async (regNoValue: string) => {
+    if (regNoParseAbortRef.current) {
+      regNoParseAbortRef.current.abort();
+    }
+    const trimmed = regNoValue.trim();
+    if (!trimmed) {
+      setRegNoAutofillLocked(false);
+      setRegNoInvalid(false);
+      setForm((prev) => ({ ...prev, gender: "", birthDate: "" }));
+      return;
+    }
+    const controller = new AbortController();
+    regNoParseAbortRef.current = controller;
+    try {
+      const res = await fetch(
+        `/api/regno/parse?regNo=${encodeURIComponent(trimmed)}`,
+        { signal: controller.signal }
+      );
+      const json = await res.json();
+      if (json.isValid) {
+        setForm((prev) => ({ ...prev, gender: json.gender, birthDate: json.birthDate }));
+        setRegNoAutofillLocked(true);
+        setRegNoInvalid(false);
+      } else {
+        setRegNoAutofillLocked(false);
+        setRegNoInvalid(true);
+        setForm((prev) => ({ ...prev, gender: "", birthDate: "" }));
+      }
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
+      setRegNoAutofillLocked(false);
+      setRegNoInvalid(false);
+    }
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -54,6 +93,9 @@ function PatientRegisterForm({
   ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    if (name === "regNo") {
+      parseRegNoAndFill(value);
+    }
   };
 
   const handleGenderChange = (value: "" | "эр" | "эм") => {
@@ -96,6 +138,7 @@ function PatientRegisterForm({
         branchId: Number(form.branchId),
         bookNumber: form.bookNumber || "",
         gender: form.gender || null, // optional, null when empty
+        birthDate: form.birthDate || null,
         citizenship: form.citizenship?.trim() || null,
         emergencyPhone: form.emergencyPhone?.trim() || null,
       };
@@ -123,9 +166,12 @@ function PatientRegisterForm({
           branchId: "",
           bookNumber: "",
           gender: "",
+          birthDate: "",
           citizenship: "Монгол",
           emergencyPhone: "",
         });
+        setRegNoAutofillLocked(false);
+        setRegNoInvalid(false);
       } else {
         setError((data && data.error) || "Алдаа гарлаа");
       }
@@ -191,6 +237,12 @@ function PatientRegisterForm({
               onChange={handleChange}
               className={inputCls}
             />
+            {regNoInvalid && (
+              <span className="text-xs text-red-500">РД буруу байна</span>
+            )}
+            {regNoAutofillLocked && (
+              <span className="text-xs text-blue-500">РД-ээс автоматаар бөглөгдөнө</span>
+            )}
           </div>
 
           {/* Утас */}
@@ -219,6 +271,7 @@ function PatientRegisterForm({
                   value="эр"
                   checked={form.gender === "эр"}
                   onChange={() => handleGenderChange("эр")}
+                  disabled={regNoAutofillLocked}
                 />
                 <span>Эр</span>
               </label>
@@ -229,6 +282,7 @@ function PatientRegisterForm({
                   value="эм"
                   checked={form.gender === "эм"}
                   onChange={() => handleGenderChange("эм")}
+                  disabled={regNoAutofillLocked}
                 />
                 <span>Эм</span>
               </label>
@@ -239,6 +293,7 @@ function PatientRegisterForm({
                   value=""
                   checked={form.gender === ""}
                   onChange={() => handleGenderChange("")}
+                  disabled={regNoAutofillLocked}
                 />
                 <span>Хоосон</span>
               </label>

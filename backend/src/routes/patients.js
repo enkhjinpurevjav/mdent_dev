@@ -356,6 +356,15 @@ router.patch("/:id", async (req, res) => {
     }
     if (regNo !== undefined) {
       data.regNo = regNo === "" ? null : String(regNo).trim();
+      // Uniqueness check: ensure no other patient already has this regNo
+      if (data.regNo) {
+        const conflicting = await prisma.patient.findUnique({
+          where: { regNo: data.regNo },
+        });
+        if (conflicting && conflicting.id !== id) {
+          return res.status(400).json({ error: "This regNo is already registered" });
+        }
+      }
     }
     if (phone !== undefined) {
       data.phone = phone === "" ? null : String(phone).trim();
@@ -389,6 +398,15 @@ router.patch("/:id", async (req, res) => {
           });
         }
         data.birthDate = d;
+      }
+    }
+
+    // When regNo is provided and valid, authoritative override of gender + birthDate
+    if (regNo !== undefined && data.regNo) {
+      const parsed = parseRegNo(data.regNo);
+      if (parsed.isValid) {
+        data.gender = parsed.gender;
+        data.birthDate = new Date(`${parsed.birthDate}T00:00:00.000Z`);
       }
     }
 
