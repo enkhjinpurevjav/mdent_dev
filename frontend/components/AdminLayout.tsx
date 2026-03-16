@@ -28,9 +28,9 @@ const navItems: NavItem[] = [
     icon: "🏠",
   },
 
-  // 2. Цаг захиалах
+   // 2. Цаг захиалах
     {
-    label: "Цаг захиалга",
+    label: "Цаг захиалах",
     icon: "📅",
     children: [
       {
