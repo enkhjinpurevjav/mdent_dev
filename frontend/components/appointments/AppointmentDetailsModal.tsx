@@ -22,6 +22,8 @@ type AppointmentDetailsModalProps = {
   onStartEncounter?: (a: Appointment) => Promise<void> | void;
   /** Current user role for permission checks (e.g. "super_admin") */
   currentUserRole?: string | null;
+  /** When true, renders all appointments in view-only mode (no edit/status controls) */
+  readOnly?: boolean;
 };
 
 function formatDetailedTimeRange(start: Date, end: Date | null): string {
@@ -68,6 +70,7 @@ export default function AppointmentDetailsModal({
   doctorMode = false,
   onStartEncounter: onStartEncounterProp,
   currentUserRole,
+  readOnly = false,
 }: AppointmentDetailsModalProps) {
   const router = useRouter();
 
@@ -293,7 +296,7 @@ export default function AppointmentDetailsModal({
             Цагийн дэлгэрэнгүй
           </h3>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            {!doctorMode && (
+            {!doctorMode && !readOnly && (
             <button
               type="button"
               onClick={() => {
@@ -496,7 +499,7 @@ export default function AppointmentDetailsModal({
                     }}
                   >
                   
-                    {!isEditing && !doctorMode && (
+                    {!isEditing && !doctorMode && !readOnly && (
   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
     {a.status === "completed" && currentUserRole !== "super_admin" ? (
       <span style={{ fontSize: 11, color: "#6b7280", fontStyle: "italic" }}>
@@ -632,6 +635,7 @@ export default function AppointmentDetailsModal({
                         </div>
                       </div>
 
+                      {!readOnly && (
                       <div
                         style={{
                           marginTop: 6,
@@ -710,6 +714,7 @@ export default function AppointmentDetailsModal({
                             </span>
                           )}
                       </div>
+                      )}
                     </>
                   ) : (
                     // editing branch stays as-is

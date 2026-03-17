@@ -1307,7 +1307,10 @@ if (quickPatientForm.regNo.trim()) {
 
 export default function AppointmentsPage() {
   const router = useRouter();
-  
+
+  // Determine base path: reception routes stay under /reception/appointments
+  const isReceptionRoute = router.pathname.startsWith("/reception");
+
   // Branch lock functionality
   const { isLocked, lockedBranchId, effectiveBranchId, unlock } = useBranchLock();
 
@@ -1324,6 +1327,8 @@ export default function AppointmentsPage() {
     []
   );
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  // Own branch of the logged-in receptionist (from getMe)
+  const [ownBranchId, setOwnBranchId] = useState<string | null>(null);
   const [gridDoctorsOverride, setGridDoctorsOverride] = useState<ScheduledDoctor[] | null>(null);
   const [reorderSaving, setReorderSaving] = useState(false);
   const [error, setError] = useState("");
@@ -1697,15 +1702,46 @@ const workingDoctorsForFilter = scheduledDoctors.length
   const formSectionRef = useRef<HTMLElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
 
+  // Base path for navigation: reception routes always stay under /reception/appointments
+  const basePath = isReceptionRoute ? "/reception/appointments" : "/appointments";
+
+  // The currently selected branch (from URL or effectiveBranchId)
+  const selectedBranchId = effectiveBranchId || filterBranchId;
+  // Reception viewing a branch other than their own
+  const isOtherBranchReceptionView =
+    currentUserRole === "receptionist" &&
+    ownBranchId !== null &&
+    selectedBranchId !== "" &&
+    selectedBranchId !== ownBranchId;
+
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
-  // Fetch current user role for permission checks
+  // Fetch current user role and own branch for permission checks
+  // Empty deps array is intentional: runs once on mount. router.query is read within
+  // the callback at resolution time to avoid stale closure issues.
   useEffect(() => {
-    getMe().then((u) => setCurrentUserRole(u?.role ?? null)).catch(() => {
+    getMe().then((u) => {
+      const role = u?.role ?? null;
+      setCurrentUserRole(role);
+      if (u?.branchId != null) {
+        setOwnBranchId(String(u.branchId));
+      }
+      // Auto-redirect receptionist to own branch when no branchId in URL
+      const qBranch = typeof router.query.branchId === "string" ? router.query.branchId : "";
+      if (role === "receptionist" && !qBranch && u?.branchId != null) {
+        router.replace(
+          { pathname: "/reception/appointments", query: { branchId: String(u.branchId) } },
+          undefined,
+          { shallow: true }
+        );
+      }
+    }).catch(() => {
       setCurrentUserRole(null);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Justification: runs once on mount only. router is stable in Next.js.
   }, []);
 
   // keep state in sync when URL branchId changes (from left menu)
@@ -2345,7 +2381,7 @@ const totalCompletedPatientsForDay = useMemo(() => {
 
     const query = branchId ? { branchId } : {};
     router.push(
-      { pathname: "/appointments", query },
+      { pathname: basePath, query },
       undefined,
       { shallow: true }
     );
@@ -2585,6 +2621,41 @@ const handleCancelDraft = (appointmentId: number) => {
 <p style={{ color: "#6b7280", fontSize: 13, marginBottom: 12 }}>
   Эмч, үйлчлүүлэгч, салбарын цаг захиалгыг харах болон удирдах хэсэг
 </p>
+
+{/* Small branch switcher — only for receptionist, no "Бүх салбар" option */}
+{currentUserRole === "receptionist" && branches.length > 0 && (
+  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+    <span style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>Салбар:</span>
+    <select
+      value={selectedBranchId}
+      onChange={(e) => {
+        const value = e.target.value;
+        if (!value) return;
+        setFilterBranchId(value);
+        setActiveBranchTab(value);
+        router.push(
+          { pathname: basePath, query: { branchId: value } },
+          undefined,
+          { shallow: true }
+        );
+      }}
+      style={{
+        borderRadius: 6,
+        border: "1px solid #d1d5db",
+        padding: "5px 10px",
+        fontSize: 13,
+        background: "white",
+        cursor: "pointer",
+      }}
+    >
+      {branches.map((b) => (
+        <option key={b.id} value={b.id}>
+          {b.name}
+        </option>
+      ))}
+    </select>
+  </div>
+)}
 
 {/* NEW: Daily stats cards (colored) */}
 {/* Checked-in patient queue */}
@@ -2940,7 +3011,8 @@ const handleCancelDraft = (appointmentId: number) => {
 </section>
      
 
-      {/* Filters card */}
+      {/* Filters card — hidden entirely when receptionist is viewing another branch */}
+      {!isOtherBranchReceptionView && (
       <section
         style={{
           marginBottom: 16,
@@ -2975,6 +3047,8 @@ const handleCancelDraft = (appointmentId: number) => {
             />
           </div>
 
+          {/* Branch selector — hidden for receptionist (they use the top switcher) */}
+          {currentUserRole !== "receptionist" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <label>
               Салбар{" "}
@@ -2997,7 +3071,7 @@ const handleCancelDraft = (appointmentId: number) => {
                   // Update URL as single source of truth - this will trigger effectiveBranchId change
                   const query = value ? { branchId: value } : {};
                   router.push(
-                    { pathname: "/appointments", query },
+                    { pathname: basePath, query },
                     undefined,
                     { shallow: true }
                   );
@@ -3041,6 +3115,7 @@ const handleCancelDraft = (appointmentId: number) => {
               )}
             </div>
           </div>
+          )}
         </div>
 
         {/* Patient quick search (Хайх) */}
@@ -3233,6 +3308,7 @@ const handleCancelDraft = (appointmentId: number) => {
           )}
         </div>
       </section>
+      )}
 
       {/* Booking intent banner */}
       {bookingIntent && (
@@ -3274,6 +3350,23 @@ const handleCancelDraft = (appointmentId: number) => {
   <div style={{ color: "#6b7280", fontSize: 12, marginBottom: 8 }}>
     {formatDateYmdDots(selectedDay)}
   </div>
+  {/* Compact date selector for other-branch reception view (Шүүлт is hidden) */}
+  {isOtherBranchReceptionView && (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+      <label style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>Огноо:</label>
+      <input
+        type="date"
+        value={filterDate}
+        onChange={(e) => setFilterDate(e.target.value)}
+        style={{
+          borderRadius: 6,
+          border: "1px solid #d1d5db",
+          padding: "5px 8px",
+          fontSize: 13,
+        }}
+      />
+    </div>
+  )}
 
   {!hasMounted ? (
     <div style={{ color: "#6b7280", fontSize: 13 }}>
@@ -3809,7 +3902,8 @@ const handleCancelDraft = (appointmentId: number) => {
         )}
       </section>
 
-     {/* Create form card */}
+     {/* Create form card — hidden when receptionist is viewing another branch */}
+      {!isOtherBranchReceptionView && (
       <section
         ref={formSectionRef as any}
         style={{
@@ -3855,7 +3949,7 @@ const handleCancelDraft = (appointmentId: number) => {
 
         const query = branchId ? { branchId } : {};
         router.push(
-          { pathname: "/appointments", query },
+          { pathname: basePath, query },
           undefined,
           { shallow: true }
         );
@@ -3863,6 +3957,7 @@ const handleCancelDraft = (appointmentId: number) => {
     }}
   />
       </section>
+      )}
 
       {error && (
         <div style={{ color: "#b91c1c", fontSize: 13, marginBottom: 12 }}>
@@ -3886,6 +3981,7 @@ const handleCancelDraft = (appointmentId: number) => {
   appointments={detailsModalState.appointments}
   slotAppointmentCount={detailsModalState.slotAppointmentCount}
   currentUserRole={currentUserRole}
+  readOnly={isOtherBranchReceptionView}
   onStatusUpdated={(updated) => {
     // update main list
     setAppointments((prev) =>
@@ -3943,6 +4039,7 @@ const handleCancelDraft = (appointmentId: number) => {
   defaultPatientId={bookingIntent?.patientId ?? null}
   defaultPatientQuery={bookingIntent?.patientLabel ?? ""}
   currentUserRole={currentUserRole}
+  forceBookedStatus={isOtherBranchReceptionView}
   onCreated={(a) => {
   setAppointments((prev) => [a, ...prev]);
 
