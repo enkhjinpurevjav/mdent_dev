@@ -928,7 +928,13 @@ router.post("/encounters/:id/batch-settlement", async (req, res) => {
         });
         if (apptForBroadcast?.scheduledAt) {
           const apptDate = apptForBroadcast.scheduledAt.toISOString().slice(0, 10);
-          sseBroadcast("appointment_updated", apptForBroadcast, apptDate, apptForBroadcast.branchId);
+          // Include encounterId so the receptionist billing button works without a refresh.
+          sseBroadcast(
+            "appointment_updated",
+            { ...apptForBroadcast, encounterId },
+            apptDate,
+            apptForBroadcast.branchId
+          );
         }
       } catch (sseErr) {
         console.error("SSE broadcast error after batch-settlement (non-fatal):", sseErr);

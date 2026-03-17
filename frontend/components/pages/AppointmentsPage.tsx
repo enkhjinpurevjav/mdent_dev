@@ -1951,6 +1951,13 @@ const workingDoctorsForFilter = scheduledDoctors.length
               return prev;
             }
           });
+          // Keep open details modal in sync so buttons (e.g. billing) use fresh data
+          setDetailsModalState((prev) => ({
+            ...prev,
+            appointments: prev.appointments.map((a) =>
+              a.id === appt.id ? { ...a, ...appt } : a
+            ),
+          }));
         } catch { /* ignore parse errors */ }
       });
 

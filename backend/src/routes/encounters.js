@@ -1032,10 +1032,16 @@ router.put("/:id/finish", requireEncounterWriteAccess, async (req, res) => {
         },
       });
 
-      // Broadcast SSE so Appointments page reflects "ready_to_pay" immediately
+      // Broadcast SSE so Appointments page reflects "ready_to_pay" immediately.
+      // Include encounterId so the receptionist billing button works without a refresh.
       if (updatedAppointment.scheduledAt) {
         const apptDate = updatedAppointment.scheduledAt.toISOString().slice(0, 10);
-        sseBroadcast("appointment_updated", updatedAppointment, apptDate, updatedAppointment.branchId);
+        sseBroadcast(
+          "appointment_updated",
+          { ...updatedAppointment, encounterId },
+          apptDate,
+          updatedAppointment.branchId
+        );
       }
     }
 

@@ -2134,7 +2134,13 @@ router.post("/:id/imaging/transition-to-ready", async (req, res) => {
         });
         if (apptForBroadcast?.scheduledAt) {
           const apptDate = apptForBroadcast.scheduledAt.toISOString().slice(0, 10);
-          sseBroadcast("appointment_updated", apptForBroadcast, apptDate, apptForBroadcast.branchId);
+          // Include encounterId so the receptionist billing button works without a refresh.
+          sseBroadcast(
+            "appointment_updated",
+            { ...apptForBroadcast, encounterId: encounter.id },
+            apptDate,
+            apptForBroadcast.branchId
+          );
         }
       } catch (sseErr) {
         console.error("SSE broadcast error after imaging transition (non-fatal):", sseErr);
