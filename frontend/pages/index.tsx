@@ -1,81 +1,51 @@
-import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/router";
+import { useAuth } from "../contexts/AuthContext";
 
-export default function Dashboard() {
+/** Maps each role to its home route. */
+const ROLE_HOME: Record<string, string> = {
+  admin: "/bookings",
+  super_admin: "/bookings",
+  receptionist: "/reception/appointments",
+  doctor: "/doctor/appointments",
+  nurse: "/nurse/schedule",
+};
+
+export default function IndexPage() {
+  const router = useRouter();
+  const { me, loading } = useAuth();
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (!me) {
+      router.replace("/login?redirect=/");
+      return;
+    }
+
+    const target = ROLE_HOME[me.role] ?? "/login";
+    // Guard against redirect loops: only navigate if not already there.
+    if (router.pathname !== target) {
+      router.replace(target);
+    }
+  }, [loading, me, router]);
+
+  // Show a loading indicator while deciding where to redirect.
   return (
     <div
       style={{
-        maxWidth: 1100,
-        margin: "0 auto",
-        padding: 16,
-        fontFamily: "sans-serif",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100vh",
+        gap: "12px",
+        fontSize: "16px",
+        color: "#555",
       }}
     >
-      <h1 style={{ fontSize: 22, marginBottom: 8 }}>🦷 M Дент хянах самбар</h1>
-      <p style={{ color: "#6b7280", fontSize: 13, marginBottom: 16 }}>
-        Өнөөдрийн цаг, үзлэг, орлого болон ажилчдын мэдээллийг эндээс харах.
-      </p>
-
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 16,
-          marginBottom: 24,
-        }}
-      >
-        <DashboardCard
-          title="Цаг (шинэ)"
-          description="Өнөөдрийн цаг захиалгуудыг эмчээр харах."
-          href="/bookings"
-        />
-        <DashboardCard
-          title="Үйлчлүүлэгчид"
-          description="Шинэ үйлчлүүлэгч бүртгэх, картын дугаар харах."
-          href="/patients"
-        />
-        <DashboardCard
-          title="Ажилтнууд"
-          description="Эмч, ресепшн, сувилагч болон бусадыг удирдах."
-          href="/users"
-        />
-        <DashboardCard
-          title="Тайлан"
-          description="Орлого, үзлэг, салбарын тайлангууд."
-          href="/reports"
-        />
-      </section>
+      <span style={{ fontSize: "48px" }}>🦷</span>
+      <span>ачаалж байна</span>
     </div>
-  );
-}
-
-function DashboardCard({
-  title,
-  description,
-  href,
-}: {
-  title: string;
-  description: string;
-  href: string;
-}) {
-  return (
-    <Link href={href} legacyBehavior>
-      <a
-        style={{
-          display: "block",
-          padding: 16,
-          borderRadius: 12,
-          border: "1px solid #e5e7eb",
-          background: "#ffffff",
-          textDecoration: "none",
-          color: "#111827",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-        }}
-      >
-        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
-          {title}
-        </div>
-        <div style={{ fontSize: 13, color: "#6b7280" }}>{description}</div>
-      </a>
-    </Link>
   );
 }

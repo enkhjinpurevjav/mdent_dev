@@ -46,7 +46,7 @@ export default function LoginForm() {
         ? "/nurse/schedule"
         : isReceptionist
         ? "/reception/appointments"
-        : "/";
+        : "/bookings";
 
       router.replace(safeRedirect || fallback);
     } catch (err: any) {
