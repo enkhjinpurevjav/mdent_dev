@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/router";
+import { getMe } from "../utils/auth";
 
 type Branch = {
   id: number;
@@ -402,6 +404,7 @@ function getPageNumbers(page: number, totalPages: number): (number | "...")[] {
 }
 
 export default function PatientsPage() {
+  const router = useRouter();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -420,6 +423,17 @@ export default function PatientsPage() {
   const [totalFemale, setTotalFemale] = useState(0);
   const [totalKids, setTotalKids] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [ownBranchId, setOwnBranchId] = useState<string | null>(null);
+  useEffect(() => {
+    getMe()
+      .then((user) => {
+        setCurrentUserRole(user?.role ?? null);
+        setOwnBranchId(user?.branchId != null ? String(user.branchId) : null);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -686,6 +700,28 @@ export default function PatientsPage() {
                                 <path d="M3.5 2A1.5 1.5 0 002 3.5V5a1.5 1.5 0 001.5 1.5H5A1.5 1.5 0 006.5 5V3.5A1.5 1.5 0 005 2H3.5zM9.5 2A1.5 1.5 0 008 3.5V5a1.5 1.5 0 001.5 1.5H11A1.5 1.5 0 0012.5 5V3.5A1.5 1.5 0 0011 2H9.5zM15.5 2A1.5 1.5 0 0014 3.5V5a1.5 1.5 0 001.5 1.5H17A1.5 1.5 0 0018.5 5V3.5A1.5 1.5 0 0017 2h-1.5zM3.5 8A1.5 1.5 0 002 9.5V11a1.5 1.5 0 001.5 1.5H5A1.5 1.5 0 006.5 11V9.5A1.5 1.5 0 005 8H3.5zM9.5 8A1.5 1.5 0 008 9.5V11a1.5 1.5 0 001.5 1.5H11A1.5 1.5 0 0012.5 11V9.5A1.5 1.5 0 0011 8H9.5zM15.5 8A1.5 1.5 0 0014 9.5V11a1.5 1.5 0 001.5 1.5H17A1.5 1.5 0 0018.5 11V9.5A1.5 1.5 0 0017 8h-1.5zM3.5 14A1.5 1.5 0 002 15.5V17a1.5 1.5 0 001.5 1.5H5A1.5 1.5 0 006.5 17v-1.5A1.5 1.5 0 005 14H3.5zM9.5 14A1.5 1.5 0 008 15.5V17a1.5 1.5 0 001.5 1.5H11A1.5 1.5 0 0012.5 17v-1.5A1.5 1.5 0 0011 14H9.5zM15.5 14A1.5 1.5 0 0014 15.5V17a1.5 1.5 0 001.5 1.5H17A1.5 1.5 0 0018.5 17v-1.5A1.5 1.5 0 0017 14h-1.5z" />
                               </svg>
                             </a>
+                            {/* Цаг захиалах */}
+                            <button
+                              type="button"
+                              title="Цаг захиалах"
+                              className={btnCls}
+                              onClick={() => {
+                                if (!window.confirm("Энэхүү үйлчлүүлэгчид цаг захиалах уу?")) return;
+                                const isReception = currentUserRole === "receptionist";
+                                if (isReception && ownBranchId) {
+                                  router.push(`/reception/appointments?branchId=${ownBranchId}&bookPatientId=${p.id}`);
+                                } else if (isReception) {
+                                  router.push(`/reception/appointments?bookPatientId=${p.id}`);
+                                } else {
+                                  router.push(`/appointments?bookPatientId=${p.id}`);
+                                }
+                              }}
+                            >
+                              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M5.25 12a.75.75 0 01.75-.75h.01a.75.75 0 01.75.75v.01a.75.75 0 01-.75.75H6a.75.75 0 01-.75-.75V12zM6 13.25a.75.75 0 00-.75.75v.01c0 .414.336.75.75.75h.01a.75.75 0 00.75-.75V14a.75.75 0 00-.75-.75H6zM7.25 12a.75.75 0 01.75-.75h.01a.75.75 0 01.75.75v.01a.75.75 0 01-.75.75H8a.75.75 0 01-.75-.75V12zM8 13.25a.75.75 0 00-.75.75v.01c0 .414.336.75.75.75h.01a.75.75 0 00.75-.75V14a.75.75 0 00-.75-.75H8zM9.25 10a.75.75 0 01.75-.75h.01a.75.75 0 01.75.75v.01a.75.75 0 01-.75.75H10a.75.75 0 01-.75-.75V10zM10 11.25a.75.75 0 00-.75.75v.01c0 .414.336.75.75.75h.01a.75.75 0 00.75-.75V12a.75.75 0 00-.75-.75H10zM9.25 14a.75.75 0 01.75-.75h.01a.75.75 0 01.75.75v.01a.75.75 0 01-.75.75H10a.75.75 0 01-.75-.75V14zM12 9.25a.75.75 0 00-.75.75v.01c0 .414.336.75.75.75h.01a.75.75 0 00.75-.75V10a.75.75 0 00-.75-.75H12zM11.25 12a.75.75 0 01.75-.75h.01a.75.75 0 01.75.75v.01a.75.75 0 01-.75.75H12a.75.75 0 01-.75-.75V12zM12 13.25a.75.75 0 00-.75.75v.01c0 .414.336.75.75.75h.01a.75.75 0 00.75-.75V14a.75.75 0 00-.75-.75H12zM13.25 10a.75.75 0 01.75-.75h.01a.75.75 0 01.75.75v.01a.75.75 0 01-.75.75H14a.75.75 0 01-.75-.75V10zM14 11.25a.75.75 0 00-.75.75v.01c0 .414.336.75.75.75h.01a.75.75 0 00.75-.75V12a.75.75 0 00-.75-.75H14z" />
+                                <path fillRule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clipRule="evenodd" />
+                              </svg>
+                            </button>
                           </div>
                         );
                       })()}

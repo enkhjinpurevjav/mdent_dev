@@ -60,11 +60,13 @@ export default function PatientProfilePage() {
   // Detect doctor role
   const [isDoctor, setIsDoctor] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [ownBranchId, setOwnBranchId] = useState<string | null>(null);
   useEffect(() => {
     getMe()
       .then((user) => {
         setIsDoctor(user?.role === "doctor");
         setCurrentUserRole(user?.role ?? null);
+        setOwnBranchId(user?.branchId != null ? String(user.branchId) : null);
       })
       .catch(() => {
         // Default to non-doctor on error (safe fallback: shows full UI)
@@ -550,6 +552,25 @@ export default function PatientProfilePage() {
               className={tabBtnClass("ortho_card")}
             >
               Гажиг заслын карт
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!patient) return;
+                if (!window.confirm("Энэхүү үйлчлүүлэгчид цаг захиалах уу?")) return;
+                const isReception = isReceptionRoute || currentUserRole === "receptionist";
+                if (isReception && ownBranchId) {
+                  router.push(`/reception/appointments?branchId=${ownBranchId}&bookPatientId=${patient.id}`);
+                } else if (isReception) {
+                  router.push(`/reception/appointments?bookPatientId=${patient.id}`);
+                } else {
+                  router.push(`/appointments?bookPatientId=${patient.id}`);
+                }
+              }}
+              className="px-3 py-1 rounded text-xs font-medium transition-colors bg-blue-500 hover:bg-blue-400 text-white whitespace-nowrap"
+            >
+              Цаг захиалах
             </button>
           </div>
         </div>
