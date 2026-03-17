@@ -26,11 +26,14 @@ function formatNurseDisplayName(d: NurseDetails | null, fallbackEmail?: string |
 interface Props {
   meUrl?: string;
   showLogout?: boolean;
+  /** Label shown under name and in the role pill (defaults to "Сувилагч"). */
+  roleLabel?: string;
 }
 
 export default function NurseProfileSummaryView({
   meUrl = "/api/nurse/me",
   showLogout = false,
+  roleLabel = "Сувилагч",
 }: Props) {
   const router = useRouter();
 
@@ -59,7 +62,7 @@ export default function NurseProfileSummaryView({
         if (ok) {
           setNurse(data as NurseDetails);
         } else {
-          setError((data as any)?.error || "Сувилагчийн мэдээллийг ачаалж чадсангүй");
+          setError((data as any)?.error || "Мэдээллийг ачаалж чадсангүй");
         }
       })
       .catch(() => {
@@ -158,7 +161,7 @@ export default function NurseProfileSummaryView({
             {displayName}
           </div>
           <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
-            Сувилагч
+            {roleLabel}
           </div>
         </div>
 
@@ -199,7 +202,7 @@ export default function NurseProfileSummaryView({
                 color: "#0f2044",
               }}
             >
-              Сувилагч
+              {roleLabel}
             </span>
           </div>
 
