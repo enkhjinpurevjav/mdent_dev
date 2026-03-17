@@ -9,13 +9,45 @@ import { authenticateJWT } from "../middleware/auth.js";
 
 const router = Router();
 
-// Rate limit: max 10 login attempts per 15 minutes per IP
-const loginRateLimit = rateLimit({
+// ---------------------------------------------------------------------------
+// Login rate limiting — dual-layer protection
+//
+// Layer 1 (applied first): per-IP backstop
+//   Prevents one IP from trying many different email addresses.
+//   Threshold is high enough that a whole clinic sharing one public IP
+//   won't be locked out during normal use (100 attempts / 15 min).
+//
+// Layer 2: per (IP + email)
+//   Prevents brute-force against a single account.
+//   Uses a keyGenerator that normalises the email so that different
+//   capitalisation / whitespace variations still count as one key.
+//   Falls back to "${ip}:no-email" when no email is provided.
+// ---------------------------------------------------------------------------
+
+// Layer 1 — IP backstop: 100 attempts per 15 minutes per IP
+const ipBackstopRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many login attempts. Please try again later." },
+});
+
+// Layer 2 — per (IP + email): 10 attempts per 15 minutes
+const ipEmailRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many login attempts. Please try again later." },
+  keyGenerator: (req) => {
+    const raw = req.body?.email || req.body?.username || "";
+    const email = raw.trim().toLowerCase() || "no-email";
+    // Use "||" separator — pipe is invalid in both email addresses and IP
+    // addresses, so the parts cannot be manipulated to collide with another
+    // (ip, email) pair.
+    return `${req.ip}||${email}`;
+  },
 });
 
 const COOKIE_NAME = "access_token";
@@ -34,7 +66,7 @@ function cookieOptions() {
 }
 
 // POST /api/auth/login
-router.post("/login", loginRateLimit, async (req, res) => {
+router.post("/login", ipBackstopRateLimit, ipEmailRateLimit, async (req, res) => {
   const { email, username, password } = req.body;
   const loginEmail = email || username;
 
