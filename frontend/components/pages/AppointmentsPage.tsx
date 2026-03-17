@@ -3352,6 +3352,75 @@ const handleCancelDraft = (appointmentId: number) => {
         </div>
       )}
 
+      {/* Pending drag/drop save confirmation — shown inline above the calendar */}
+      {pendingSaveId !== null && (
+        <div
+          style={{
+            marginBottom: 12,
+            background: "#ffffff",
+            borderRadius: 8,
+            boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+            padding: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            border: "2px solid #f59e0b",
+          }}
+        >
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
+            Цаг захиалга өөрчлөгдлөө
+          </div>
+          <div style={{ fontSize: 12, color: "#6b7280" }}>
+            Та өөрчлөлтийг хадгалах уу эсвэл цуцлах уу?
+          </div>
+          {pendingSaveError && (
+            <div style={{ fontSize: 12, color: "#b91c1c" }}>
+              {pendingSaveError}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => handleSaveDraft(pendingSaveId)}
+              disabled={pendingSaving}
+              style={{
+                flex: 1,
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "none",
+                background: "#16a34a",
+                color: "white",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: pendingSaving ? "default" : "pointer",
+                opacity: pendingSaving ? 0.6 : 1,
+              }}
+            >
+              {pendingSaving ? "Хадгалж байна..." : "Хадгалах"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleCancelDraft(pendingSaveId)}
+              disabled={pendingSaving}
+              style={{
+                flex: 1,
+                padding: "8px 16px",
+                borderRadius: 6,
+                border: "1px solid #d1d5db",
+                background: "#f9fafb",
+                color: "#111827",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: pendingSaving ? "default" : "pointer",
+                opacity: pendingSaving ? 0.6 : 1,
+              }}
+            >
+              Цуцлах
+            </button>
+          </div>
+        </div>
+      )}
+
 
      <section style={{ marginBottom: 24 }}>
   <h2 style={{ fontSize: 16, marginBottom: 4 }}>
@@ -4079,79 +4148,6 @@ const handleCancelDraft = (appointmentId: number) => {
   }}
 />
 
-{/* Floating Save/Cancel bar for pending draft */}
-{pendingSaveId !== null && (
-  <div
-    style={{
-      position: "fixed",
-      bottom: 24,
-      left: "50%",
-      transform: "translateX(-50%)",
-      zIndex: 100,
-      background: "#ffffff",
-      borderRadius: 8,
-      boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
-      padding: 16,
-      display: "flex",
-      flexDirection: "column",
-      gap: 12,
-      minWidth: 320,
-      border: "2px solid #f59e0b",
-    }}
-  >
-    <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
-      Цаг захиалга өөрчлөгдлөө
-    </div>
-    <div style={{ fontSize: 12, color: "#6b7280" }}>
-      Та өөрчлөлтийг хадгалах уу эсвэл цуцлах уу?
-    </div>
-    {pendingSaveError && (
-      <div style={{ fontSize: 12, color: "#b91c1c" }}>
-        {pendingSaveError}
-      </div>
-    )}
-    <div style={{ display: "flex", gap: 8 }}>
-      <button
-        type="button"
-        onClick={() => handleSaveDraft(pendingSaveId)}
-        disabled={pendingSaving}
-        style={{
-          flex: 1,
-          padding: "8px 16px",
-          borderRadius: 6,
-          border: "none",
-          background: "#16a34a",
-          color: "white",
-          fontSize: 13,
-          fontWeight: 600,
-          cursor: pendingSaving ? "default" : "pointer",
-          opacity: pendingSaving ? 0.6 : 1,
-        }}
-      >
-        {pendingSaving ? "Хадгалж байна..." : "Хадгалах"}
-      </button>
-      <button
-        type="button"
-        onClick={() => handleCancelDraft(pendingSaveId)}
-        disabled={pendingSaving}
-        style={{
-          flex: 1,
-          padding: "8px 16px",
-          borderRadius: 6,
-          border: "1px solid #d1d5db",
-          background: "#f9fafb",
-          color: "#111827",
-          fontSize: 13,
-          fontWeight: 600,
-          cursor: pendingSaving ? "default" : "pointer",
-          opacity: pendingSaving ? 0.6 : 1,
-        }}
-      >
-        Цуцлах
-      </button>
-    </div>
-  </div>
-)}
 {/* Exceptional appointment modal */}
 {showExceptional && (
   <div

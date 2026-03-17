@@ -424,19 +424,23 @@ export default function AppointmentDetailsModal({
 
     if (!bookNumber) return;
 
+    const isReceptionRoute = router.asPath.startsWith("/reception/");
+
+    if (isReceptionRoute) {
+      window.open(
+        `/reception/patients/${encodeURIComponent(bookNumber)}?tab=patient_history`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+      return;
+    }
+
     if (doctorMode) {
       const returnTo = encodeURIComponent(router.asPath);
       router.push(
         `/patients/${encodeURIComponent(
           bookNumber
         )}?tab=patient_history&returnTo=${returnTo}`
-      );
-      return;
-    }
-
-    if (currentUserRole === "receptionist") {
-      router.push(
-        `/reception/patients/${encodeURIComponent(bookNumber)}?tab=patient_history`
       );
       return;
     }

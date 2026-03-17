@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/router";
 import type { Branch, Doctor, ScheduledDoctor, Appointment, PatientLite, DoctorScheduleDay, CompletedHistoryItem } from "./types";
 import { formatDoctorName, historyDoctorToDoctor, formatPatientSearchLabel, formatHistoryDate } from "./formatters";
 import { SLOT_MINUTES, addMinutesToTimeString, generateTimeSlotsForDay, getSlotTimeString, isTimeWithinRange } from "./time";
@@ -56,6 +57,7 @@ export default function QuickAppointmentModal({
   currentUserRole,
   forceBookedStatus = false,
 }: QuickAppointmentModalProps) {
+  const router = useRouter();
   const isEditMode = Boolean(editingAppointment);
   const isCompletedReadOnly =
     isEditMode &&
@@ -559,9 +561,6 @@ export default function QuickAppointmentModal({
   };
 
   const handleOpenPatientProfileNewTab = () => {
-    // Open patient profile in new tab using the same URL pattern you already use
-    // Requires patientBook.bookNumber or patientId route depending on your app.
-    // Here we try to use patientBook.bookNumber if present.
     const p =
       (editingAppointment && (editingAppointment.patient as any)) ||
       null;
@@ -569,7 +568,10 @@ export default function QuickAppointmentModal({
     const bookNumber = p?.patientBook?.bookNumber;
 
     if (bookNumber) {
-      const url = `/patients/profile/${encodeURIComponent(String(bookNumber))}`;
+      const isReceptionRoute = router.asPath.startsWith("/reception/");
+      const url = isReceptionRoute
+        ? `/reception/patients/${encodeURIComponent(String(bookNumber))}?tab=patient_history`
+        : `/patients/${encodeURIComponent(String(bookNumber))}?tab=patient_history`;
       window.open(url, "_blank", "noopener,noreferrer");
       return;
     }
