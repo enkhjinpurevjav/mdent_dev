@@ -266,6 +266,10 @@ export default function DoctorAppointmentsPage() {
   const [salesLoading, setSalesLoading] = useState(false);
   const [salesError, setSalesError] = useState(false);
 
+  // ---- SSE live indicator ----
+  const [sseStatus, setSseStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
+  const [lastSseEventAt, setLastSseEventAt] = useState<Date | null>(null);
+
   // ---- load me once ----
   useEffect(() => {
     let cancelled = false;
@@ -391,7 +395,13 @@ export default function DoctorAppointmentsPage() {
     if (!doctorId) return;
 
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let es: EventSource | null = null;
+    let closed = false;
+
     const requestRefresh = () => {
+      setSseStatus("connected");
+      setLastSseEventAt(new Date());
       if (debounceTimer) return;
       debounceTimer = setTimeout(() => {
         debounceTimer = null;
@@ -399,28 +409,37 @@ export default function DoctorAppointmentsPage() {
       }, 800);
     };
 
-    let es: EventSource | null = null;
-    try {
-      es = new EventSource(
-        `/api/appointments/stream?date=${encodeURIComponent(ymdToday())}`
-      );
-    } catch {
-      // EventSource construction failed; skip live updates
-      return;
+    function connect() {
+      if (closed) return;
+      setSseStatus("connecting");
+      try {
+        es = new EventSource(
+          `/api/appointments/stream?date=${encodeURIComponent(ymdToday())}`
+        );
+      } catch {
+        // EventSource construction failed; skip live updates
+        return;
+      }
+
+      es.addEventListener("appointment_created", requestRefresh);
+      es.addEventListener("appointment_updated", requestRefresh);
+      es.addEventListener("appointment_deleted", requestRefresh);
+
+      es.onerror = () => {
+        if (closed) return;
+        es?.close();
+        es = null;
+        setSseStatus("disconnected");
+        retryTimeout = setTimeout(connect, 3000);
+      };
     }
 
-    es.addEventListener("appointment_created", requestRefresh);
-    es.addEventListener("appointment_updated", requestRefresh);
-    es.addEventListener("appointment_deleted", requestRefresh);
-
-    es.onerror = () => {
-      // Close on error (e.g. 403 or network loss) without crashing the page
-      es?.close();
-      es = null;
-    };
+    connect();
 
     return () => {
+      closed = true;
       if (debounceTimer) clearTimeout(debounceTimer);
+      if (retryTimeout) clearTimeout(retryTimeout);
       es?.close();
     };
   }, [doctorId]);
@@ -921,8 +940,28 @@ export default function DoctorAppointmentsPage() {
           padding: 12,
         }}
       >
-        <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 8, color: "#374151" }}>
+        <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 8, color: "#374151", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           Нийт цаг захиалгууд
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            fontSize: 12, fontWeight: 500, borderRadius: 20,
+            padding: "2px 10px",
+            background: sseStatus === "connected" ? "#dcfce7" : sseStatus === "disconnected" ? "#fee2e2" : "#fef9c3",
+            color: sseStatus === "connected" ? "#15803d" : sseStatus === "disconnected" ? "#b91c1c" : "#854d0e",
+            border: `1px solid ${sseStatus === "connected" ? "#86efac" : sseStatus === "disconnected" ? "#fca5a5" : "#fde68a"}`,
+          }}>
+            <span style={{
+              width: 7, height: 7, borderRadius: "50%",
+              background: sseStatus === "connected" ? "#22c55e" : sseStatus === "disconnected" ? "#ef4444" : "#eab308",
+              display: "inline-block",
+            }} />
+            {sseStatus === "connected" ? "Live: Connected" : sseStatus === "disconnected" ? "Live: Disconnected" : "Reconnecting…"}
+            {sseStatus === "connected" && lastSseEventAt && (
+              <span style={{ opacity: 0.75 }}>
+                · Last update: {lastSseEventAt.toLocaleTimeString("mn-MN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              </span>
+            )}
+          </span>
         </div>
 
         {!loading && !error && grouped.length === 0 && (

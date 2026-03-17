@@ -1399,6 +1399,10 @@ const [pendingSaving, setPendingSaving] = useState(false);
 
   const [bookingIntent, setBookingIntent] = useState<BookingIntent>(null);
 
+  // ---- SSE live indicator ----
+  const [sseStatus, setSseStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
+  const [lastSseEventAt, setLastSseEventAt] = useState<Date | null>(null);
+
   // ---- Filter patient search ----
   type FilterPatient = {
     id: number;
@@ -1896,9 +1900,16 @@ const workingDoctorsForFilter = scheduledDoctors.length
 
     function connect() {
       if (closed) return;
+      setSseStatus("connecting");
       es = new EventSource(`/api/appointments/stream?${params.toString()}`);
 
+      const markEvent = () => {
+        setSseStatus("connected");
+        setLastSseEventAt(new Date());
+      };
+
       es.addEventListener("appointment_created", (e: MessageEvent) => {
+        markEvent();
         try {
           const appt = JSON.parse(e.data) as Appointment;
           // Only apply if the appointment is for the currently viewed date
@@ -1914,6 +1925,7 @@ const workingDoctorsForFilter = scheduledDoctors.length
       });
 
       es.addEventListener("appointment_updated", (e: MessageEvent) => {
+        markEvent();
         try {
           const appt = JSON.parse(e.data) as Appointment;
           setAppointments((prev) => {
@@ -1927,6 +1939,7 @@ const workingDoctorsForFilter = scheduledDoctors.length
       });
 
       es.addEventListener("appointment_deleted", (e: MessageEvent) => {
+        markEvent();
         try {
           const payload = JSON.parse(e.data) as { id: number };
           setAppointments((prev) => prev.filter((a) => a.id !== payload.id));
@@ -1937,6 +1950,7 @@ const workingDoctorsForFilter = scheduledDoctors.length
         if (closed) return;
         es?.close();
         es = null;
+        setSseStatus("disconnected");
         // Simple exponential-ish backoff: retry after 3s
         retryTimeout = setTimeout(connect, 3000);
       };
@@ -2682,7 +2696,29 @@ const handleCancelDraft = (appointmentId: number) => {
 `}</style>
 {/* Calendar view with doctor-columns time grid (all screen sizes) */}
 <div>
-<h1 style={{ fontSize: 20, margin: "4px 0 8px" }}>Цаг захиалга</h1>
+<h1 style={{ fontSize: 20, margin: "4px 0 8px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+  Цаг захиалга
+  <span style={{
+    display: "inline-flex", alignItems: "center", gap: 5,
+    fontSize: 12, fontWeight: 500, borderRadius: 20,
+    padding: "2px 10px",
+    background: sseStatus === "connected" ? "#dcfce7" : sseStatus === "disconnected" ? "#fee2e2" : "#fef9c3",
+    color: sseStatus === "connected" ? "#15803d" : sseStatus === "disconnected" ? "#b91c1c" : "#854d0e",
+    border: `1px solid ${sseStatus === "connected" ? "#86efac" : sseStatus === "disconnected" ? "#fca5a5" : "#fde68a"}`,
+  }}>
+    <span style={{
+      width: 7, height: 7, borderRadius: "50%",
+      background: sseStatus === "connected" ? "#22c55e" : sseStatus === "disconnected" ? "#ef4444" : "#eab308",
+      display: "inline-block",
+    }} />
+    {sseStatus === "connected" ? "Live: Connected" : sseStatus === "disconnected" ? "Live: Disconnected" : "Reconnecting…"}
+    {sseStatus === "connected" && lastSseEventAt && (
+      <span style={{ opacity: 0.75 }}>
+        · Last update: {lastSseEventAt.toLocaleTimeString("mn-MN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+      </span>
+    )}
+  </span>
+</h1>
 {!isReceptionRoute && (
 <p style={{ color: "#6b7280", fontSize: 13, marginBottom: 12 }}>
   Эмч, үйлчлүүлэгч, салбарын цаг захиалгыг харах болон удирдах хэсэг
