@@ -32,6 +32,8 @@ type QuickAppointmentModalProps = {
 
   /** Current user role for permission checks (e.g. "super_admin") */
   currentUserRole?: string | null;
+  /** When true, forces status to "booked" and hides the status selector */
+  forceBookedStatus?: boolean;
 };
 
 export default function QuickAppointmentModal({
@@ -52,6 +54,7 @@ export default function QuickAppointmentModal({
   defaultPatientId,
   defaultPatientQuery,
   currentUserRole,
+  forceBookedStatus = false,
 }: QuickAppointmentModalProps) {
   const isEditMode = Boolean(editingAppointment);
   const isCompletedReadOnly =
@@ -643,7 +646,7 @@ export default function QuickAppointmentModal({
             branchId: Number(form.branchId),
             scheduledAt: scheduledAtStr,
             endAt: endAtStr,
-            status: form.status,
+            status: forceBookedStatus ? "booked" : form.status,
             notes: form.notes || null,
           }),
         });
@@ -1071,8 +1074,8 @@ export default function QuickAppointmentModal({
             </select>
           </div>
 
-          {/* Status (create only) */}
-          {!isEditMode && (
+          {/* Status (create only, hidden when forceBookedStatus) */}
+          {!isEditMode && !forceBookedStatus && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <label>Төлөв</label>
               <select
