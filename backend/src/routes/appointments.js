@@ -518,6 +518,66 @@ const rows = appointments.map((a) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Shared capacity helper: asserts that adding/moving an appointment would not
+// cause more than 2 overlapping appointments for the same doctor.
+//
+// @param {object} opts
+//   doctorId         {number}  – doctor to check (required)
+//   start            {Date}    – appointment start (inclusive)
+//   end              {Date}    – appointment end (exclusive); must be > start
+//   excludeId        {number|null} – appointment id to exclude (for PATCH)
+//   tx               {object}  – Prisma client or transaction client
+//
+// Returns true when capacity would be exceeded (caller should return 409).
+// ---------------------------------------------------------------------------
+async function isDoctorCapacityExceeded({ doctorId, start, end, excludeId = null, tx }) {
+  const where = {
+    doctorId,
+    status: { in: ["booked", "confirmed", "ongoing", "online", "other"] },
+    scheduledAt: { lt: end },
+    OR: [{ endAt: { gt: start } }, { endAt: null }],
+  };
+  if (excludeId !== null) {
+    where.id = { not: excludeId };
+  }
+
+  const existing = await tx.appointment.findMany({
+    where,
+    select: { id: true, scheduledAt: true, endAt: true },
+  });
+
+  const events = [];
+  for (const apt of existing) {
+    const aptStart = new Date(apt.scheduledAt);
+    const aptEnd = apt.endAt
+      ? new Date(apt.endAt)
+      : new Date(aptStart.getTime() + 30 * 60_000);
+    events.push({ time: aptStart.getTime(), type: "start" });
+    events.push({ time: aptEnd.getTime(), type: "end" });
+  }
+  events.push({ time: start.getTime(), type: "start" });
+  events.push({ time: end.getTime(), type: "end" });
+
+  events.sort((a, b) => {
+    if (a.time !== b.time) return a.time - b.time;
+    return a.type === "end" ? -1 : 1;
+  });
+
+  let currentCount = 0;
+  let maxCount = 0;
+  for (const ev of events) {
+    if (ev.type === "start") {
+      currentCount++;
+      maxCount = Math.max(maxCount, currentCount);
+    } else {
+      currentCount--;
+    }
+  }
+
+  return maxCount > 2;
+}
+
 /**
  * POST /api/appointments
  *
@@ -617,111 +677,51 @@ if (req.user?.role === "receptionist" && req.user.branchId !== parsedBranchId) {
   }
 }
 
-    // ===== CAPACITY ENFORCEMENT: Max 2 overlapping appointments =====
-    // Only enforce capacity when doctorId is set
-    if (parsedDoctorId !== null) {
-      const slotStart = scheduledDate;
-      const slotEnd = endDate;
-
-      // Query existing appointments for this doctor that overlap with the requested interval
-      const existingAppointments = await prisma.appointment.findMany({
-        where: {
-          doctorId: parsedDoctorId,
-          // Only count appointments with blocking statuses
-          status: {
-            in: ["booked", "confirmed", "ongoing", "online", "other"],
-          },
-          // Appointments that overlap with [slotStart, slotEnd)
-          // Overlap condition: existingStart < slotEnd AND existingEnd > slotStart
-          scheduledAt: { lt: slotEnd },
-          OR: [
-            { endAt: { gt: slotStart } },
-            { endAt: null }, // null endAt means use default duration, consider as potential overlap
-          ],
-        },
-        select: {
-          id: true,
-          scheduledAt: true,
-          endAt: true,
-        },
-      });
-
-      // Calculate maximum concurrent overlaps if this new appointment is added
-      // We need to find the moment in time with the highest overlap count
-
-      // Collect all time points (start and end times) including the new appointment
-      const events = [];
-
-      // Add existing appointments
-      for (const apt of existingAppointments) {
-        const aptStart = new Date(apt.scheduledAt);
-        const aptEnd = apt.endAt
-          ? new Date(apt.endAt)
-          : new Date(aptStart.getTime() + 30 * 60_000);
-        events.push({ time: aptStart.getTime(), type: "start" });
-        events.push({ time: aptEnd.getTime(), type: "end" });
-      }
-
-      // Add the new appointment we're trying to create
-      events.push({ time: slotStart.getTime(), type: "start" });
-      events.push({ time: slotEnd.getTime(), type: "end" });
-
-      // Sort events by time, with 'end' events before 'start' events at the same time
-      events.sort((a, b) => {
-        if (a.time !== b.time) return a.time - b.time;
-        // At same time: process 'end' before 'start' to get accurate count
-        return a.type === "end" ? -1 : 1;
-      });
-
-      // Sweep through events to find maximum concurrent appointments
-      let currentCount = 0;
-      let maxCount = 0;
-
-      for (const event of events) {
-        if (event.type === "start") {
-          currentCount++;
-          maxCount = Math.max(maxCount, currentCount);
-        } else {
-          currentCount--;
-        }
-      }
-
-      // If max concurrent count would exceed 2, reject the booking
-      if (maxCount > 2) {
-        return res.status(409).json({
-          error: `Энэ цагт эмчийн дүүргэлт хэтэрсэн байна. Хамгийн ихдээ 2 давхцах цаг авах боломжтой. (Одоогийн давхцал: ${maxCount})`,
-        });
-      }
-    }
-
     // Extract provenance fields
     const createdByUserId = req.user?.id || null;
     const parsedSourceEncounterId = sourceEncounterId ? Number(sourceEncounterId) : null;
 
-    const appt = await prisma.appointment.create({
-      data: {
-        patientId: parsedPatientId,
-        doctorId: parsedDoctorId,
-        branchId: parsedBranchId,
-        scheduledAt: scheduledDate,
-        endAt: endDate,
-        status: normalizedStatus,
-        notes: notes || null,
-        // Provenance fields for deletion permission tracking
-        createdByUserId: createdByUserId,
-        source: source || null,
-        sourceEncounterId: parsedSourceEncounterId,
-      },
-      include: {
-        patient: {
-          include: {
-            patientBook: true,
-          },
+    // ===== CAPACITY ENFORCEMENT: Max 2 overlapping appointments (in a transaction) =====
+    const appt = await prisma.$transaction(async (tx) => {
+      if (parsedDoctorId !== null) {
+        const exceeded = await isDoctorCapacityExceeded({
+          doctorId: parsedDoctorId,
+          start: scheduledDate,
+          end: endDate,
+          tx,
+        });
+        if (exceeded) {
+          const err = new Error("capacity_exceeded");
+          err.isCapacityExceeded = true;
+          throw err;
+        }
+      }
+
+      return tx.appointment.create({
+        data: {
+          patientId: parsedPatientId,
+          doctorId: parsedDoctorId,
+          branchId: parsedBranchId,
+          scheduledAt: scheduledDate,
+          endAt: endDate,
+          status: normalizedStatus,
+          notes: notes || null,
+          // Provenance fields for deletion permission tracking
+          createdByUserId: createdByUserId,
+          source: source || null,
+          sourceEncounterId: parsedSourceEncounterId,
         },
-        doctor: true,
-        branch: true,
-        createdBy: { select: { id: true, name: true, ovog: true } },
-      },
+        include: {
+          patient: {
+            include: {
+              patientBook: true,
+            },
+          },
+          doctor: true,
+          branch: true,
+          createdBy: { select: { id: true, name: true, ovog: true } },
+        },
+      });
     });
 
     const responsePayload = {
@@ -737,6 +737,9 @@ if (req.user?.role === "receptionist" && req.user.branchId !== parsedBranchId) {
       sseBroadcast("appointment_created", responsePayload, apptDate, appt.branchId);
     }
   } catch (err) {
+    if (err.isCapacityExceeded) {
+      return res.status(409).json({ error: "Энэ цагт 2 захиалга бүртгэгдсэн байна" });
+    }
     console.error("Error creating appointment:", err);
     res.status(500).json({ error: "failed to create appointment" });
   }
@@ -779,7 +782,7 @@ router.patch("/:id", async (req, res) => {
     // Guard: completed appointments cannot be modified except by super_admin
     const existing = await prisma.appointment.findUnique({
       where: { id },
-      select: { status: true, branchId: true },
+      select: { status: true, branchId: true, doctorId: true, scheduledAt: true, endAt: true },
     });
     if (!existing) {
       return res.status(404).json({ error: "appointment not found" });
@@ -873,14 +876,8 @@ router.patch("/:id", async (req, res) => {
 
     // If either time value changed, validate end > start (when end exists)
     if (scheduledAt !== undefined || endAt !== undefined) {
-      const current = await prisma.appointment.findUnique({
-        where: { id },
-        select: { scheduledAt: true, endAt: true },
-      });
-      if (!current) return res.status(404).json({ error: "appointment not found" });
-
-      const start = nextScheduledAt ?? current.scheduledAt;
-      const end = endAt !== undefined ? nextEndAt : current.endAt;
+      const start = nextScheduledAt ?? existing.scheduledAt;
+      const end = endAt !== undefined ? nextEndAt : existing.endAt;
 
       if (end && end <= start) {
         return res
@@ -897,16 +894,50 @@ router.patch("/:id", async (req, res) => {
     // Track who last updated this appointment
     data.updatedByUserId = req.user?.id || null;
 
-    const appt = await prisma.appointment.update({
-      where: { id },
-      data,
-      include: {
-        patient: { include: { patientBook: true } },
-        doctor: true,
-        branch: true,
-        createdBy: { select: { id: true, name: true, ovog: true } },
-        updatedBy: { select: { id: true, name: true, ovog: true } },
-      },
+    // ===== CAPACITY ENFORCEMENT on edit =====
+    // Check capacity whenever the effective doctor/time slot may change.
+    const appt = await prisma.$transaction(async (tx) => {
+      const timeOrDoctorChanged =
+        scheduledAt !== undefined || endAt !== undefined || doctorId !== undefined;
+      if (timeOrDoctorChanged) {
+        const effectiveDoctorId =
+          doctorId !== undefined
+            ? (doctorId === null || doctorId === "" ? null : Number(doctorId))
+            : existing.doctorId;
+
+        if (effectiveDoctorId !== null) {
+          const effectiveStart = nextScheduledAt ?? existing.scheduledAt;
+          const rawEnd = endAt !== undefined ? nextEndAt : existing.endAt;
+          const effectiveEnd = rawEnd
+            ? rawEnd
+            : new Date(effectiveStart.getTime() + 30 * 60_000);
+
+          const exceeded = await isDoctorCapacityExceeded({
+            doctorId: effectiveDoctorId,
+            start: effectiveStart,
+            end: effectiveEnd,
+            excludeId: id,
+            tx,
+          });
+          if (exceeded) {
+            const err = new Error("capacity_exceeded");
+            err.isCapacityExceeded = true;
+            throw err;
+          }
+        }
+      }
+
+      return tx.appointment.update({
+        where: { id },
+        data,
+        include: {
+          patient: { include: { patientBook: true } },
+          doctor: true,
+          branch: true,
+          createdBy: { select: { id: true, name: true, ovog: true } },
+          updatedBy: { select: { id: true, name: true, ovog: true } },
+        },
+      });
     });
 
     // If status changed to "imaging", create encounter immediately (similar to "ongoing")
@@ -956,6 +987,9 @@ router.patch("/:id", async (req, res) => {
 
     return res.json(updateResponsePayload);
   } catch (err) {
+    if (err.isCapacityExceeded) {
+      return res.status(409).json({ error: "Энэ цагт 2 захиалга бүртгэгдсэн байна" });
+    }
     console.error("Error updating appointment:", err);
     if (err.code === "P2025") {
       return res.status(404).json({ error: "appointment not found" });

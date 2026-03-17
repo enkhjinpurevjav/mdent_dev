@@ -652,7 +652,7 @@ if (quickPatientForm.regNo.trim()) {
       const existingCount = countAppointmentsInSlot(currentBlockStart);
       if (existingCount >= 2) {
         setError(
-          "Сонгосон хугацааны зарим 30 минутын блок дээр аль хэдийн 2 захиалга байна."
+          "Энэ цагт 2 захиалга бүртгэгдсэн байна"
         );
         return;
       }
@@ -1648,7 +1648,7 @@ const [pendingSaving, setPendingSaving] = useState(false);
         return aStart < slotEnd && aEnd > blockStart;
       }).length;
       if (count >= 2) {
-        setExceptionalError("Сонгосон хугацааны зарим 30 минутын блок дээр аль хэдийн 2 захиалга байна.");
+        setExceptionalError("Энэ цагт 2 захиалга бүртгэгдсэн байна");
         return;
       }
       blockStart = new Date(blockStart.getTime() + SLOT_MINUTES * 60_000);
@@ -2564,6 +2564,15 @@ const handleSaveDraft = async (appointmentId: number) => {
 
     if (!res.ok) {
       setPendingSaveError((data && data.error) || `Хадгалахад алдаа гарлаа (${res.status})`);
+      // On 409 (capacity exceeded), automatically revert the draft so the appointment
+      // snaps back to its original position in the UI
+      if (res.status === 409) {
+        setDraftEdits(prev => {
+          const next = { ...prev };
+          delete next[appointmentId];
+          return next;
+        });
+      }
       return;
     }
 
