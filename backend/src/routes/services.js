@@ -10,10 +10,12 @@ const router = Router();
  *  - branchId: number (optional)
  *  - category: string (ServiceCategory enum, optional)
  *  - onlyActive: "true" to filter only active services
+ *  - q: string (optional) search by name or code (case-insensitive contains)
+ *  - limit: number (optional) max results (default 20, max 50); only applied when q is present
  */
 router.get("/", async (req, res) => {
   try {
-    const { branchId, category, onlyActive } = req.query;
+    const { branchId, category, onlyActive, q, limit } = req.query;
 
     const where = {};
 
@@ -32,14 +34,31 @@ router.get("/", async (req, res) => {
       };
     }
 
+    if (q && typeof q === "string" && q.trim()) {
+      const query = q.trim();
+      where.OR = [
+        { name: { contains: query, mode: "insensitive" } },
+        { code: { contains: query, mode: "insensitive" } },
+      ];
+    }
+
+    // Apply limit only for search queries; full list uses no limit
+    const hasQuery = q && typeof q === "string" && q.trim();
+    const takeRaw = hasQuery ? Number(limit || 15) : undefined;
+    const take =
+      takeRaw !== undefined && Number.isFinite(takeRaw)
+        ? Math.min(Math.max(takeRaw, 1), 50)
+        : undefined;
+
     const services = await prisma.service.findMany({
       where,
+      ...(take !== undefined ? { take } : {}),
       include: {
         serviceBranches: {
           include: { branch: true },
         },
       },
-      orderBy: [{ category: "asc" }, { name: "asc" }],
+      orderBy: hasQuery ? [{ name: "asc" }] : [{ category: "asc" }, { name: "asc" }],
     });
 
     res.json(services);
@@ -242,62 +261,5 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-/**
- * GET /api/services
- * Query params:
- *  - branchId: number (optional)
- *  - category: string (ServiceCategory enum, optional)
- *  - onlyActive: "true" to filter only active services
- *  - q: string (optional) search by name or code
- *  - limit: number (optional) max results (default 20, max 50)
- */
-router.get("/", async (req, res) => {
-  try {
-    const { branchId, category, onlyActive, q, limit } = req.query;
-
-    const where = {};
-
-    if (category && typeof category === "string") {
-      where.category = category;
-    }
-
-    if (onlyActive === "true") {
-      where.isActive = true;
-    }
-
-    if (branchId) {
-      where.serviceBranches = {
-        some: { branchId: Number(branchId) },
-      };
-    }
-
-    if (q && typeof q === "string" && q.trim()) {
-      const query = q.trim();
-      where.OR = [
-        { name: { contains: query, mode: "insensitive" } },
-        { code: { contains: query, mode: "insensitive" } },
-      ];
-    }
-
-    const takeRaw = Number(limit || 20);
-    const take = Number.isFinite(takeRaw) ? Math.min(Math.max(takeRaw, 1), 50) : 20;
-
-    const services = await prisma.service.findMany({
-      where,
-      take,
-      include: {
-        serviceBranches: {
-          include: { branch: true },
-        },
-      },
-      orderBy: [{ name: "asc" }],
-    });
-
-    res.json(services);
-  } catch (err) {
-    console.error("GET /api/services error:", err);
-    res.status(500).json({ error: "internal server error" });
-  }
-});
 
 export default router;

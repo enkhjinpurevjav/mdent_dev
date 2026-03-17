@@ -748,67 +748,71 @@ if (quickPatientForm.regNo.trim()) {
         fontSize: 13,
       }}
     >
-      {/* Branch – FIRST */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <label>Салбар</label>
-        <select
-          name="branchId"
-          value={form.branchId}
-          onChange={(e) => {
-            handleChange(e);
-            setError("");
-            onBranchChange(e.target.value);
-          }}
-          required
-          style={{
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            padding: "6px 8px",
-          }}
-        >
-          <option value="">Салбар сонгох</option>
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Patient */}
+      {/* Branch + Patient — same row */}
       <div
         style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
           gridColumn: "1 / -1",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          alignItems: "flex-end",
         }}
       >
-        <label>Үйлчлүүлэгч</label>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button
-            type="button"
-            onClick={() => {
-              setShowQuickPatientModal(true);
-              setQuickPatientError("");
-              setQuickPatientForm((prev) => ({
-                ...prev,
-                branchId: prev.branchId || form.branchId || selectedBranchId,
-              }));
+        {/* Branch */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label>Салбар</label>
+          <select
+            name="branchId"
+            value={form.branchId}
+            onChange={(e) => {
+              handleChange(e);
+              setError("");
+              onBranchChange(e.target.value);
             }}
+            required
             style={{
-              padding: "0 10px",
               borderRadius: 6,
-              border: "1px solid #16a34a",
-              background: "#dcfce7",
-              color: "#166534",
-              fontWeight: 600,
-              cursor: "pointer",
+              border: "1px solid #d1d5db",
+              padding: "6px 8px",
             }}
-            title="Шинэ үйлчлүүлэгчийн бүртгэл"
           >
-            +
-          </button>
+            <option value="">Салбар сонгох</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* + button */}
+        <button
+          type="button"
+          onClick={() => {
+            setShowQuickPatientModal(true);
+            setQuickPatientError("");
+            setQuickPatientForm((prev) => ({
+              ...prev,
+              branchId: prev.branchId || form.branchId || selectedBranchId,
+            }));
+          }}
+          style={{
+            padding: "6px 10px",
+            borderRadius: 6,
+            border: "1px solid #16a34a",
+            background: "#dcfce7",
+            color: "#166534",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+          title="Шинэ үйлчлүүлэгчийн бүртгэл"
+        >
+          +
+        </button>
+
+        {/* Patient search */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 200 }}>
+          <label>Үйлчлүүлэгч</label>
           <input
             name="patientQuery"
             placeholder="РД, овог, нэр утсаар хайх"
@@ -816,18 +820,17 @@ if (quickPatientForm.regNo.trim()) {
             onChange={handleChange}
             autoComplete="off"
             style={{
-              flex: 1,
               borderRadius: 6,
               border: "1px solid #d1d5db",
               padding: "6px 8px",
             }}
           />
+          {patientSearchLoading && (
+            <span style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+              Үйлчлүүлэгч хайж байна...
+            </span>
+          )}
         </div>
-        {patientSearchLoading && (
-          <span style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
-            Үйлчлүүлэгч хайж байна...
-          </span>
-        )}
       </div>
 
       {patientResults.length > 0 && (
