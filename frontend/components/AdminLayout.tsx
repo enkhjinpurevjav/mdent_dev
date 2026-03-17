@@ -3,7 +3,8 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { setBranchLock, clearBranchLock } from "./appointments/storage";
 import { Drawer } from "./ui/Drawer";
-import { getMe, logout } from "../utils/auth";
+import { logout } from "../utils/auth";
+import { useAuth } from "../contexts/AuthContext";
 
 type Props = {
   children: React.ReactNode;
@@ -178,6 +179,7 @@ const navItems: NavItem[] = [
 export default function AdminLayout({ children, wide }: Props) {
   const router = useRouter();
   const currentPath = router.pathname;
+  const { me } = useAuth();
 
   // which main menu label is open (for dropdown)
   const [openGroup, setOpenGroup] = useState<string | null>(null);
@@ -189,13 +191,6 @@ export default function AdminLayout({ children, wide }: Props) {
   const [branchItems, setBranchItems] = useState<{ id: string; name: string }[]>(
     []
   );
-
-  // Logged-in user info for header display
-  const [me, setMe] = useState<{ name: string; email: string; role: string } | null>(null);
-
-  useEffect(() => {
-    getMe().then((u) => setMe(u)).catch(() => {});
-  }, []);
 
   const meDisplayName = me?.name || me?.email || "—";
   const meAvatarLetter = (me?.name || me?.email || "?").charAt(0).toUpperCase();

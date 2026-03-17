@@ -10,7 +10,7 @@ import React, {
   useState,
 } from "react";
 import { useRouter } from "next/router";
-import { getMe } from "../../utils/auth";
+import { useAuth } from "../../contexts/AuthContext";
 import { useBranchLock } from "../appointments/useBranchLock";
 import type { Branch, Doctor, ScheduledDoctor, PatientLite, Appointment, DoctorScheduleDay, TimeSlot, CompletedHistoryItem } from "../appointments/types";
 import { SLOT_MINUTES, floorToSlotStart, addMinutes, getSlotKey, enumerateSlotStartsOverlappingRange, generateTimeSlotsForDay, getSlotTimeString, addMinutesToTimeString, isTimeWithinRange, getDateFromYMD, pad2 } from "../appointments/time";
@@ -1311,6 +1311,7 @@ if (quickPatientForm.regNo.trim()) {
 
 export default function AppointmentsPage() {
   const router = useRouter();
+  const { me } = useAuth();
 
   // Determine base path: reception routes stay under /reception/appointments
   const isReceptionRoute = router.pathname.startsWith("/reception");
@@ -1330,9 +1331,12 @@ export default function AppointmentsPage() {
   const [scheduledDoctors, setScheduledDoctors] = useState<ScheduledDoctor[]>(
     []
   );
-  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
-  // Own branch of the logged-in receptionist (from getMe)
-  const [ownBranchId, setOwnBranchId] = useState<string | null>(null);
+  // Role and branch are derived from the global auth context (already resolved by _app.tsx)
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(me?.role ?? null);
+  // Own branch of the logged-in receptionist (from AuthContext)
+  const [ownBranchId, setOwnBranchId] = useState<string | null>(
+    me?.branchId != null ? String(me.branchId) : null
+  );
   const [gridDoctorsOverride, setGridDoctorsOverride] = useState<ScheduledDoctor[] | null>(null);
   const [reorderSaving, setReorderSaving] = useState(false);
   const [error, setError] = useState("");
@@ -1722,31 +1726,26 @@ const workingDoctorsForFilter = scheduledDoctors.length
     setHasMounted(true);
   }, []);
 
-  // Fetch current user role and own branch for permission checks
-  // Empty deps array is intentional: runs once on mount. router.query is read within
-  // the callback at resolution time to avoid stale closure issues.
+  // Sync role and own branch from auth context whenever me changes
   useEffect(() => {
-    getMe().then((u) => {
-      const role = u?.role ?? null;
-      setCurrentUserRole(role);
-      if (u?.branchId != null) {
-        setOwnBranchId(String(u.branchId));
-      }
-      // Auto-redirect receptionist to own branch when no branchId in URL
-      const qBranch = typeof router.query.branchId === "string" ? router.query.branchId : "";
-      if (role === "receptionist" && !qBranch && u?.branchId != null) {
-        router.replace(
-          { pathname: "/reception/appointments", query: { branchId: String(u.branchId) } },
-          undefined,
-          { shallow: true }
-        );
-      }
-    }).catch(() => {
-      setCurrentUserRole(null);
-    });
+    if (!me) return;
+    const role = me.role ?? null;
+    setCurrentUserRole(role);
+    if (me.branchId != null) {
+      setOwnBranchId(String(me.branchId));
+    }
+    // Auto-redirect receptionist to own branch when no branchId in URL
+    const qBranch = typeof router.query.branchId === "string" ? router.query.branchId : "";
+    if (role === "receptionist" && !qBranch && me.branchId != null) {
+      router.replace(
+        { pathname: "/reception/appointments", query: { branchId: String(me.branchId) } },
+        undefined,
+        { shallow: true }
+      );
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // Justification: runs once on mount only. router is stable in Next.js.
-  }, []);
+  // Justification: me is the relevant dependency; router is stable in Next.js.
+  }, [me]);
 
   // keep state in sync when URL branchId changes (from left menu)
   useEffect(() => {

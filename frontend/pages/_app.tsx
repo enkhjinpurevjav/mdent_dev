@@ -2,10 +2,10 @@ import type { AppProps } from "next/app";
 import AdminLayout from "../components/AdminLayout";
 import DoctorLayout from "../components/DoctorLayout";
 import NurseLayout from "../components/NurseLayout";
-import ReceptionLayout from "../components/ReceptionLayout"; // ✅ ADD
+import ReceptionLayout from "../components/ReceptionLayout";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
-import { getMe } from "../utils/auth";
+import { useEffect } from "react";
+import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import "../styles/globals.css";
 
 // Routes that do not require authentication
@@ -23,7 +23,6 @@ function isNursePath(pathname: string) {
   return pathname === "/nurse" || pathname.startsWith("/nurse/");
 }
 
-// ✅ ADD
 function isReceptionPath(pathname: string) {
   return pathname === "/reception" || pathname.startsWith("/reception/");
 }
@@ -37,81 +36,60 @@ function isAppointmentsPath(pathname: string) {
   );
 }
 
-export default function MyApp({ Component, pageProps }: AppProps) {
+function ToothLoader() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100vh",
+        gap: "12px",
+        fontSize: "16px",
+        color: "#555",
+      }}
+    >
+      <span style={{ fontSize: "48px" }}>🦷</span>
+      <span>ачаалж байна</span>
+    </div>
+  );
+}
+
+function AppContent({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  const [authChecked, setAuthChecked] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const { me, loading } = useAuth();
 
   const isPublicRoute = isPublicPath(router.pathname);
 
   useEffect(() => {
-    if (isPublicPath(router.pathname)) {
-      setAuthChecked(true);
-      return;
+    if (loading) return;
+    if (!me && !isPublicRoute) {
+      router.replace(`/login?redirect=${encodeURIComponent(router.asPath)}`);
     }
+  }, [loading, me, isPublicRoute, router]);
 
-    getMe().then((user) => {
-      if (!user) {
-        router.replace(`/login?redirect=${encodeURIComponent(router.asPath)}`);
-        return;
-      }
+  // Show tooth loader during initial auth bootstrap for protected pages
+  if (loading && !isPublicRoute) {
+    return <ToothLoader />;
+  }
 
-      // Non-doctors cannot access /doctor/*
-      if (isDoctorPath(router.pathname) && user.role !== "doctor") {
-        router.replace("/");
-        return;
-      }
-
-      // Non-nurses cannot access /nurse/*
-      if (isNursePath(router.pathname) && user.role !== "nurse") {
-        router.replace("/");
-        return;
-      }
-
-      // ✅ OPTIONAL (recommended): only reception can access /reception/*
-      if (isReceptionPath(router.pathname) && user.role !== "receptionist") {
-        router.replace("/");
-        return;
-      }
-
-      // Doctors cannot access anything outside /doctor/* EXCEPT /patients/* and /encounters/*
-      if (
-        user.role === "doctor" &&
-        !isDoctorPath(router.pathname) &&
-        !router.pathname.startsWith("/patients") &&
-        !router.pathname.startsWith("/encounters")
-      ) {
-        router.replace("/doctor/appointments");
-        return;
-      }
-
-      // Nurses cannot access anything outside /nurse/*
-      if (user.role === "nurse" && !isNursePath(router.pathname)) {
-        router.replace("/nurse/schedule");
-        return;
-      }
-
-      setUserRole(user.role);
-      setAuthChecked(true);
-    });
-  }, [router]);
-
-  // Don't render protected pages until auth is confirmed
-  if (!isPublicPath(router.pathname) && !authChecked) {
-    return null;
+  // Unauthenticated on a protected route — show loader while redirect is in flight
+  if (!loading && !me && !isPublicRoute) {
+    return <ToothLoader />;
   }
 
   if (isPublicRoute) {
     return <Component {...pageProps} />;
   }
 
+  const userRole = me?.role ?? null;
+
   const isPatientPath = router.pathname.startsWith("/patients/");
   const isEncounterPath = router.pathname.startsWith("/encounters/");
   const useDoctorLayout =
     isDoctorPath(router.pathname) || ((isPatientPath || isEncounterPath) && userRole === "doctor");
   const useNurseLayout = isNursePath(router.pathname);
-
-  // ✅ ADD: reception layout selection
   const useReceptionLayout = isReceptionPath(router.pathname);
 
   // Wide layout for appointments pages (admin + reception) to support many doctor columns
@@ -134,7 +112,6 @@ export default function MyApp({ Component, pageProps }: AppProps) {
     );
   }
 
-  // ✅ ADD: reception routes should not be wrapped in AdminLayout
   if (useReceptionLayout) {
     return (
       <ReceptionLayout wide={wide}>
@@ -147,5 +124,13 @@ export default function MyApp({ Component, pageProps }: AppProps) {
     <AdminLayout wide={wide}>
       <Component {...pageProps} />
     </AdminLayout>
+  );
+}
+
+export default function MyApp(props: AppProps) {
+  return (
+    <AuthProvider>
+      <AppContent {...props} />
+    </AuthProvider>
   );
 }
