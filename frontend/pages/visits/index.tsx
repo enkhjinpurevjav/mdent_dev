@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import EncounterReportModal from "../../components/patients/EncounterReportModal";
 import { getMe, AuthUser } from "../../utils/auth";
-import type { AppointmentRow } from "../../types/appointments";
+import type { AppointmentRow, AppointmentStatus } from "../../types/appointments";
 
 const PAGE_SIZE = 30;
 
@@ -25,6 +25,8 @@ const STATUS_OPTIONS: StatusOption[] = [
   { value: "cancelled", label: "Цуцалсан" },
   { value: "other", label: "Бусад" },
 ];
+
+const EDITABLE_STATUSES = ["booked", "confirmed", "online", "other"];
 
 function formatHm(iso: string | null | undefined): string {
   if (!iso) return "";
@@ -79,6 +81,10 @@ export default function AppointmentsListPage() {
 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [payLoading, setPayLoading] = useState<number | null>(null);
+
+  const [editingRowId, setEditingRowId] = useState<number | null>(null);
+  const [editingStatus, setEditingStatus] = useState<string>("");
+  const [statusSaveLoading, setStatusSaveLoading] = useState(false);
 
   const isAdminRole = (role: string) => role === "admin" || role === "super_admin";
 
@@ -188,6 +194,45 @@ export default function AppointmentsListPage() {
   const handleReportClick = (row: AppointmentRow) => {
     setReportAppointmentId(row.id);
     setReportOpen(true);
+  };
+
+  const handleStatusEditClick = (row: AppointmentRow) => {
+    setEditingRowId(row.id);
+    setEditingStatus(String(row.status || ""));
+  };
+
+  const handleStatusEditCancel = () => {
+    setEditingRowId(null);
+    setEditingStatus("");
+  };
+
+  const handleStatusSave = async (row: AppointmentRow) => {
+    if (!editingStatus) {
+      showToast("Төлөв сонгоно уу.");
+      return;
+    }
+    setStatusSaveLoading(true);
+    try {
+      const res = await fetch(`/api/appointments/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: editingStatus }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        showToast((json as { error?: string } | null)?.error || "Төлөв шинэчлэхэд алдаа гарлаа.");
+        return;
+      }
+      setRows((prev) =>
+        prev.map((r) => (r.id === row.id ? { ...r, status: editingStatus as AppointmentStatus } : r))
+      );
+      setEditingRowId(null);
+      setEditingStatus("");
+    } catch {
+      showToast("Алдаа гарлаа. Дахин оролдоно уу.");
+    } finally {
+      setStatusSaveLoading(false);
+    }
   };
 
   const getScheduledAt = (row: AppointmentRow) =>
@@ -332,6 +377,47 @@ export default function AppointmentsListPage() {
                         >
                           Дууссан
                         </button>
+                      )}
+                      {EDITABLE_STATUSES.includes(statusLow) && (
+                        editingRowId === row.id ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={editingStatus}
+                              onChange={(e) => setEditingStatus(e.target.value)}
+                              className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            >
+                              {STATUS_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              disabled={statusSaveLoading}
+                              onClick={() => handleStatusSave(row)}
+                              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {statusSaveLoading ? "…" : "Хадгалах"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={statusSaveLoading}
+                              onClick={handleStatusEditCancel}
+                              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 transition-colors"
+                            >
+                              Болих
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleStatusEditClick(row)}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+                          >
+                            Төлөв засах
+                          </button>
+                        )
                       )}
                     </td>
                   </tr>
