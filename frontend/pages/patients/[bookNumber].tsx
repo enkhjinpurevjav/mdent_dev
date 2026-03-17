@@ -660,7 +660,7 @@ export default function PatientProfilePage() {
                           >
                             Засах
                           </button>
-                          {(currentUserRole === "admin" || currentUserRole === "super_admin" || currentUserRole === "manager") && (
+                          {!isReceptionRoute && (currentUserRole === "admin" || currentUserRole === "super_admin" || currentUserRole === "manager") && (
                             <button
                               type="button"
                               onClick={() => { setDeleteConfirmOpen(true); setDeleteError(""); }}
