@@ -1224,6 +1224,40 @@ router.get("/:patientId/unpaid-encounters", async (req, res) => {
   }
 });
 
+// GET /api/patients/:id/lite — minimal patient info for booking mode
+// Returns only the fields needed by the appointment booking flow.
+router.get("/:id/lite", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || Number.isNaN(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid patient id" });
+    }
+
+    const patient = await prisma.patient.findUnique({
+      where: { id, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        ovog: true,
+        phone: true,
+        regNo: true,
+        patientBook: {
+          select: { bookNumber: true },
+        },
+      },
+    });
+
+    if (!patient) {
+      return res.status(404).json({ error: "Patient not found" });
+    }
+
+    return res.json(patient);
+  } catch (err) {
+    console.error("GET /api/patients/:id/lite error:", err);
+    return res.status(500).json({ error: "Failed to load patient" });
+  }
+});
+
 // GET /api/patients/:id/completed-appointments?limit=3
 router.get("/:id/completed-appointments", async (req, res) => {
   try {

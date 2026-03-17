@@ -1323,6 +1323,10 @@ export default function AppointmentsPage() {
   const branchIdFromQuery =
     typeof router.query.branchId === "string" ? router.query.branchId : "";
 
+  // bookPatientId from URL: pre-select a patient in booking mode on arrival
+  const bookPatientIdFromQuery =
+    typeof router.query.bookPatientId === "string" ? router.query.bookPatientId : "";
+
   const todayStr = new Date().toISOString().slice(0, 10);
 
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -1766,6 +1770,55 @@ const workingDoctorsForFilter = scheduledDoctors.length
     setGridDoctorsOverride(null);
     setDailyRevenue(null);
   }, [effectiveBranchId, filterDate]);
+
+  // ---- Hydrate booking mode from bookPatientId query param ----
+  // When navigating from patient profile/list with ?bookPatientId=<id>, fetch the patient
+  // and pre-select them in booking mode (same as selecting from search field).
+  useEffect(() => {
+    if (!bookPatientIdFromQuery) return;
+    const patientId = Number(bookPatientIdFromQuery);
+    if (!patientId || Number.isNaN(patientId)) return;
+
+    let cancelled = false;
+    async function hydratePatient() {
+      try {
+        const res = await fetch(`/api/patients/${patientId}/lite`);
+        if (!res.ok || cancelled) return;
+        const p = await res.json();
+        if (cancelled) return;
+        const label = formatPatientSearchLabel({
+          id: p.id,
+          name: p.name ?? "",
+          ovog: p.ovog ?? null,
+          regNo: p.regNo ?? "",
+          phone: p.phone ?? null,
+          patientBook: p.patientBook ?? null,
+        });
+        setBookingIntent({ patientId: p.id, patientLabel: label, doctorId: undefined });
+        setSelectedFilterPatient({
+          id: p.id,
+          name: p.name ?? "",
+          ovog: p.ovog ?? null,
+          regNo: p.regNo ?? "",
+          phone: p.phone ?? null,
+          patientBook: p.patientBook ?? null,
+        });
+        setFilterPatientQuery(label);
+        setFilterPatientResults([]);
+        setFilterPatientHistory([]);
+        loadFilterPatientHistory(p.id);
+        // Remove bookPatientId from URL so refresh doesn't re-trigger
+        const newQuery = { ...router.query };
+        delete newQuery.bookPatientId;
+        router.replace({ pathname: router.pathname, query: newQuery }, undefined, { shallow: true });
+      } catch {
+        // silently ignore; user can still search manually
+      }
+    }
+    hydratePatient();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookPatientIdFromQuery]);
 
   // ---- load meta (branches, doctors) ----
   useEffect(() => {
