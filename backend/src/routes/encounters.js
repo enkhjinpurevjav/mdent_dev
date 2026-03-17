@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import { authenticateJWT, optionalAuthenticateJWT } from "../middleware/auth.js";
 import { finalizeSterilizationForEncounter } from "../services/sterilizationFinalize.js";
+import { sseBroadcast } from "./appointments.js";
 
 const router = express.Router();
 
@@ -1024,7 +1025,18 @@ router.put("/:id/finish", requireEncounterWriteAccess, async (req, res) => {
           // NOTE: make sure this matches your AppointmentStatus enum value
           status: "ready_to_pay",
         },
+        include: {
+          patient: { select: { id: true, name: true, ovog: true, phone: true, patientBook: true } },
+          doctor: { select: { id: true, name: true, ovog: true } },
+          branch: { select: { id: true, name: true } },
+        },
       });
+
+      // Broadcast SSE so Appointments page reflects "ready_to_pay" immediately
+      if (updatedAppointment.scheduledAt) {
+        const apptDate = updatedAppointment.scheduledAt.toISOString().slice(0, 10);
+        sseBroadcast("appointment_updated", updatedAppointment, apptDate, updatedAppointment.branchId);
+      }
     }
 
     return res.json({ 

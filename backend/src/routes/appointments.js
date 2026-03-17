@@ -2121,6 +2121,26 @@ router.post("/:id/imaging/transition-to-ready", async (req, res) => {
       data: { status: "ready_to_pay" },
     });
 
+    // Broadcast SSE so Appointments page reflects status change immediately
+    if (appt.scheduledAt) {
+      try {
+        const apptForBroadcast = await prisma.appointment.findUnique({
+          where: { id: apptId },
+          include: {
+            patient: { select: { id: true, name: true, ovog: true, phone: true, patientBook: true } },
+            doctor: { select: { id: true, name: true, ovog: true } },
+            branch: { select: { id: true, name: true } },
+          },
+        });
+        if (apptForBroadcast?.scheduledAt) {
+          const apptDate = apptForBroadcast.scheduledAt.toISOString().slice(0, 10);
+          sseBroadcast("appointment_updated", apptForBroadcast, apptDate, apptForBroadcast.branchId);
+        }
+      } catch (sseErr) {
+        console.error("SSE broadcast error after imaging transition (non-fatal):", sseErr);
+      }
+    }
+
     // Copy XRAY media from any other encounter(s) linked to this appointment
     // into the canonical encounter so Billing can print all images.
     // Only runs when there are multiple encounters (imaging-only workflow).

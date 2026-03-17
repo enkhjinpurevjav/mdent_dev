@@ -4,6 +4,7 @@ import {
   computePaidTotal,
   applyPaymentToInvoice,
 } from "../services/settlementService.js";
+import { sseBroadcast } from "./appointments.js";
 
 const router = express.Router();
 
@@ -210,6 +211,27 @@ router.post("/:id/settlement", async (req, res) => {
 
         const { updatedInvoice, paidTotal } = result;
 
+        // Broadcast SSE so Appointments page reflects status change immediately
+        const appointmentIdForSse = invoice.encounter?.appointmentId ?? null;
+        if (appointmentIdForSse) {
+          try {
+            const apptForBroadcast = await prisma.appointment.findUnique({
+              where: { id: appointmentIdForSse },
+              include: {
+                patient: { select: { id: true, name: true, ovog: true, phone: true, patientBook: true } },
+                doctor: { select: { id: true, name: true, ovog: true } },
+                branch: { select: { id: true, name: true } },
+              },
+            });
+            if (apptForBroadcast?.scheduledAt) {
+              const apptDate = apptForBroadcast.scheduledAt.toISOString().slice(0, 10);
+              sseBroadcast("appointment_updated", apptForBroadcast, apptDate, apptForBroadcast.branchId);
+            }
+          } catch (sseErr) {
+            console.error("SSE broadcast error after employee-benefit settlement (non-fatal):", sseErr);
+          }
+        }
+
         return res.json({
           id: updatedInvoice.id,
           branchId: updatedInvoice.branchId,
@@ -342,6 +364,27 @@ router.post("/:id/settlement", async (req, res) => {
     });
 
     const { updatedInvoice, paidTotal } = updated;
+
+    // Broadcast SSE so Appointments page reflects status change immediately
+    const appointmentIdForSse = invoice.encounter?.appointmentId ?? null;
+    if (appointmentIdForSse) {
+      try {
+        const apptForBroadcast = await prisma.appointment.findUnique({
+          where: { id: appointmentIdForSse },
+          include: {
+            patient: { select: { id: true, name: true, ovog: true, phone: true, patientBook: true } },
+            doctor: { select: { id: true, name: true, ovog: true } },
+            branch: { select: { id: true, name: true } },
+          },
+        });
+        if (apptForBroadcast?.scheduledAt) {
+          const apptDate = apptForBroadcast.scheduledAt.toISOString().slice(0, 10);
+          sseBroadcast("appointment_updated", apptForBroadcast, apptDate, apptForBroadcast.branchId);
+        }
+      } catch (sseErr) {
+        console.error("SSE broadcast error after settlement (non-fatal):", sseErr);
+      }
+    }
 
     return res.json({
       id: updatedInvoice.id,
