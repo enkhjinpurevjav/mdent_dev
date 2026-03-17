@@ -1,6 +1,7 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 import { applyPaymentToInvoice, computePaidTotal } from "../services/settlementService.js";
+import { sseBroadcast } from "./appointments.js";
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -912,6 +913,27 @@ router.post("/encounters/:id/batch-settlement", async (req, res) => {
 
     const { updatedInvoice } = result;
     const paidTotal = computePaidTotal(updatedInvoice.payments);
+
+    // Broadcast SSE so Appointments page reflects status change immediately
+    const appointmentIdForSse = encounter.appointmentId ?? null;
+    if (appointmentIdForSse) {
+      try {
+        const apptForBroadcast = await prisma.appointment.findUnique({
+          where: { id: appointmentIdForSse },
+          include: {
+            patient: { select: { id: true, name: true, ovog: true, phone: true, patientBook: true } },
+            doctor: { select: { id: true, name: true, ovog: true } },
+            branch: { select: { id: true, name: true } },
+          },
+        });
+        if (apptForBroadcast?.scheduledAt) {
+          const apptDate = apptForBroadcast.scheduledAt.toISOString().slice(0, 10);
+          sseBroadcast("appointment_updated", apptForBroadcast, apptDate, apptForBroadcast.branchId);
+        }
+      } catch (sseErr) {
+        console.error("SSE broadcast error after batch-settlement (non-fatal):", sseErr);
+      }
+    }
 
     return res.json({
       id: updatedInvoice.id,
