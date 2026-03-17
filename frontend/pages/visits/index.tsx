@@ -15,8 +15,11 @@ type StatusOption = {
 
 const STATUS_OPTIONS: StatusOption[] = [
   { value: "ready_to_pay", label: "Төлбөр төлөх" },
-  { value: "imaging", label: "Зураг" },
   { value: "ongoing", label: "Явагдаж байна" },
+  { value: "booked", label: "Захиалсан" },
+  { value: "confirmed", label: "Баталгаажсан" },
+  { value: "online", label: "Онлайн" },
+  { value: "imaging", label: "Зураг" },
   { value: "completed", label: "Дууссан" },
   { value: "no_show", label: "Ирээгүй" },
   { value: "cancelled", label: "Цуцалсан" },
