@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { logout } from "../utils/auth";
 import { useAuth } from "../contexts/AuthContext";
-import { Bell, CalendarDays, CalendarRange, LogOut, User } from "lucide-react";
+import { Bell, CalendarDays, CalendarRange, Clock, ClipboardList, LogOut, User } from "lucide-react";
 
 type Props = {
   children: React.ReactNode;
@@ -115,6 +115,48 @@ export default function ReceptionLayout({ children, wide }: Props) {
             >
               <Bell className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
             </button>
+
+            <Link
+              href="/reception/attendance"
+              title="Ирц бүртгэл"
+              aria-label="Ирц бүртгэл"
+              className={classNames(
+                "p-1.5 sm:p-2 rounded-lg inline-flex items-center no-underline",
+                isActive("/reception/attendance")
+                  ? "text-white"
+                  : "text-white/75 hover:text-white"
+              )}
+            >
+              <Clock className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
+            </Link>
+
+            <Link
+              href="/reception/schedule"
+              title="Ажлын хуваарь"
+              aria-label="Ажлын хуваарь"
+              className={classNames(
+                "p-1.5 sm:p-2 rounded-lg inline-flex items-center no-underline",
+                isActive("/reception/schedule")
+                  ? "text-white"
+                  : "text-white/75 hover:text-white"
+              )}
+            >
+              <ClipboardList className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
+            </Link>
+
+            <Link
+              href="/reception/profile"
+              title="Профайл"
+              aria-label="Профайл"
+              className={classNames(
+                "p-1.5 sm:p-2 rounded-lg inline-flex items-center no-underline",
+                isActive("/reception/profile")
+                  ? "text-white"
+                  : "text-white/75 hover:text-white"
+              )}
+            >
+              <User className="h-[18px] w-[18px] sm:h-5 sm:w-5" />
+            </Link>
 
             <button
               onClick={handleLogout}
