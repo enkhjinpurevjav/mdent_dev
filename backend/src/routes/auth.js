@@ -2,7 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import prisma from "../db.js";
 import { sendPasswordResetEmail } from "../services/mailer.js";
 import { authenticateJWT } from "../middleware/auth.js";
@@ -22,6 +22,8 @@ const router = Router();
 //   Uses a keyGenerator that normalises the email so that different
 //   capitalisation / whitespace variations still count as one key.
 //   Falls back to "${ip}:no-email" when no email is provided.
+//
+// NOTE (IPv6): Use express-rate-limit's ipKeyGenerator helper for IPv6-safe keys.
 // ---------------------------------------------------------------------------
 
 // Layer 1 — IP backstop: 100 attempts per 15 minutes per IP
@@ -46,7 +48,9 @@ const ipEmailRateLimit = rateLimit({
     // Use "||" separator — pipe is invalid in both email addresses and IP
     // addresses, so the parts cannot be manipulated to collide with another
     // (ip, email) pair.
-    return `${req.ip}||${email}`;
+    //
+    // IMPORTANT: Use ipKeyGenerator(req) instead of req.ip to avoid IPv6 bypass.
+    return `${ipKeyGenerator(req)}||${email}`;
   },
 });
 
@@ -89,7 +93,11 @@ router.post("/login", ipBackstopRateLimit, ipEmailRateLimit, async (req, res) =>
   // Support both bcrypt-hashed and legacy plaintext passwords
   let valid = false;
   try {
-    if (user.password.startsWith("$2a$") || user.password.startsWith("$2b$") || user.password.startsWith("$2y$")) {
+    if (
+      user.password.startsWith("$2a$") ||
+      user.password.startsWith("$2b$") ||
+      user.password.startsWith("$2y$")
+    ) {
       valid = await bcrypt.compare(password, user.password);
     } else {
       valid = password === user.password;
@@ -269,7 +277,11 @@ router.post("/password-reset/confirm", async (req, res) => {
     return res.status(500).json({ error: "Internal server error." });
   }
 
-  if (!resetToken || resetToken.usedAt || resetToken.expiresAt.getTime() < Date.now()) {
+  if (
+    !resetToken ||
+    resetToken.usedAt ||
+    resetToken.expiresAt.getTime() < Date.now()
+  ) {
     return res.status(400).json({ error: "Invalid or expired reset token." });
   }
 
@@ -305,7 +317,9 @@ router.post("/change-password", authenticateJWT, async (req, res) => {
   }
 
   if (newPassword.length < 6) {
-    return res.status(400).json({ error: "Шинэ нууц үг хамгийн багадаа 6 тэмдэгт байх ёстой." });
+    return res.status(400).json({
+      error: "Шинэ нууц үг хамгийн багадаа 6 тэмдэгт байх ёстой.",
+    });
   }
 
   let user;
