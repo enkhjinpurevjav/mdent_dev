@@ -23,17 +23,25 @@ function formatNurseDisplayName(d: NurseDetails | null, fallbackEmail?: string |
   return fallbackEmail || "-";
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  receptionist: "Ресепшн",
+  nurse: "Сувилагч",
+  doctor: "Эмч",
+  admin: "Админ",
+  super_admin: "Супер админ",
+};
+
 interface Props {
   meUrl?: string;
   showLogout?: boolean;
-  /** Label shown under name and in the role pill (defaults to "Сувилагч"). */
+  /** Label shown under name and in the role pill. Falls back to nurse.role mapping, then "Сувилагч". */
   roleLabel?: string;
 }
 
 export default function NurseProfileSummaryView({
   meUrl = "/api/nurse/me",
   showLogout = false,
-  roleLabel = "Сувилагч",
+  roleLabel,
 }: Props) {
   const router = useRouter();
 
@@ -126,6 +134,12 @@ export default function NurseProfileSummaryView({
     [nurse]
   );
 
+  const displayRoleLabel = useMemo(() => {
+    if (roleLabel !== undefined) return roleLabel;
+    if (nurse?.role && ROLE_LABELS[nurse.role]) return ROLE_LABELS[nurse.role];
+    return "Сувилагч";
+  }, [roleLabel, nurse]);
+
   if (loading) {
     return (
       <div style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>
@@ -161,7 +175,7 @@ export default function NurseProfileSummaryView({
             {displayName}
           </div>
           <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
-            {roleLabel}
+            {displayRoleLabel}
           </div>
         </div>
 
@@ -202,7 +216,7 @@ export default function NurseProfileSummaryView({
                 color: "#0f2044",
               }}
             >
-              {roleLabel}
+              {displayRoleLabel}
             </span>
           </div>
 

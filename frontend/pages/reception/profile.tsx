@@ -5,6 +5,7 @@ export default function ReceptionProfilePage() {
     <NurseProfileSummaryView
       meUrl="/api/reception/me"
       showLogout={true}
+      roleLabel="Ресепшн"
     />
   );
 }
