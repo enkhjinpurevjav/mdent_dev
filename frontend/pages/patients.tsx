@@ -35,6 +35,7 @@ function PatientRegisterForm({
   branches: Branch[];
   onSuccess: (p: Patient) => void;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
   const [form, setForm] = useState({
     ovog: "",
     name: "",
@@ -46,6 +47,11 @@ function PatientRegisterForm({
     birthDate: "",
     citizenship: "Монгол",
     emergencyPhone: "",
+    email: "",
+    address: "",
+    workPlace: "",
+    bloodType: "",
+    notes: "",
   });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -143,6 +149,11 @@ function PatientRegisterForm({
         birthDate: form.birthDate || null,
         citizenship: form.citizenship?.trim() || null,
         emergencyPhone: form.emergencyPhone?.trim() || null,
+        email: form.email?.trim() || null,
+        address: form.address?.trim() || null,
+        workPlace: form.workPlace?.trim() || null,
+        bloodType: form.bloodType?.trim() || null,
+        notes: form.notes?.trim() || null,
       };
 
       const res = await fetch("/api/patients", {
@@ -160,6 +171,7 @@ function PatientRegisterForm({
 
       if (res.ok) {
         onSuccess(data);
+        setIsOpen(false);
         setForm({
           ovog: "",
           name: "",
@@ -171,6 +183,11 @@ function PatientRegisterForm({
           birthDate: "",
           citizenship: "Монгол",
           emergencyPhone: "",
+          email: "",
+          address: "",
+          workPlace: "",
+          bloodType: "",
+          notes: "",
         });
         setRegNoAutofillLocked(false);
         setRegNoInvalid(false);
@@ -186,15 +203,41 @@ function PatientRegisterForm({
 
   return (
     <section className="mt-2 mb-4 rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
-        <h2 className="text-sm font-semibold text-gray-800">
-          Шинэ үйлчлүүлэгч бүртгэх
-        </h2>
-        <p className="text-xs text-gray-500 mt-0.5">
-          (Яаралтай бүртгэл үүсгэх үед зөвхөн нэр, утасны дугаар болон үндсэн салбарыг заавал бөглөх шаардлагатай ба бусад мэдээллийг 
-          профайлаас нэмж оруулна)
-        </p>
-      </div>
+      <button
+        type="button"
+        onClick={() => setIsOpen((o) => !o)}
+        className="w-full text-left bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between hover:bg-gray-100 transition-colors"
+        aria-expanded={isOpen}
+      >
+        <div>
+          <h2 className="text-sm font-semibold text-gray-800">
+            Шинэ үйлчлүүлэгч бүртгэх
+          </h2>
+          {!isOpen && (
+            <p className="text-xs text-gray-500 mt-0.5">
+              Дарж дэлгэрэнгүйг харна уу
+            </p>
+          )}
+        </div>
+        <svg
+          className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="bg-gray-50 border-b border-gray-200 px-4 pb-2 pt-1">
+            <p className="text-xs text-gray-500">
+              (Яаралтай бүртгэл үүсгэх үед зөвхөн нэр, утасны дугаар болон үндсэн салбарыг заавал бөглөх шаардлагатай ба бусад мэдээллийг
+              профайлаас нэмж оруулна)
+            </p>
+          </div>
 
       <form className="p-4" onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
@@ -371,6 +414,78 @@ function PatientRegisterForm({
               className={inputCls}
             />
           </div>
+
+          {/* Email */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">
+              Имэйл
+            </label>
+            <input
+              name="email"
+              type="email"
+              placeholder="example@mail.com"
+              value={form.email}
+              onChange={handleChange}
+              className={inputCls}
+            />
+          </div>
+
+          {/* Address */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">
+              Хаяг
+            </label>
+            <input
+              name="address"
+              placeholder="Дүүрэг, хороо, байр"
+              value={form.address}
+              onChange={handleChange}
+              className={inputCls}
+            />
+          </div>
+
+          {/* Work place */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">
+              Ажлын газар
+            </label>
+            <input
+              name="workPlace"
+              placeholder="Байгууллагын нэр"
+              value={form.workPlace}
+              onChange={handleChange}
+              className={inputCls}
+            />
+          </div>
+
+          {/* Blood type */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">
+              Цусны бүлэг
+            </label>
+            <input
+              name="bloodType"
+              placeholder="А+, О- г.м"
+              value={form.bloodType}
+              onChange={handleChange}
+              className={inputCls}
+            />
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div className="flex flex-col gap-1 mb-3">
+          <label className="text-xs font-medium text-gray-700">
+            Тэмдэглэл
+          </label>
+          <textarea
+            name="notes"
+            placeholder="Тэмдэглэл..."
+            value={form.notes}
+            onChange={handleChange}
+            rows={3}
+            className={`${inputCls} resize-none`}
+          />
         </div>
 
         <div className="flex justify-end items-center gap-2">
@@ -386,6 +501,8 @@ function PatientRegisterForm({
           </button>
         </div>
       </form>
+        </>
+      )}
     </section>
   );
 }
@@ -581,7 +698,7 @@ export default function PatientsPage() {
         <h2 className="text-base font-semibold mb-2">Хайлт</h2>
         <div className="flex flex-col sm:flex-row gap-2">
           <input
-            placeholder="Овог, Нэр, РД, утас болон картын дугаараар хайх"
+            placeholder="Овог, Нэр, РД, утас, картын дугаар болон тэмдэглэлээр хайх"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);

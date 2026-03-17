@@ -61,6 +61,7 @@ router.get("/", async (req, res) => {
             { regNo: { contains: q, mode: "insensitive" } },
             { phone: { contains: q, mode: "insensitive" } },
             { patientBook: { bookNumber: { contains: q, mode: "insensitive" } } },
+            { notes: { contains: q, mode: "insensitive" } },
           ],
         }
       : { isActive: true };
@@ -79,7 +80,8 @@ router.get("/", async (req, res) => {
             p."name" ILIKE ${searchPattern} OR
             p."regNo" ILIKE ${searchPattern} OR
             p."phone" ILIKE ${searchPattern} OR
-            pb."bookNumber" ILIKE ${searchPattern}
+            pb."bookNumber" ILIKE ${searchPattern} OR
+            p."notes" ILIKE ${searchPattern}
           )`
         : Prisma.sql`WHERE p."isActive" = true`;
       const orderDir = dir === "ASC" ? Prisma.sql`ASC` : Prisma.sql`DESC`;
@@ -171,6 +173,11 @@ router.post("/", async (req, res) => {
   birthDate,        // <-- add here
   citizenship,
   emergencyPhone,
+  email,
+  address,
+  workPlace,
+  bloodType,
+  notes,
 } = req.body || {};
 
     // Minimal required fields: name, phone, branchId
@@ -287,6 +294,11 @@ if (finalRegNo && (finalGender === null || finalBirthDate === null)) {
         emergencyPhone: emergencyPhone
           ? String(emergencyPhone).trim()
           : null,
+        email: email ? String(email).trim() : null,
+        address: address ? String(address).trim() : null,
+        workPlace: workPlace ? String(workPlace).trim() : null,
+        bloodType: bloodType ? String(bloodType).trim() : null,
+        notes: notes ? String(notes).trim() : null,
 
         createdBy: req.user?.id ? { connect: { id: req.user.id } } : undefined,
 
