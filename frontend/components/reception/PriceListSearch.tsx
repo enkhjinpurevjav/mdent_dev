@@ -95,7 +95,7 @@ export default function PriceListSearch() {
             border: "1px solid #d1d5db",
             padding: "5px 8px",
             fontSize: 13,
-            width: 240,
+            width: 400,
             background: "white",
             paddingRight: loading ? 28 : 8,
           }}
