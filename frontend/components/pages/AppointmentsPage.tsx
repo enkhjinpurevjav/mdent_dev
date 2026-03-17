@@ -18,6 +18,7 @@ import { formatDoctorName, historyDoctorToDoctor, formatPatientLabel, formatGrid
 import AppointmentDetailsModal from "../appointments/AppointmentDetailsModal";
 import QuickAppointmentModal from "../appointments/QuickAppointmentModal";
 import PendingSaveBar from "../appointments/PendingSaveBar";
+import PriceListSearch from "../reception/PriceListSearch";
 
 function groupByDate(appointments: Appointment[]) {
   const map: Record<string, Appointment[]> = {};
@@ -2624,36 +2625,39 @@ const handleCancelDraft = (appointmentId: number) => {
 
 {/* Small branch switcher — only for receptionist, no "Бүх салбар" option */}
 {currentUserRole === "receptionist" && branches.length > 0 && (
-  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-    <span style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>Салбар:</span>
-    <select
-      value={selectedBranchId}
-      onChange={(e) => {
-        const value = e.target.value;
-        if (!value) return;
-        setFilterBranchId(value);
-        setActiveBranchTab(value);
-        router.push(
-          { pathname: basePath, query: { branchId: value } },
-          undefined,
-          { shallow: true }
-        );
-      }}
-      style={{
-        borderRadius: 6,
-        border: "1px solid #d1d5db",
-        padding: "5px 10px",
-        fontSize: 13,
-        background: "white",
-        cursor: "pointer",
-      }}
-    >
-      {branches.map((b) => (
-        <option key={b.id} value={b.id}>
-          {b.name}
-        </option>
-      ))}
-    </select>
+  <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <span style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>Салбар:</span>
+      <select
+        value={selectedBranchId}
+        onChange={(e) => {
+          const value = e.target.value;
+          if (!value) return;
+          setFilterBranchId(value);
+          setActiveBranchTab(value);
+          router.push(
+            { pathname: basePath, query: { branchId: value } },
+            undefined,
+            { shallow: true }
+          );
+        }}
+        style={{
+          borderRadius: 6,
+          border: "1px solid #d1d5db",
+          padding: "5px 10px",
+          fontSize: 13,
+          background: "white",
+          cursor: "pointer",
+        }}
+      >
+        {branches.map((b) => (
+          <option key={b.id} value={b.id}>
+            {b.name}
+          </option>
+        ))}
+      </select>
+    </div>
+    <PriceListSearch />
   </div>
 )}
 
@@ -3021,6 +3025,8 @@ const handleCancelDraft = (appointmentId: number) => {
           border: "1px solid #e5e7eb",
           background: "#f9fafb",
           fontSize: 13,
+          maxWidth: 1200,
+          width: "100%",
         }}
       >
         <h2 style={{ marginTop: 0, marginBottom: 8, fontSize: 16 }}>
@@ -3028,9 +3034,10 @@ const handleCancelDraft = (appointmentId: number) => {
         </h2>
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            display: "flex",
+            flexWrap: "wrap",
             gap: 12,
+            alignItems: "flex-start",
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -3043,6 +3050,7 @@ const handleCancelDraft = (appointmentId: number) => {
                 borderRadius: 6,
                 border: "1px solid #d1d5db",
                 padding: "6px 8px",
+                width: 190,
               }}
             />
           </div>
@@ -3116,10 +3124,9 @@ const handleCancelDraft = (appointmentId: number) => {
             </div>
           </div>
           )}
-        </div>
 
         {/* Patient quick search (Хайх) */}
-        <div style={{ marginTop: 12, borderTop: "1px solid #e5e7eb", paddingTop: 12 }}>
+        <div style={{ flex: 1, minWidth: 220, maxWidth: 460 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Хайх</div>
           <div style={{ position: "relative" }}>
             <input
@@ -3307,6 +3314,7 @@ const handleCancelDraft = (appointmentId: number) => {
             </div>
           )}
         </div>
+        </div>
       </section>
       )}
 
@@ -3381,15 +3389,14 @@ const handleCancelDraft = (appointmentId: number) => {
       Энэ өдөр ажиллах эмчийн хуваарь алга.
     </div>
   ) : (
-       <div
+   <div
   ref={gridRef}
   style={{
     border: "1px solid #ddd",
     borderRadius: 8,
     fontSize: 12,
     overflowX: "auto",
-    overflowY: "auto",
-    maxHeight: "70vh",
+    overflowY: "visible",
     position: "relative",
     WebkitOverflowScrolling: "touch",
   }}
@@ -3912,6 +3919,8 @@ const handleCancelDraft = (appointmentId: number) => {
           borderRadius: 8,
           border: "1px solid #e5e7eb",
           background: "white",
+          maxWidth: 1200,
+          width: "100%",
         }}
       >
         <h2 style={{ marginTop: 0, marginBottom: 8, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
