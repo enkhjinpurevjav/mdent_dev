@@ -436,10 +436,7 @@ const rows = appointments.map((a) => {
   const doctor = a.doctor;
   const branch = a.branch;
 
-  const doctorName =
-    doctor && (doctor.name || doctor.ovog)
-      ? [doctor.ovog, doctor.name].filter(Boolean).join(" ")
-      : null;
+  const doctorName = doctor ? (doctor.name || null) : null;
 
   const startIso = a.scheduledAt ? a.scheduledAt.toISOString() : null;
   const endIso = a.endAt ? a.endAt.toISOString() : null;
