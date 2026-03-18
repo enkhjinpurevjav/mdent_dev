@@ -1,7 +1,12 @@
 // Formatting helpers for appointments
 
 import type { Doctor, Appointment, PatientLite, CompletedHistoryItem } from "./types";
-import { pad2, getSlotTimeString } from "./time";
+import { pad2 } from "./time";
+import {
+  parseNaiveTimestamp,
+  naiveTimestampToYmd,
+  naiveTimestampToHm,
+} from "../../utils/businessTime";
 
 /** Convert a CompletedHistoryItem doctor object to a full Doctor for use with formatDoctorName. */
 export function historyDoctorToDoctor(d: CompletedHistoryItem["doctor"]): Doctor | null {
@@ -90,24 +95,37 @@ export function formatPatientSearchLabel(p: PatientLite): string {
   return parts.join(" ");
 }
 
+/** Format a fake-UTC Date as YYYY.MM.DD using UTC components. */
 export function formatDateYmdDots(date: Date): string {
-  const y = date.getFullYear();
-  const m = pad2(date.getMonth() + 1);
-  const d = pad2(date.getDate());
+  const y = date.getUTCFullYear();
+  const m = pad2(date.getUTCMonth() + 1);
+  const d = pad2(date.getUTCDate());
   return `${y}.${m}.${d}`;
 }
 
-/** Format an ISO string as YYYY/MM/DD HH:MM (24h, local time). */
+/**
+ * Format an ISO audit timestamp (createdAt/updatedAt) as YYYY/MM/DD HH:MM.
+ * These fields remain as ISO strings; Mongolia time is applied via Intl.
+ */
 export function formatAuditDateTime(iso: string | null | undefined): string {
   if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "-";
-  const y = d.getFullYear();
-  const m = pad2(d.getMonth() + 1);
-  const day = pad2(d.getDate());
-  const hh = pad2(d.getHours());
-  const mm = pad2(d.getMinutes());
-  return `${y}/${m}/${day} ${hh}:${mm}`;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ulaanbaatar",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const year = parts.find((p) => p.type === "year")?.value ?? "";
+  const month = parts.find((p) => p.type === "month")?.value ?? "";
+  const day = parts.find((p) => p.type === "day")?.value ?? "";
+  const hour = parts.find((p) => p.type === "hour")?.value ?? "";
+  const minute = parts.find((p) => p.type === "minute")?.value ?? "";
+  return `${year}/${month}/${day} ${hour}:${minute}`;
 }
 
 /** Format an audit user object as О.Нэр, or "-" if missing. */
@@ -122,14 +140,17 @@ export function formatAuditUserName(
   return name || "-";
 }
 
-/** Format an ISO scheduledAt string as YYYY/MM/DD for completed visit history display. */
+/**
+ * Format a naive scheduledAt string ("YYYY-MM-DD HH:mm:ss") as YYYY/MM/DD
+ * for completed visit history display.
+ * Timezone-safe: reads the date portion directly from the naive string.
+ */
 export function formatHistoryDate(scheduledAt: string): string {
-  const d = new Date(scheduledAt);
-  if (Number.isNaN(d.getTime())) return "-";
-  const y = d.getFullYear();
-  const m = pad2(d.getMonth() + 1);
-  const day = pad2(d.getDate());
-  return `${y}/${m}/${day}`;
+  const ymd = naiveTimestampToYmd(scheduledAt);
+  if (!ymd || ymd.length < 10) return "-";
+  const [y, m, d] = ymd.split("-");
+  if (!y || !m || !d) return "-";
+  return `${y}/${m}/${d}`;
 }
 
 export function formatStatus(status: string): string {
@@ -161,25 +182,26 @@ export function formatStatus(status: string): string {
   }
 }
 
-export function formatDetailedTimeRange(start: Date, end: Date | null): string {
-  if (Number.isNaN(start.getTime())) return "-";
+/**
+ * Format naive scheduledAt/endAt strings as a detailed time range
+ * "YYYY.MM.DD HH:MM [– HH:MM]".
+ * Timezone-safe: reads components from the naive strings directly.
+ */
+export function formatDetailedTimeRange(
+  startNaive: string,
+  endNaive: string | null | undefined
+): string {
+  const startParsed = parseNaiveTimestamp(startNaive);
+  if (!startParsed) return "-";
 
-  const datePart = formatDateYmdDots(start);
-  const startTime = start.toLocaleTimeString("mn-MN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  const [sy, sm, sd] = startParsed.ymd.split("-");
+  const datePart = `${sy}.${sm}.${sd}`;
+  const startTime = startParsed.hm;
 
-  if (!end || Number.isNaN(end.getTime())) {
-    return `${datePart} ${startTime}`;
-  }
+  if (!endNaive) return `${datePart} ${startTime}`;
 
-  const endTime = end.toLocaleTimeString("mn-MN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  const endParsed = parseNaiveTimestamp(endNaive);
+  if (!endParsed) return `${datePart} ${startTime}`;
 
-  return `${datePart} ${startTime} – ${endTime}`;
+  return `${datePart} ${startTime} – ${endParsed.hm}`;
 }

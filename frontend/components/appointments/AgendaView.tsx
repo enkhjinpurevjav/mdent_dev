@@ -5,6 +5,7 @@ import { formatDateYmdDots } from "../appointments/formatters";
 import { Button } from "../ui/Button";
 import { Drawer } from "../ui/Drawer";
 import { Field } from "../ui/Field";
+import { naiveTimestampToHm } from "../../utils/businessTime";
 
 type PatientField = {
   name?: string | null;
@@ -55,11 +56,7 @@ function formatPatientTitle(a: Appointment): string {
 }
 
 function formatStartTime(scheduledAt: string): string {
-  const d = new Date(scheduledAt);
-  if (Number.isNaN(d.getTime())) return "";
-  const h = String(d.getHours()).padStart(2, "0");
-  const m = String(d.getMinutes()).padStart(2, "0");
-  return `${h}:${m}`;
+  return naiveTimestampToHm(scheduledAt);
 }
 
 function formatBookAndPhone(a: Appointment): string {

@@ -1,4 +1,14 @@
-// Time and slot utility functions
+/**
+ * Time and slot utility functions.
+ *
+ * All Date objects used here are "fake-UTC" Dates: their UTC components
+ * represent Mongolia wall-clock time. Always use getUTC*() methods, never
+ * getHours()/getMinutes()/getDay() etc.
+ *
+ * See frontend/utils/businessTime.ts for conversion helpers.
+ */
+
+import { getBusinessYmd, businessYmdToFakeUtcDate } from "../../utils/businessTime";
 
 export const SLOT_MINUTES = 30;
 
@@ -11,13 +21,13 @@ export function addMinutes(d: Date, minutes: number) {
   return new Date(d.getTime() + minutes * 60_000);
 }
 
-// doctorId|YYYY-MM-DD|HH:MM (local time)
+// doctorId|YYYY-MM-DD|HH:MM  — built from fake-UTC components
 export function getSlotKey(doctorId: number, slotStart: Date) {
-  const y = slotStart.getFullYear();
-  const m = String(slotStart.getMonth() + 1).padStart(2, "0");
-  const d = String(slotStart.getDate()).padStart(2, "0");
-  const hh = String(slotStart.getHours()).padStart(2, "0");
-  const mm = String(slotStart.getMinutes()).padStart(2, "0");
+  const y = slotStart.getUTCFullYear();
+  const m = String(slotStart.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(slotStart.getUTCDate()).padStart(2, "0");
+  const hh = String(slotStart.getUTCHours()).padStart(2, "0");
+  const mm = String(slotStart.getUTCMinutes()).padStart(2, "0");
   return `${doctorId}|${y}-${m}-${d}|${hh}:${mm}`;
 }
 
@@ -45,17 +55,17 @@ export function pad2(n: number) {
   return n.toString().padStart(2, "0");
 }
 
+/** Returns "HH:MM" from a fake-UTC Date (uses getUTCHours/getUTCMinutes). */
 export function getSlotTimeString(date: Date): string {
-  // "HH:MM" in local time
-  return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+  return `${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}`;
 }
 
 export function addMinutesToTimeString(time: string, minutesToAdd: number): string {
   const [hh, mm] = time.split(":").map(Number);
-  const base = new Date();
-  base.setHours(hh, mm, 0, 0);
-  base.setMinutes(base.getMinutes() + minutesToAdd);
-  return getSlotTimeString(base);
+  const totalMinutes = (hh || 0) * 60 + (mm || 0) + minutesToAdd;
+  const newH = Math.floor(totalMinutes / 60) % 24;
+  const newM = totalMinutes % 60;
+  return `${pad2(newH)}:${pad2(newM)}`;
 }
 
 export function isTimeWithinRange(time: string, startTime: string, endTime: string) {
@@ -63,10 +73,15 @@ export function isTimeWithinRange(time: string, startTime: string, endTime: stri
   return time >= startTime && time < endTime;
 }
 
+/**
+ * Generate 30-minute time slots for a given day.
+ * @param day  A fake-UTC Date (use getDateFromYMD). UTC components = wall clock.
+ */
 export function generateTimeSlotsForDay(day: Date) {
   const slots: { start: Date; end: Date; label: string }[] = [];
 
-  const weekday = day.getDay(); // 0 = Sun, 6 = Sat
+  // Use UTC day-of-week since the Date is fake-UTC
+  const weekday = day.getUTCDay(); // 0 = Sun, 6 = Sat
 
   // Visual working window
   // Weekdays: 09:00–21:00
@@ -74,12 +89,17 @@ export function generateTimeSlotsForDay(day: Date) {
   const startHour = weekday === 0 || weekday === 6 ? 10 : 9;
   const endHour = weekday === 0 || weekday === 6 ? 19 : 21;
 
-  const d = new Date(day);
-  d.setHours(startHour, 0, 0, 0);
+  // Build a UTC midnight and advance to startHour
+  const base = new Date(day);
+  // Zero out sub-day components, then set start hour
+  const midnight = new Date(
+    Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), 0, 0, 0, 0)
+  );
+  const d = new Date(midnight.getTime() + startHour * 3600_000);
 
-  while (d.getHours() < endHour) {
+  while (d.getUTCHours() < endHour) {
     const start = new Date(d);
-    d.setMinutes(d.getMinutes() + SLOT_MINUTES);
+    d.setTime(d.getTime() + SLOT_MINUTES * 60_000);
     const end = new Date(d);
     slots.push({
       start,
@@ -91,8 +111,15 @@ export function generateTimeSlotsForDay(day: Date) {
   return slots;
 }
 
+/**
+ * Convert a YYYY-MM-DD string to a fake-UTC Date (midnight UTC = midnight Mongolia).
+ * Falls back to today's business date if the string is invalid.
+ */
 export function getDateFromYMD(ymd: string): Date {
   const [y, m, d] = ymd.split("-").map(Number);
-  if (!y || !m || !d) return new Date(); // fallback to today
-  return new Date(y, m - 1, d);
+  if (!y || !m || !d) {
+    // Fallback: use today in business timezone
+    return businessYmdToFakeUtcDate(getBusinessYmd());
+  }
+  return new Date(Date.UTC(y, m - 1, d));
 }

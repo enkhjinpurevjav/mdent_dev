@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import type { Branch, Doctor, ScheduledDoctor, Appointment, PatientLite, DoctorScheduleDay, CompletedHistoryItem } from "./types";
 import { formatDoctorName, historyDoctorToDoctor, formatPatientSearchLabel, formatHistoryDate } from "./formatters";
-import { SLOT_MINUTES, addMinutesToTimeString, generateTimeSlotsForDay, getSlotTimeString, isTimeWithinRange } from "./time";
+import { SLOT_MINUTES, addMinutesToTimeString, generateTimeSlotsForDay, getSlotTimeString, isTimeWithinRange, getDateFromYMD } from "./time";
+import { parseNaiveTimestamp, naiveTimestampToYmd, naiveTimestampToHm, toNaiveTimestamp } from "../../utils/businessTime";
 
 const PATIENT_RESULTS_LIMIT = 10;
 const COMPLETED_READONLY_MSG = "Дууссан цаг засварлах боломжгүй.";
@@ -132,15 +133,10 @@ export default function QuickAppointmentModal({
     return { y, m, d };
   };
 
-  const parseIsoToLocalYmdHm = (iso: string) => {
-    const dt = new Date(iso);
-    if (Number.isNaN(dt.getTime())) return null;
-    const y = dt.getFullYear();
-    const m = String(dt.getMonth() + 1).padStart(2, "0");
-    const d = String(dt.getDate()).padStart(2, "0");
-    const hh = String(dt.getHours()).padStart(2, "0");
-    const mm = String(dt.getMinutes()).padStart(2, "0");
-    return { ymd: `${y}-${m}-${d}`, hm: `${hh}:${mm}` };
+  const parseNaiveToYmdHm = (naive: string) => {
+    const parsed = parseNaiveTimestamp(naive);
+    if (!parsed) return null;
+    return { ymd: parsed.ymd, hm: parsed.hm };
   };
 
   const loadPatientHistory = async (patientId: number) => {
@@ -166,9 +162,9 @@ export default function QuickAppointmentModal({
 
     // EDIT MODE: preload from appointment
     if (editingAppointment) {
-      const startParsed = parseIsoToLocalYmdHm(editingAppointment.scheduledAt);
+      const startParsed = parseNaiveToYmdHm(editingAppointment.scheduledAt);
       const endParsed = editingAppointment.endAt
-        ? parseIsoToLocalYmdHm(editingAppointment.endAt)
+        ? parseNaiveToYmdHm(editingAppointment.endAt)
         : null;
 
       const ymd = startParsed?.ymd || defaultDate;
@@ -260,7 +256,7 @@ export default function QuickAppointmentModal({
       return;
     }
 
-    const day = new Date(parsed.y, parsed.m - 1, parsed.d);
+    const day = getDateFromYMD(form.date);
 
     let slots = generateTimeSlotsForDay(day).map((s) => ({
       label: s.label,
@@ -621,20 +617,18 @@ export default function QuickAppointmentModal({
     const [startHour, startMinute] = form.startTime.split(":").map(Number);
     const [endHour, endMinute] = form.endTime.split(":").map(Number);
 
-    const start = new Date(parsed.y, parsed.m - 1, parsed.d, startHour || 0, startMinute || 0, 0, 0);
-    const end = new Date(parsed.y, parsed.m - 1, parsed.d, endHour || 0, endMinute || 0, 0, 0);
+    // Validate time ordering without creating timezone-dependent Date objects
+    const startMinutes = (startHour || 0) * 60 + (startMinute || 0);
+    const endMinutes = (endHour || 0) * 60 + (endMinute || 0);
 
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      setError("Огноо/цаг буруу байна.");
-      return;
-    }
-    if (end <= start) {
+    if (endMinutes <= startMinutes) {
       setError("Дуусах цаг нь эхлэх цагаас хойш байх ёстой.");
       return;
     }
 
-    const scheduledAtStr = start.toISOString();
-    const endAtStr = end.toISOString();
+    // Build naive timestamps: "YYYY-MM-DD HH:mm:00" — no timezone conversion
+    const scheduledAtStr = toNaiveTimestamp(form.date, form.startTime);
+    const endAtStr = toNaiveTimestamp(form.date, form.endTime);
 
     try {
       if (!isEditMode) {

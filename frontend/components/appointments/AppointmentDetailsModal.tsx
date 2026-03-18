@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useRouter } from "next/router";
 import type { Appointment, Doctor } from "./types";
-import { formatStatus, formatDateYmdDots, formatAuditDateTime, formatAuditUserName } from "./formatters";
+import { formatStatus, formatDateYmdDots, formatAuditDateTime, formatAuditUserName, formatDetailedTimeRange } from "./formatters";
 import ImagingCheckoutModal from "./ImagingCheckoutModal";
+import { naiveTimestampToHm, naiveTimestampToYmd } from "../../utils/businessTime";
 
 type AppointmentDetailsModalProps = {
   open: boolean;
@@ -25,29 +26,6 @@ type AppointmentDetailsModalProps = {
   /** When true, renders all appointments in view-only mode (no edit/status controls) */
   readOnly?: boolean;
 };
-
-function formatDetailedTimeRange(start: Date, end: Date | null): string {
-  if (Number.isNaN(start.getTime())) return "-";
-
-  const datePart = formatDateYmdDots(start);
-  const startTime = start.toLocaleTimeString("mn-MN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-
-  if (!end || Number.isNaN(end.getTime())) {
-    return `${datePart} ${startTime}`;
-  }
-
-  const endTime = end.toLocaleTimeString("mn-MN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-
-  return `${datePart} ${startTime} – ${endTime}`;
-}
 
 function isOngoing(status: string) {
   return status === "ongoing";
@@ -475,11 +453,8 @@ export default function AppointmentDetailsModal({
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {appointments.map((a) => {
-              const start = new Date(a.scheduledAt);
-              const end =
-                a.endAt && !Number.isNaN(new Date(a.endAt).getTime())
-                  ? new Date(a.endAt)
-                  : null;
+              const start = a.scheduledAt;
+              const end = a.endAt ?? null;
 
               const isEditing = editingId === a.id;
               const canStartEncounter = isOngoing(a.status) && currentUserRole !== "receptionist";
@@ -635,7 +610,7 @@ export default function AppointmentDetailsModal({
                         </div>
                         <div>
                           <strong>Огноо:</strong>{" "}
-                          {formatDateYmdDots(start)}
+                          {start ? start.slice(0, 10).replace(/-/g, ".") : "-"}
                         </div>
                       </div>
 

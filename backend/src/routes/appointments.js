@@ -208,6 +208,61 @@ function parseClinicDay(value) {
 }
 
 /**
+ * Parse a naive timestamp string ("YYYY-MM-DD HH:mm:ss" or "YYYY-MM-DDTHH:mm:ss")
+ * into a JavaScript Date using **server local time** (Asia/Ulaanbaatar).
+ *
+ * This is intentionally deterministic: it never relies on Date's string parser
+ * to avoid UTC vs. local-time ambiguity. The resulting Date object represents
+ * the given wall-clock moment in the server's local timezone.
+ *
+ * Returns null if the string cannot be parsed.
+ */
+function parseNaiveTs(str) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/.exec(
+    String(str ?? "")
+  );
+  if (!m) return null;
+  return new Date(
+    Number(m[1]),
+    Number(m[2]) - 1,
+    Number(m[3]),
+    Number(m[4]),
+    Number(m[5]),
+    Number(m[6] ?? 0),
+    0
+  );
+}
+
+/**
+ * Format a JavaScript Date as a naive timestamp string "YYYY-MM-DD HH:mm:ss"
+ * in the server's local timezone (Asia/Ulaanbaatar).
+ *
+ * Use this instead of .toISOString() for appointment times so the value
+ * returned to clients is a timezone-independent wall-clock string.
+ */
+function toNaiveTs(date) {
+  if (!date) return null;
+  const y = date.getFullYear();
+  const mo = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const h = String(date.getHours()).padStart(2, "0");
+  const mi = String(date.getMinutes()).padStart(2, "0");
+  const s = String(date.getSeconds()).padStart(2, "0");
+  return `${y}-${mo}-${d} ${h}:${mi}:${s}`;
+}
+
+/**
+ * Extract the YYYY-MM-DD date portion from a naive timestamp string or a Date.
+ * Used for SSE broadcast keying.
+ */
+function naiveTsToYmd(value) {
+  if (value instanceof Date) return toNaiveTs(value)?.slice(0, 10) ?? null;
+  if (typeof value === "string") return String(value).slice(0, 10);
+  return null;
+}
+
+
+/**
  * Helper: Ensure an Encounter exists for an appointment.
  * Given appointment id, load appointment including patient and patientBook, 
  * doctorId, scheduledAt. Ensure PatientBook exists using upsert 
@@ -428,21 +483,15 @@ router.get("/", async (req, res) => {
   },
 });
 
-    // ----------------- Shape for new frontend Appointment type -----------------
-    // inside router.get("/", ...) in the rows mapping:
-
-const rows = appointments.map((a) => {
+// ---------------------------------------------------------------------------
+// formatApptForResponse: shapes a Prisma appointment record into the
+// API response object. Uses naive timestamps for scheduledAt/endAt and
+// ISO strings for audit timestamps (createdAt/updatedAt/checkedInAt).
+// ---------------------------------------------------------------------------
+function formatApptForResponse(a) {
   const patient = a.patient;
   const doctor = a.doctor;
   const branch = a.branch;
-
-  const doctorName = doctor ? (doctor.name || null) : null;
-
-  const startIso = a.scheduledAt ? a.scheduledAt.toISOString() : null;
-  const endIso = a.endAt ? a.endAt.toISOString() : null;
-
-  const patientRegNo = patient ? patient.regNo || null : null;
-  const branchName = branch ? branch.name : null;
 
   return {
     id: a.id,
@@ -452,35 +501,35 @@ const rows = appointments.map((a) => {
 
     patientName: patient ? patient.name : null,
     patientOvog: patient ? patient.ovog || null : null,
-    patientRegNo,
+    patientRegNo: patient ? patient.regNo || null : null,
     patientPhone: patient ? patient.phone || null : null,
 
-    doctorName,
+    doctorName: doctor ? doctor.name || null : null,
     doctorOvog: doctor ? doctor.ovog || null : null,
 
-    scheduledAt: startIso,
-    endAt: endIso,
+    // Naive wall-clock timestamps — no timezone offset
+    scheduledAt: a.scheduledAt ? toNaiveTs(a.scheduledAt) : null,
+    endAt: a.endAt ? toNaiveTs(a.endAt) : null,
+
     status: a.status,
     notes: a.notes || null,
 
-    // Provenance fields for deletion permission tracking
     createdByUserId: a.createdByUserId || null,
     source: a.source || null,
     sourceEncounterId: a.sourceEncounterId || null,
 
-    // Self check-in
+    // Audit timestamps remain as ISO (not appointment scheduling times)
     checkedInAt: a.checkedInAt ? a.checkedInAt.toISOString() : null,
-
-    // Audit metadata
     createdAt: a.createdAt ? a.createdAt.toISOString() : null,
     updatedAt: a.updatedAt ? a.updatedAt.toISOString() : null,
     updatedByUserId: a.updatedByUserId || null,
+
     createdByUser: a.createdBy
       ? { id: a.createdBy.id, name: a.createdBy.name || null, ovog: a.createdBy.ovog || null }
-      : null,
+      : (a.createdByUser ?? null),
     updatedByUser: a.updatedBy
       ? { id: a.updatedBy.id, name: a.updatedBy.name || null, ovog: a.updatedBy.ovog || null }
-      : null,
+      : (a.updatedByUser ?? null),
 
     patient: patient
       ? {
@@ -494,20 +543,31 @@ const rows = appointments.map((a) => {
       : null,
 
     branch: branch
-      ? {
-          id: branch.id,
-          name: branch.name,
-        }
+      ? { id: branch.id, name: branch.name }
       : null,
 
+    encounterId: Array.isArray(a.encounters) && a.encounters.length > 0
+      ? a.encounters[0].id
+      : (a.encounterId ?? null),
+  };
+}
+
+    // ----------------- Shape for new frontend Appointment type -----------------
+    const rows = appointments.map((a) => {
+  const formatted = formatApptForResponse(a);
+  const patient = a.patient;
+  const branch = a.branch;
+  const patientRegNo = patient ? patient.regNo || null : null;
+  const branchName = branch ? branch.name : null;
+
+  return {
+    ...formatted,
+
     // ✅ LEGACY aliases (so visits pages keep working)
-    startTime: startIso,
-    endTime: endIso,
+    startTime: formatted.scheduledAt,
+    endTime: formatted.endAt,
     regNo: patientRegNo,
     branchName,
-
-    // Encounter linkage (nullable) — used by receptionist billing flow
-    encounterId: a.encounters?.[0]?.id ?? null,
   };
 });
 
@@ -629,16 +689,18 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "doctorId must be a number" });
     }
 
-    const scheduledDate = new Date(scheduledAt);
-    if (Number.isNaN(scheduledDate.getTime())) {
+    // Parse scheduledAt: accept naive "YYYY-MM-DD HH:mm:ss" or ISO strings.
+    // parseNaiveTs uses server local timezone (Mongolia) for wall-clock accuracy.
+    const scheduledDate = parseNaiveTs(scheduledAt);
+    if (!scheduledDate || Number.isNaN(scheduledDate.getTime())) {
       return res.status(400).json({ error: "scheduledAt is invalid date" });
     }
 
     // Optional endAt (default to 30 minutes if not provided)
     let endDate = null;
     if (endAt !== undefined && endAt !== null && endAt !== "") {
-      const tmp = new Date(endAt);
-      if (Number.isNaN(tmp.getTime())) {
+      const tmp = parseNaiveTs(endAt);
+      if (!tmp || Number.isNaN(tmp.getTime())) {
         return res.status(400).json({ error: "endAt is invalid date" });
       }
       if (tmp <= scheduledDate) {
@@ -724,16 +786,16 @@ if (req.user?.role === "receptionist" && req.user.branchId !== parsedBranchId) {
       });
     });
 
-    const responsePayload = {
+    const responsePayload = formatApptForResponse({
       ...appt,
       createdByUser: formatAuditUser(appt.createdBy),
       updatedByUser: null,
-    };
+    });
     res.status(201).json(responsePayload);
 
     // Broadcast SSE event to subscribers watching this date+branch
     if (appt.scheduledAt) {
-      const apptDate = appt.scheduledAt.toISOString().slice(0, 10);
+      const apptDate = naiveTsToYmd(appt.scheduledAt);
       sseBroadcast("appointment_created", responsePayload, apptDate, appt.branchId);
     }
   } catch (err) {
@@ -852,8 +914,8 @@ router.patch("/:id", async (req, res) => {
     let nextEndAt;
 
     if (scheduledAt !== undefined) {
-      const d = new Date(scheduledAt);
-      if (Number.isNaN(d.getTime())) {
+      const d = parseNaiveTs(scheduledAt);
+      if (!d || Number.isNaN(d.getTime())) {
         return res.status(400).json({ error: "scheduledAt is invalid date" });
       }
       nextScheduledAt = d;
@@ -865,8 +927,8 @@ router.patch("/:id", async (req, res) => {
         nextEndAt = null;
         data.endAt = null;
       } else {
-        const d = new Date(endAt);
-        if (Number.isNaN(d.getTime())) {
+        const d = parseNaiveTs(endAt);
+        if (!d || Number.isNaN(d.getTime())) {
           return res.status(400).json({ error: "endAt is invalid date" });
         }
         nextEndAt = d;
@@ -973,15 +1035,15 @@ router.patch("/:id", async (req, res) => {
       }
     }
 
-    const updateResponsePayload = {
+    const updateResponsePayload = formatApptForResponse({
       ...appt,
       createdByUser: formatAuditUser(appt.createdBy),
       updatedByUser: formatAuditUser(appt.updatedBy),
-    };
+    });
 
     // Broadcast SSE event to subscribers watching this date+branch
     if (appt.scheduledAt) {
-      const apptDate = appt.scheduledAt.toISOString().slice(0, 10);
+      const apptDate = naiveTsToYmd(appt.scheduledAt);
       sseBroadcast("appointment_updated", updateResponsePayload, apptDate, appt.branchId);
     }
 
@@ -1400,7 +1462,7 @@ router.delete("/:id", async (req, res) => {
 
     // Broadcast SSE delete event to subscribers watching this date+branch
     if (appointment.scheduledAt) {
-      const apptDate = appointment.scheduledAt.toISOString().slice(0, 10);
+      const apptDate = naiveTsToYmd(appointment.scheduledAt);
       sseBroadcast("appointment_deleted", { id: apptId }, apptDate, appointment.branchId);
     }
 
@@ -1527,11 +1589,11 @@ router.patch("/:id/cancel", async (req, res) => {
 
     // Broadcast SSE update event so calendar clients see the status change
     if (updatedAppt.scheduledAt) {
-      const apptDate = updatedAppt.scheduledAt.toISOString().slice(0, 10);
+      const apptDate = naiveTsToYmd(updatedAppt.scheduledAt);
       sseBroadcast("appointment_updated", {
         id: updatedAppt.id,
         branchId: updatedAppt.branchId,
-        scheduledAt: updatedAppt.scheduledAt,
+        scheduledAt: toNaiveTs(updatedAppt.scheduledAt),
         status: updatedAppt.status,
         cancelledAt: updatedAppt.cancelledAt,
       }, apptDate, updatedAppt.branchId);
@@ -2133,7 +2195,7 @@ router.post("/:id/imaging/transition-to-ready", async (req, res) => {
           },
         });
         if (apptForBroadcast?.scheduledAt) {
-          const apptDate = apptForBroadcast.scheduledAt.toISOString().slice(0, 10);
+          const apptDate = naiveTsToYmd(apptForBroadcast.scheduledAt);
           // Include encounterId so the receptionist billing button works without a refresh.
           sseBroadcast(
             "appointment_updated",

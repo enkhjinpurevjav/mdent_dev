@@ -2,6 +2,11 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import AppointmentDetailsModal from "../../components/appointments/AppointmentDetailsModal";
 import type { Appointment } from "../../components/appointments/types";
+import {
+  getBusinessYmd,
+  naiveTimestampToHm,
+  naiveTimestampToYmd,
+} from "../../utils/businessTime";
 
 type DoctorMeResponse = {
   user?: { id: number; role?: string } | null;
@@ -21,8 +26,8 @@ type DoctorAppointment = {
   patientId?: number | null;
   branchId?: number | null;
   doctorId?: number | null;
-  scheduledAt: string; // ISO
-  endAt?: string | null; // ISO
+  scheduledAt: string; // naive timestamp "YYYY-MM-DD HH:mm:ss"
+  endAt?: string | null; // naive timestamp "YYYY-MM-DD HH:mm:ss"
   status: string;
   notes?: string | null;
 
@@ -45,18 +50,24 @@ type DoctorAppointment = {
 type Grouped = { date: string; items: DoctorAppointment[] };
 
 function ymdToday(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Use Mongolia business timezone, not browser local
+  return getBusinessYmd();
 }
 
 function addDaysYmd(ymd: string, days: number): string {
-  const d = new Date(ymd + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  // Use fake-UTC Date to avoid local timezone issues
+  const d = new Date(ymd + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
 }
 
 function isWeekendYmd(ymd: string): boolean {
-  const d = new Date(ymd + "T00:00:00");
-  const w = d.getDay();
+  // Use fake-UTC Date so weekday is computed from the ymd value itself, not local TZ
+  const d = new Date(ymd + "T00:00:00Z");
+  const w = d.getUTCDay();
   return w === 0 || w === 6;
 }
 
@@ -65,17 +76,14 @@ function defaultClinicHours(ymd: string) {
   return { startTime: "09:00", endTime: "21:00" };
 }
 
-function isoToLocalHHMM(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
+function isoToLocalHHMM(naive: string | null | undefined): string {
+  // naive is now a "YYYY-MM-DD HH:mm:ss" string — extract HH:mm directly
+  return naiveTimestampToHm(naive ?? "");
 }
 
-function isoToYmd(iso: string | null | undefined): string {
-  if (!iso) return "";
-  return String(iso).slice(0, 10);
+function isoToYmd(naive: string | null | undefined): string {
+  // naive is now a "YYYY-MM-DD HH:mm:ss" string — extract YYYY-MM-DD directly
+  return naiveTimestampToYmd(naive ?? "");
 }
 
 function minutesFromHHMM(t: string): number {
@@ -476,9 +484,16 @@ export default function DoctorAppointmentsPage() {
     const overlapSet = new Set<number>();
 
     const getInterval = (a: DoctorAppointment) => {
-      const start = new Date(a.scheduledAt).getTime();
+      // Parse naive timestamps via minutesFromHHMM for ordering; use raw ms for overlap math.
+      // Convert naive "YYYY-MM-DD HH:mm:ss" to fake-UTC ms for comparison.
+      const parse = (naive: string) => {
+        const hm = naiveTimestampToHm(naive);
+        const [h, m] = hm.split(":").map(Number);
+        return ((h || 0) * 60 + (m || 0)) * 60_000; // ms from midnight
+      };
+      const start = parse(a.scheduledAt);
       const end = a.endAt
-        ? new Date(a.endAt).getTime()
+        ? parse(a.endAt)
         : start + MINUTES_PER_SLOT * 60_000;
       return { start, end };
     };
@@ -552,13 +567,15 @@ export default function DoctorAppointmentsPage() {
 
   // compute left/width pixel values for appointment blocks
   function blockStyle(a: DoctorAppointment): React.CSSProperties {
-    const start = new Date(a.scheduledAt);
-    const end = a.endAt
-      ? new Date(a.endAt)
-      : new Date(start.getTime() + 30 * 60_000);
+    // Parse naive timestamps directly — no timezone conversion
+    const hm = naiveTimestampToHm(a.scheduledAt);
+    const [sh, sm] = hm.split(":").map(Number);
+    const startMin = (sh || 0) * 60 + (sm || 0);
 
-    const startMin = start.getHours() * 60 + start.getMinutes();
-    const endMin = end.getHours() * 60 + end.getMinutes();
+    const endHm = a.endAt ? naiveTimestampToHm(a.endAt) : null;
+    const endMin = endHm
+      ? (() => { const [h, m] = endHm.split(":").map(Number); return (h || 0) * 60 + (m || 0); })()
+      : startMin + 30;
 
     const leftPx = ((startMin - timeline.startMin) / MINUTES_PER_SLOT) * SLOT_PX;
     const widthPx = Math.max(50, ((endMin - startMin) / MINUTES_PER_SLOT) * SLOT_PX);

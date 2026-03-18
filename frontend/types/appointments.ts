@@ -41,7 +41,7 @@ export type AppointmentRow = {
   patientPhone?: string | null;
   doctorOvog?: string | null;
 
-  // optional new canonical fields (if you later switch)
+  // naive local timestamps "YYYY-MM-DD HH:mm:ss" (Mongolia wall time, no TZ offset)
   scheduledAt?: string | null;
   endAt?: string | null;
 };

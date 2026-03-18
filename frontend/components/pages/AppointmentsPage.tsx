@@ -18,6 +18,16 @@ import { formatDoctorName, historyDoctorToDoctor, formatPatientLabel, formatGrid
 import AppointmentDetailsModal from "../appointments/AppointmentDetailsModal";
 import QuickAppointmentModal from "../appointments/QuickAppointmentModal";
 import PendingSaveBar from "../appointments/PendingSaveBar";
+import {
+  getBusinessYmd,
+  toNaiveTimestamp,
+  naiveTimestampToYmd,
+  naiveTimestampToHm,
+  naiveToFakeUtcDate,
+  fakeUtcDateToNaive,
+  minutesFromNaive,
+  parseNaiveTimestamp,
+} from "../../utils/businessTime";
 import PriceListSearch from "../reception/PriceListSearch";
 
 function groupByDate(appointments: Appointment[]) {
@@ -64,36 +74,28 @@ function computeAppointmentLanesForDayAndDoctor(
 ): Record<number, 0 | 1> {
   const result: Record<number, 0 | 1> = {};
 
-  // Sort by start time, then by (end - start) duration DESC (longer first)
+  // Sort by start time, then by duration DESC (longer first when same start)
+  // Use naive timestamp parsing — no timezone dependency.
   const sorted = list
     .slice()
-    .filter((a) => !Number.isNaN(new Date(a.scheduledAt).getTime()))
+    .filter((a) => !!parseNaiveTimestamp(a.scheduledAt))
     .sort((a, b) => {
-      const sa = new Date(a.scheduledAt).getTime();
-      const sb = new Date(b.scheduledAt).getTime();
+      const sa = naiveToFakeUtcDate(a.scheduledAt).getTime();
+      const sb = naiveToFakeUtcDate(b.scheduledAt).getTime();
       if (sa !== sb) return sa - sb;
 
-      const ea =
-        a.endAt && !Number.isNaN(new Date(a.endAt).getTime())
-          ? new Date(a.endAt).getTime()
-          : sa;
-      const eb =
-        b.endAt && !Number.isNaN(new Date(b.endAt).getTime())
-          ? new Date(b.endAt).getTime()
-          : sb;
-
-      // longer first if same start
-      return eb - ea;
+      const ea = a.endAt ? naiveToFakeUtcDate(a.endAt).getTime() : sa;
+      const eb = b.endAt ? naiveToFakeUtcDate(b.endAt).getTime() : sb;
+      return eb - ea; // longer first if same start
     });
 
   const laneLastEnd: (number | null)[] = [null, null];
 
   for (const a of sorted) {
-    const start = new Date(a.scheduledAt).getTime();
-    const end =
-      a.endAt && !Number.isNaN(new Date(a.endAt).getTime())
-        ? new Date(a.endAt).getTime()
-        : start + SLOT_MINUTES * 60 * 1000;
+    const start = naiveToFakeUtcDate(a.scheduledAt).getTime();
+    const end = a.endAt
+      ? naiveToFakeUtcDate(a.endAt).getTime()
+      : start + SLOT_MINUTES * 60 * 1000;
 
     let assignedLane: 0 | 1 | null = null;
 
@@ -141,7 +143,7 @@ function AppointmentForm({
   onCreated,
   onBranchChange, // NEW
 }: AppointmentFormProps) {
-  const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const todayStr = getBusinessYmd(); // YYYY-MM-DD in Mongolia timezone
 
   const [form, setForm] = useState({
     patientQuery: "",
@@ -227,7 +229,7 @@ function AppointmentForm({
       setDayEndSlots([]);
       return;
     }
-    const d = new Date(year, (month || 1) - 1, day || 1);
+    const d = getDateFromYMD(form.date);
 
     let slots = generateTimeSlotsForDay(d).map((s) => ({
       label: s.label,
@@ -443,6 +445,7 @@ function AppointmentForm({
   const isWithinDoctorSchedule = (scheduledAt: Date) => {
     const schedules = getDoctorSchedulesForDate();
     if (schedules.length === 0) return true;
+    // scheduledAt is a fake-UTC Date; use getUTCHours/getUTCMinutes for correct HH:mm
     const timeStr = getSlotTimeString(scheduledAt);
     return schedules.some((s: any) =>
       isTimeWithinRange(timeStr, s.startTime, s.endTime)
@@ -466,15 +469,14 @@ function AppointmentForm({
       // Ignore cancelled appointments in capacity calculation
       if (a.status === "cancelled") return false;
 
-      const start = new Date(a.scheduledAt);
-      if (Number.isNaN(start.getTime())) return false;
+      const start = naiveToFakeUtcDate(a.scheduledAt);
+      if (start.getTime() === 0) return false;
 
-      const end =
-        a.endAt && !Number.isNaN(new Date(a.endAt).getTime())
-          ? new Date(a.endAt)
-          : new Date(start.getTime() + SLOT_MINUTES * 60 * 1000);
+      const end = a.endAt
+        ? naiveToFakeUtcDate(a.endAt)
+        : new Date(start.getTime() + SLOT_MINUTES * 60 * 1000);
 
-      const dayStr = start.toISOString().slice(0, 10);
+      const dayStr = naiveTimestampToYmd(a.scheduledAt);
       if (dayStr !== form.date) return false;
 
       return start < slotEnd && end > slotStart;
@@ -603,42 +605,23 @@ if (quickPatientForm.regNo.trim()) {
       return;
     }
 
-    const [year, month, day] = form.date.split("-").map(Number);
     const [startHour, startMinute] = form.startTime.split(":").map(Number);
     const [endHour, endMinute] = form.endTime.split(":").map(Number);
 
-    const start = new Date(
-      year,
-      (month || 1) - 1,
-      day || 1,
-      startHour || 0,
-      startMinute || 0,
-      0,
-      0
-    );
-    const end = new Date(
-      year,
-      (month || 1) - 1,
-      day || 1,
-      endHour || 0,
-      endMinute || 0,
-      0,
-      0
-    );
+    // Validate ordering using minutes arithmetic — no timezone-dependent Date creation
+    const startMinutes = (startHour || 0) * 60 + (startMinute || 0);
+    const endMinutes = (endHour || 0) * 60 + (endMinute || 0);
 
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      setError("Огноо/цаг буруу байна.");
-      return;
-    }
-
-    if (end <= start) {
+    if (endMinutes <= startMinutes) {
       setError("Дуусах цаг нь эхлэх цагаас хойш байх ёстой.");
       return;
     }
 
-    const scheduledAtStr = start.toISOString();
-    const endAtStr = end.toISOString();
-    const scheduledAt = start;
+    // Build naive timestamps — "YYYY-MM-DD HH:mm:00" — no timezone conversion
+    const scheduledAtStr = toNaiveTimestamp(form.date, form.startTime);
+    const endAtStr = toNaiveTimestamp(form.date, form.endTime);
+    // Create fake-UTC Date for schedule check (uses getUTCHours)
+    const scheduledAt = naiveToFakeUtcDate(scheduledAtStr);
 
     const patientId = selectedPatientId;
 
@@ -647,8 +630,9 @@ if (quickPatientForm.regNo.trim()) {
       return;
     }
 
+    const endFakeUtc = naiveToFakeUtcDate(endAtStr);
     let currentBlockStart = new Date(scheduledAt);
-    while (currentBlockStart < end) {
+    while (currentBlockStart < endFakeUtc) {
       const existingCount = countAppointmentsInSlot(currentBlockStart);
       if (existingCount >= 2) {
         setError(
@@ -1327,7 +1311,8 @@ export default function AppointmentsPage() {
   const bookPatientIdFromQuery =
     typeof router.query.bookPatientId === "string" ? router.query.bookPatientId : "";
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  // Use Mongolia business time for today (independent of browser timezone)
+  const todayStr = getBusinessYmd();
 
   const [branches, setBranches] = useState<Branch[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -1626,16 +1611,17 @@ const [pendingSaving, setPendingSaving] = useState(false);
       return;
     }
 
-    const dateParts = exceptionalDate.split("-").map(Number);
-    const timeParts = exceptionalStartTime.split(":").map(Number);
-
-    const start = new Date(dateParts[0], (dateParts[1] ?? 1) - 1, dateParts[2] ?? 1, timeParts[0] ?? 0, timeParts[1] ?? 0, 0, 0);
-    const end = new Date(start.getTime() + 60 * 60_000); // +1 hour
-
-    if (Number.isNaN(start.getTime())) {
-      setExceptionalError("Огноо/цаг буруу байна.");
-      return;
-    }
+    // Build naive timestamps for the exceptional appointment
+    const scheduledAtStr = toNaiveTimestamp(exceptionalDate, exceptionalStartTime);
+    const endNaive = (() => {
+      const [sh, sm] = exceptionalStartTime.split(":").map(Number);
+      const totalMin = (sh || 0) * 60 + (sm || 0) + 60; // +1 hour
+      const nh = Math.floor(totalMin / 60) % 24;
+      const nm = totalMin % 60;
+      return toNaiveTimestamp(exceptionalDate, `${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`);
+    })();
+    const start = naiveToFakeUtcDate(scheduledAtStr);
+    const end = naiveToFakeUtcDate(endNaive);
 
     // Capacity check: each 30-min block in the 1-hour range
     const docIdNum = Number(exceptionalDoctorId);
@@ -1646,12 +1632,12 @@ const [pendingSaving, setPendingSaving] = useState(false);
         if (a.doctorId !== docIdNum) return false;
         if (exceptionalBranchId && String(a.branchId) !== exceptionalBranchId) return false;
         if (a.status === "cancelled") return false;
-        const aStart = new Date(a.scheduledAt);
-        if (Number.isNaN(aStart.getTime())) return false;
-        const aEnd = a.endAt && !Number.isNaN(new Date(a.endAt).getTime())
-          ? new Date(a.endAt)
+        const aStart = naiveToFakeUtcDate(a.scheduledAt);
+        if (aStart.getTime() === 0) return false;
+        const aEnd = a.endAt
+          ? naiveToFakeUtcDate(a.endAt)
           : new Date(aStart.getTime() + SLOT_MINUTES * 60_000);
-        const dayStr = aStart.toISOString().slice(0, 10);
+        const dayStr = naiveTimestampToYmd(a.scheduledAt);
         if (dayStr !== exceptionalDate) return false;
         return aStart < slotEnd && aEnd > blockStart;
       }).length;
@@ -1671,8 +1657,8 @@ const [pendingSaving, setPendingSaving] = useState(false);
           patientId: exceptionalPatientId,
           doctorId: docIdNum,
           branchId: Number(exceptionalBranchId),
-          scheduledAt: start.toISOString(),
-          endAt: end.toISOString(),
+          scheduledAt: scheduledAtStr,
+          endAt: endNaive,
           status: "booked",
           notes: exceptionalNotes.trim() || null,
         }),
@@ -2077,14 +2063,28 @@ useEffect(() => {
   useEffect(() => {
     const updateNow = () => {
       const now = new Date();
-      const nowKey = now.toISOString().slice(0, 10);
+      const nowKey = getBusinessYmd(now);
       if (nowKey !== filterDate) {
         setNowPosition(null);
         return;
       }
 
+      // Build a fake-UTC Date representing "now" in Mongolia wall time.
+      // This lets us compare with slot fake-UTC Dates from generateTimeSlotsForDay.
+      const fmt = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Ulaanbaatar",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      }).formatToParts(now);
+      const hh = fmt.find((p) => p.type === "hour")?.value ?? "00";
+      const mm = fmt.find((p) => p.type === "minute")?.value ?? "00";
+      const ss = fmt.find((p) => p.type === "second")?.value ?? "00";
+      const nowFakeUtc = naiveToFakeUtcDate(`${nowKey} ${hh}:${mm}:${ss}`);
+
       const clamped = Math.min(
-        Math.max(now.getTime(), firstSlot.getTime()),
+        Math.max(nowFakeUtc.getTime(), firstSlot.getTime()),
         lastSlot.getTime()
       );
       const minutesFromStart = (clamped - firstSlot.getTime()) / 60000;
@@ -2099,7 +2099,7 @@ useEffect(() => {
 
   // Auto-flip doctor order at 15:00 when viewing today
   useEffect(() => {
-    const todayCurrent = new Date().toISOString().slice(0, 10);
+    const todayCurrent = getBusinessYmd();
     if (filterDate !== todayCurrent) return;
 
     // Use Mongolia time (UTC+8) to match backend threshold check
@@ -2322,11 +2322,11 @@ const fillingStats = useMemo(() => {
     // Only use effectiveBranchId as single source of truth
     if (effectiveBranchId && String(a.branchId) !== effectiveBranchId) continue;
 
-    const start = new Date(a.scheduledAt);
-    const end = a.endAt ? new Date(a.endAt) : addMinutes(start, SLOT_MINUTES);
+    const start = naiveToFakeUtcDate(a.scheduledAt);
+    const end = a.endAt ? naiveToFakeUtcDate(a.endAt) : addMinutes(start, SLOT_MINUTES);
 
-    if (Number.isNaN(start.getTime())) continue;
-    if (Number.isNaN(end.getTime()) || end <= start) continue;
+    if (start.getTime() === 0) continue;
+    if (end <= start) continue;
 
     // mark all overlapping 30-min slots as filled
     for (const slotStart of enumerateSlotStartsOverlappingRange(
@@ -2356,7 +2356,9 @@ const fillingStats = useMemo(() => {
     const byDoctor: Record<number, Appointment[]> = {};
     for (const a of appointments) {
       if (!a.doctorId) continue;
-      if (getAppointmentDayKey(a) !== dayKey) continue;
+      if (a.status === "cancelled") continue;
+      if (naiveTimestampToYmd(a.scheduledAt) !== dayKey) continue;
+      if (effectiveBranchId && String(a.branchId) !== effectiveBranchId) continue;
       if (!byDoctor[a.doctorId]) byDoctor[a.doctorId] = [];
       byDoctor[a.doctorId].push(a);
     }
@@ -2369,10 +2371,38 @@ const fillingStats = useMemo(() => {
     }
 
     return map;
-  }, [appointments, filterDate]);
+  }, [appointments, filterDate, effectiveBranchId]);
 
 // ---- Daily stats (for selected date & branch) ----
 const dayKey = filterDate;
+
+// All appointments for this day (and branch, if selected), excluding cancelled.
+// Used for grid rendering — not for stats (dayAppointments includes cancelled for totals).
+const visibleAppointments = useMemo(
+  () =>
+    appointments.filter((a) => {
+      const scheduled = a.scheduledAt;
+      if (!scheduled) return false;
+      if (naiveTimestampToYmd(scheduled) !== dayKey) return false;
+      if (effectiveBranchId && String(a.branchId) !== effectiveBranchId) return false;
+      if (String(a.status).toLowerCase() === "cancelled") return false;
+      return true;
+    }),
+  [appointments, dayKey, effectiveBranchId]
+);
+
+// Performance index: appointments by doctorId for the visible day/branch
+// (non-cancelled). Avoids repeated O(n) filter in the hot render path.
+const appointmentsByDoctorId = useMemo(() => {
+  const map = new Map<number, Appointment[]>();
+  for (const a of visibleAppointments) {
+    if (a.doctorId == null) continue;
+    const list = map.get(a.doctorId) ?? [];
+    list.push(a);
+    map.set(a.doctorId, list);
+  }
+  return map;
+}, [visibleAppointments]);
 
 // All appointments for this day (and branch, if selected)
 const dayAppointments = useMemo(
@@ -2557,8 +2587,8 @@ useEffect(() => {
         setDraftEdits(prev => ({
           ...prev,
           [activeDrag.appointmentId]: {
-            scheduledAt: newStart.toISOString(),
-            endAt: newEnd.toISOString(),
+            scheduledAt: fakeUtcDateToNaive(newStart),
+            endAt: fakeUtcDateToNaive(newEnd),
             doctorId: newDoctorId,
           }
         }));
@@ -2596,8 +2626,8 @@ useEffect(() => {
         setDraftEdits(prev => ({
           ...prev,
           [activeDrag.appointmentId]: {
-            scheduledAt: activeDrag.origStart.toISOString(),
-            endAt: newEnd.toISOString(),
+            scheduledAt: fakeUtcDateToNaive(activeDrag.origStart),
+            endAt: fakeUtcDateToNaive(newEnd),
             doctorId: activeDrag.origDoctorId,
           }
         }));
@@ -2612,13 +2642,50 @@ useEffect(() => {
 
   const handleMouseUp = () => {
     if (!activeDrag) return;
-    
+
     // Only show save/cancel UI if drag threshold was exceeded
     if (activeDrag.hasMovedBeyondThreshold) {
+      const draft = draftEdits[activeDrag.appointmentId];
+      if (draft) {
+        // Preflight capacity check: max 2 overlapping (excluding cancelled, excluding this appt)
+        const draftStart = naiveToFakeUtcDate(draft.scheduledAt);
+        const draftEnd = draft.endAt
+          ? naiveToFakeUtcDate(draft.endAt)
+          : new Date(draftStart.getTime() + SLOT_MINUTES * 60_000);
+        const draftDoctorId = draft.doctorId ?? activeDrag.origDoctorId;
+        const draftDate = naiveTimestampToYmd(draft.scheduledAt);
+
+        if (draftDoctorId !== null) {
+          const overlapping = appointments.filter((other) => {
+            if (other.id === activeDrag.appointmentId) return false;
+            if (other.doctorId !== draftDoctorId) return false;
+            if (String(other.status).toLowerCase() === "cancelled") return false;
+            if (naiveTimestampToYmd(other.scheduledAt) !== draftDate) return false;
+            const os = naiveToFakeUtcDate(other.scheduledAt);
+            const oe = other.endAt
+              ? naiveToFakeUtcDate(other.endAt)
+              : new Date(os.getTime() + SLOT_MINUTES * 60_000);
+            return os < draftEnd && oe > draftStart;
+          }).length;
+
+          if (overlapping >= 2) {
+            // Capacity exceeded — revert draft immediately without showing save bar
+            setDraftEdits((prev) => {
+              const next = { ...prev };
+              delete next[activeDrag.appointmentId];
+              return next;
+            });
+            setPendingSaveError("Энэ цагт 2 захиалга бүртгэгдсэн байна");
+            setPendingSaveId(null);
+            setActiveDrag(null);
+            return;
+          }
+        }
+      }
       setPendingSaveId(activeDrag.appointmentId);
       setPendingSaveError(null);
     }
-    
+
     setActiveDrag(null);
   };
 
@@ -2832,10 +2899,7 @@ const handleCancelDraft = (appointmentId: number) => {
       })()
     : null;
         const timeStr = a.scheduledAt
-          ? (() => {
-              const d = new Date(a.scheduledAt);
-              return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-            })()
+          ? naiveTimestampToHm(a.scheduledAt)
           : null;
         return (
           <div
@@ -3478,6 +3542,28 @@ const handleCancelDraft = (appointmentId: number) => {
       )}
 
       {/* Pending drag/drop save confirmation — shown inline above the calendar */}
+      {pendingSaveError && pendingSaveId === null && (
+        <div
+          style={{
+            marginBottom: 12,
+            background: "#fef2f2",
+            borderRadius: 8,
+            border: "1px solid #fca5a5",
+            padding: "10px 16px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            maxWidth: 400,
+          }}
+        >
+          <span style={{ fontSize: 13, color: "#b91c1c" }}>{pendingSaveError}</span>
+          <button
+            type="button"
+            onClick={() => setPendingSaveError(null)}
+            style={{ fontSize: 12, color: "#6b7280", background: "none", border: "none", cursor: "pointer" }}
+          >✕</button>
+        </div>
+      )}
       {pendingSaveId !== null && (
         <div
           style={{
@@ -3615,9 +3701,14 @@ const handleCancelDraft = (appointmentId: number) => {
             >
               <div style={{ padding: 8, fontWeight: "bold", position: "sticky", left: 0, backgroundColor: "#f5f5f5", zIndex: 25, transform: "translateZ(0)" }}>Цаг</div>
               {gridDoctors.map((doc, idx) => {
-                const count = appointments.filter(
-                  (a) => a.doctorId === doc.id
-                ).length;
+                // Count visible appointments: matching day + branch + not cancelled
+                const count = appointments.filter((a) => {
+                  if (a.doctorId !== doc.id) return false;
+                  if (naiveTimestampToYmd(a.scheduledAt) !== filterDate) return false;
+                  if (effectiveBranchId && String(a.branchId) !== effectiveBranchId) return false;
+                  if (String(a.status).toLowerCase() === "cancelled") return false;
+                  return true;
+                }).length;
                 const isLeftDisabled = reorderSaving || idx === 0;
                 const isRightDisabled = reorderSaving || idx === gridDoctors.length - 1;
                 return (
@@ -3745,26 +3836,17 @@ const handleCancelDraft = (appointmentId: number) => {
 
               {/* Doctor columns */}
               {gridDoctors.map((doc) => {
-                // Get appointments originally assigned to this doctor
-                const originalDoctorAppointments = appointments.filter(
-                  (a) =>
-                    a.doctorId === doc.id &&
-                    getAppointmentDayKey(a) === filterDate &&
-                    a.status !== "cancelled"
-                );
-                
+                // Get appointments for this doctor using the pre-built index (perf optimization)
+                const originalDoctorAppointments = appointmentsByDoctorId.get(doc.id) ?? [];
+
                 // Also include appointments dragged TO this doctor
-                const draggedInAppointments = appointments.filter(
-                  (a) => {
-                    if (a.doctorId === doc.id) return false; // already included above
-                    if (getAppointmentDayKey(a) !== filterDate) return false;
-                    if (a.status === "cancelled") return false;
-                    
+                const draggedInAppointments = visibleAppointments.filter((a) => {
+                    if (a.doctorId === doc.id) return false; // already in originalDoctorAppointments
                     const draft = draftEdits[a.id];
                     return draft && draft.doctorId === doc.id;
                   }
                 );
-                
+
                 const doctorAppointments = [...originalDoctorAppointments, ...draggedInAppointments];
 
                 const handleCellClick = (
@@ -3808,24 +3890,20 @@ const handleCancelDraft = (appointmentId: number) => {
                 const overlapsWithOther: Record<number, boolean> = {};
                 for (let i = 0; i < doctorAppointments.length; i++) {
                   const a = doctorAppointments[i];
-                  const aStart = new Date(a.scheduledAt).getTime();
-                  const aEnd =
-                    a.endAt &&
-                    !Number.isNaN(new Date(a.endAt).getTime())
-                      ? new Date(a.endAt).getTime()
-                      : aStart + SLOT_MINUTES * 60 * 1000;
+                  const aStart = naiveToFakeUtcDate(a.scheduledAt).getTime();
+                  const aEnd = a.endAt
+                    ? naiveToFakeUtcDate(a.endAt).getTime()
+                    : aStart + SLOT_MINUTES * 60 * 1000;
 
                   overlapsWithOther[a.id] = false;
 
                   for (let j = 0; j < doctorAppointments.length; j++) {
                     if (i === j) continue;
                     const b = doctorAppointments[j];
-                    const bStart = new Date(b.scheduledAt).getTime();
-                    const bEnd =
-                      b.endAt &&
-                      !Number.isNaN(new Date(b.endAt).getTime())
-                        ? new Date(b.endAt).getTime()
-                        : bStart + SLOT_MINUTES * 60 * 1000;
+                    const bStart = naiveToFakeUtcDate(b.scheduledAt).getTime();
+                    const bEnd = b.endAt
+                      ? naiveToFakeUtcDate(b.endAt).getTime()
+                      : bStart + SLOT_MINUTES * 60 * 1000;
 
                     if (aStart < bEnd && aEnd > bStart) {
                       overlapsWithOther[a.id] = true;
@@ -3860,7 +3938,7 @@ const handleCancelDraft = (appointmentId: number) => {
                           s.endTime
                         )
                       );
-                      const weekdayIndex = slot.start.getDay();
+                      const weekdayIndex = slot.start.getUTCDay();
                       const isWeekend =
                         weekdayIndex === 0 || weekdayIndex === 6;
                       const isWeekendLunch =
@@ -3869,15 +3947,11 @@ const handleCancelDraft = (appointmentId: number) => {
                       const isNonWorking = !isWorkingHour || isWeekendLunch;
 
                       const appsInThisSlot = doctorAppointments.filter((a) => {
-                        const start = new Date(a.scheduledAt);
-                        if (Number.isNaN(start.getTime())) return false;
-                        const end =
-                          a.endAt &&
-                          !Number.isNaN(new Date(a.endAt).getTime())
-                            ? new Date(a.endAt)
-                            : new Date(
-                                start.getTime() + SLOT_MINUTES * 60 * 1000
-                              );
+                        const start = naiveToFakeUtcDate(a.scheduledAt);
+                        if (start.getTime() === 0) return false;
+                        const end = a.endAt
+                          ? naiveToFakeUtcDate(a.endAt)
+                          : new Date(start.getTime() + SLOT_MINUTES * 60 * 1000);
                         return start < slot.end && end > slot.start;
                       });
 
@@ -3914,16 +3988,17 @@ const handleCancelDraft = (appointmentId: number) => {
                     {/* Appointment blocks */}
                     {doctorAppointments.map((a) => {
                       const draft = draftEdits[a.id];
-                      
-                      // Use draft values if present, otherwise original
-                      const effectiveStart = draft 
-                        ? new Date(draft.scheduledAt) 
-                        : new Date(a.scheduledAt);
+
+                      // Use draft values if present, otherwise original.
+                      // Both draft and a.scheduledAt are naive timestamps; convert to fake-UTC Dates.
+                      const effectiveStart = draft
+                        ? naiveToFakeUtcDate(draft.scheduledAt)
+                        : naiveToFakeUtcDate(a.scheduledAt);
                       const effectiveEnd = draft && draft.endAt
-                        ? new Date(draft.endAt)
-                        : (a.endAt && !Number.isNaN(new Date(a.endAt).getTime())
-                            ? new Date(a.endAt)
-                            : new Date(effectiveStart.getTime() + SLOT_MINUTES * 60 * 1000));
+                        ? naiveToFakeUtcDate(draft.endAt)
+                        : a.endAt
+                          ? naiveToFakeUtcDate(a.endAt)
+                          : new Date(effectiveStart.getTime() + SLOT_MINUTES * 60 * 1000);
                       
                       const effectiveDoctorId = draft 
                         ? draft.doctorId 
@@ -3978,9 +4053,9 @@ const handleCancelDraft = (appointmentId: number) => {
                         e.stopPropagation();
                         e.preventDefault();
 
-                        const origStart = new Date(a.scheduledAt);
-                        const origEnd = a.endAt && !Number.isNaN(new Date(a.endAt).getTime())
-                          ? new Date(a.endAt)
+                        const origStart = naiveToFakeUtcDate(a.scheduledAt);
+                        const origEnd = a.endAt
+                          ? naiveToFakeUtcDate(a.endAt)
                           : new Date(origStart.getTime() + SLOT_MINUTES * 60 * 1000);
 
                         setActiveDrag({
@@ -4001,16 +4076,15 @@ const handleCancelDraft = (appointmentId: number) => {
                         if (isDragging || hasPendingSave || activeDrag) return;
                         
                         e.stopPropagation();
-                        const aStart = new Date(a.scheduledAt);
+                        const aStart = naiveToFakeUtcDate(a.scheduledAt);
                         const aSlotStart = floorToSlotStart(aStart, SLOT_MINUTES);
                         const aSlotEnd = new Date(aSlotStart.getTime() + SLOT_MINUTES * 60 * 1000);
                         const slotAppointmentCount = doctorAppointments.filter((other) => {
-                          const otherStart = new Date(other.scheduledAt);
-                          if (Number.isNaN(otherStart.getTime())) return false;
-                          const otherEnd =
-                            other.endAt && !Number.isNaN(new Date(other.endAt).getTime())
-                              ? new Date(other.endAt)
-                              : new Date(otherStart.getTime() + SLOT_MINUTES * 60 * 1000);
+                          const otherStart = naiveToFakeUtcDate(other.scheduledAt);
+                          if (otherStart.getTime() === 0) return false;
+                          const otherEnd = other.endAt
+                            ? naiveToFakeUtcDate(other.endAt)
+                            : new Date(otherStart.getTime() + SLOT_MINUTES * 60 * 1000);
                           return otherStart < aSlotEnd && otherEnd > aSlotStart;
                         }).length;
                         const slotTimeStr = getSlotTimeString(aSlotStart);
