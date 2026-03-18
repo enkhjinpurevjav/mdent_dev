@@ -1907,9 +1907,22 @@ const workingDoctorsForFilter = scheduledDoctors.length
           // If viewing a specific branch, filter by branch
           if (effectiveBranchId && String(appt.branchId) !== effectiveBranchId) return;
           setAppointments((prev) => {
-            if (prev.some((a) => a.id === appt.id)) return prev; // avoid duplicate
+            const idx = prev.findIndex((a) => a.id === appt.id);
+            if (idx !== -1) {
+              // SSE arrived after optimistic insert — update in-place (upsert)
+              const next = [...prev];
+              next[idx] = { ...next[idx], ...appt };
+              return next;
+            }
             return [appt, ...prev];
           });
+          // Keep open details modal in sync
+          setDetailsModalState((prev) => ({
+            ...prev,
+            appointments: prev.appointments.map((a) =>
+              a.id === appt.id ? { ...a, ...appt } : a
+            ),
+          }));
         } catch { /* ignore parse errors */ }
       });
 
@@ -1952,6 +1965,11 @@ const workingDoctorsForFilter = scheduledDoctors.length
         try {
           const payload = JSON.parse(e.data) as { id: number };
           setAppointments((prev) => prev.filter((a) => a.id !== payload.id));
+          // Keep open details modal in sync — remove deleted appointment from it
+          setDetailsModalState((prev) => ({
+            ...prev,
+            appointments: prev.appointments.filter((a) => a.id !== payload.id),
+          }));
         } catch { /* ignore parse errors */ }
       });
 
@@ -4322,7 +4340,18 @@ const handleCancelDraft = (appointmentId: number) => {
   currentUserRole={currentUserRole}
   forceBookedStatus={isOtherBranchReceptionView}
   onCreated={(a) => {
-  setAppointments((prev) => [a, ...prev]);
+  setAppointments((prev) => {
+    // Upsert by id: if SSE already added this appointment, replace it;
+    // otherwise prepend. Prevents duplicate rows when SSE and optimistic
+    // insert both fire for the same appointment.
+    const idx = prev.findIndex((x) => x.id === a.id);
+    if (idx !== -1) {
+      const next = [...prev];
+      next[idx] = { ...next[idx], ...a };
+      return next;
+    }
+    return [a, ...prev];
+  });
 
   // close create mode
   setQuickModalState((prev) => ({ ...prev, open: false }));
