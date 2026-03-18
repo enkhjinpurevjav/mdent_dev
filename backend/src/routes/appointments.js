@@ -326,6 +326,75 @@ async function ensureEncounterForAppointment(appointmentId) {
   return encounter;
 }
 
+// ---------------------------------------------------------------------------
+// formatApptForResponse: shapes a Prisma appointment record into the
+// API response object. Uses naive timestamps for scheduledAt/endAt and
+// ISO strings for audit timestamps (createdAt/updatedAt/checkedInAt).
+// ---------------------------------------------------------------------------
+function formatApptForResponse(a) {
+  const patient = a.patient;
+  const doctor = a.doctor;
+  const branch = a.branch;
+
+  return {
+    id: a.id,
+    branchId: a.branchId,
+    doctorId: a.doctorId,
+    patientId: a.patientId,
+
+    patientName: patient ? patient.name : null,
+    patientOvog: patient ? patient.ovog || null : null,
+    patientRegNo: patient ? patient.regNo || null : null,
+    patientPhone: patient ? patient.phone || null : null,
+
+    doctorName: doctor ? doctor.name || null : null,
+    doctorOvog: doctor ? doctor.ovog || null : null,
+
+    // Naive wall-clock timestamps — no timezone offset
+    scheduledAt: a.scheduledAt ? toNaiveTs(a.scheduledAt) : null,
+    endAt: a.endAt ? toNaiveTs(a.endAt) : null,
+
+    status: a.status,
+    notes: a.notes || null,
+
+    createdByUserId: a.createdByUserId || null,
+    source: a.source || null,
+    sourceEncounterId: a.sourceEncounterId || null,
+
+    // Audit timestamps remain as ISO (not appointment scheduling times)
+    checkedInAt: a.checkedInAt ? a.checkedInAt.toISOString() : null,
+    createdAt: a.createdAt ? a.createdAt.toISOString() : null,
+    updatedAt: a.updatedAt ? a.updatedAt.toISOString() : null,
+    updatedByUserId: a.updatedByUserId || null,
+
+    createdByUser: a.createdBy
+      ? { id: a.createdBy.id, name: a.createdBy.name || null, ovog: a.createdBy.ovog || null }
+      : (a.createdByUser ?? null),
+    updatedByUser: a.updatedBy
+      ? { id: a.updatedBy.id, name: a.updatedBy.name || null, ovog: a.updatedBy.ovog || null }
+      : (a.updatedByUser ?? null),
+
+    patient: patient
+      ? {
+          id: patient.id,
+          name: patient.name,
+          ovog: patient.ovog || null,
+          regNo: patient.regNo || null,
+          phone: patient.phone || null,
+          patientBook: patient.patientBook || null,
+        }
+      : null,
+
+    branch: branch
+      ? { id: branch.id, name: branch.name }
+      : null,
+
+    encounterId: Array.isArray(a.encounters) && a.encounters.length > 0
+      ? a.encounters[0].id
+      : (a.encounterId ?? null),
+  };
+}
+
 /**
  * GET /api/appointments
  *
@@ -457,119 +526,50 @@ router.get("/", async (req, res) => {
     }
 
     // ----------------- Query DB -----------------
-        const appointments = await prisma.appointment.findMany({
-  where,
-  orderBy: { scheduledAt: "asc" },
-  include: {
-    patient: {
-      select: {
-        id: true,
-        name: true,
-        ovog: true,      // ← ADD THIS
-        regNo: true,
-        phone: true,
-        patientBook: true,
+    const appointments = await prisma.appointment.findMany({
+      where,
+      orderBy: { scheduledAt: "asc" },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            name: true,
+            ovog: true,
+            regNo: true,
+            phone: true,
+            patientBook: true,
+          },
+        },
+        doctor: true,
+        branch: true,
+        createdBy: { select: { id: true, name: true, ovog: true } },
+        updatedBy: { select: { id: true, name: true, ovog: true } },
+        encounters: {
+          orderBy: { id: "desc" },
+          take: 1,
+          select: { id: true },
+        },
       },
-    },
-    doctor: true,
-    branch: true,
-    createdBy: { select: { id: true, name: true, ovog: true } },
-    updatedBy: { select: { id: true, name: true, ovog: true } },
-    encounters: {
-      orderBy: { id: "desc" },
-      take: 1,
-      select: { id: true },
-    },
-  },
-});
-
-// ---------------------------------------------------------------------------
-// formatApptForResponse: shapes a Prisma appointment record into the
-// API response object. Uses naive timestamps for scheduledAt/endAt and
-// ISO strings for audit timestamps (createdAt/updatedAt/checkedInAt).
-// ---------------------------------------------------------------------------
-function formatApptForResponse(a) {
-  const patient = a.patient;
-  const doctor = a.doctor;
-  const branch = a.branch;
-
-  return {
-    id: a.id,
-    branchId: a.branchId,
-    doctorId: a.doctorId,
-    patientId: a.patientId,
-
-    patientName: patient ? patient.name : null,
-    patientOvog: patient ? patient.ovog || null : null,
-    patientRegNo: patient ? patient.regNo || null : null,
-    patientPhone: patient ? patient.phone || null : null,
-
-    doctorName: doctor ? doctor.name || null : null,
-    doctorOvog: doctor ? doctor.ovog || null : null,
-
-    // Naive wall-clock timestamps — no timezone offset
-    scheduledAt: a.scheduledAt ? toNaiveTs(a.scheduledAt) : null,
-    endAt: a.endAt ? toNaiveTs(a.endAt) : null,
-
-    status: a.status,
-    notes: a.notes || null,
-
-    createdByUserId: a.createdByUserId || null,
-    source: a.source || null,
-    sourceEncounterId: a.sourceEncounterId || null,
-
-    // Audit timestamps remain as ISO (not appointment scheduling times)
-    checkedInAt: a.checkedInAt ? a.checkedInAt.toISOString() : null,
-    createdAt: a.createdAt ? a.createdAt.toISOString() : null,
-    updatedAt: a.updatedAt ? a.updatedAt.toISOString() : null,
-    updatedByUserId: a.updatedByUserId || null,
-
-    createdByUser: a.createdBy
-      ? { id: a.createdBy.id, name: a.createdBy.name || null, ovog: a.createdBy.ovog || null }
-      : (a.createdByUser ?? null),
-    updatedByUser: a.updatedBy
-      ? { id: a.updatedBy.id, name: a.updatedBy.name || null, ovog: a.updatedBy.ovog || null }
-      : (a.updatedByUser ?? null),
-
-    patient: patient
-      ? {
-          id: patient.id,
-          name: patient.name,
-          ovog: patient.ovog || null,
-          regNo: patient.regNo || null,
-          phone: patient.phone || null,
-          patientBook: patient.patientBook || null,
-        }
-      : null,
-
-    branch: branch
-      ? { id: branch.id, name: branch.name }
-      : null,
-
-    encounterId: Array.isArray(a.encounters) && a.encounters.length > 0
-      ? a.encounters[0].id
-      : (a.encounterId ?? null),
-  };
-}
+    });
 
     // ----------------- Shape for new frontend Appointment type -----------------
     const rows = appointments.map((a) => {
-  const formatted = formatApptForResponse(a);
-  const patient = a.patient;
-  const branch = a.branch;
-  const patientRegNo = patient ? patient.regNo || null : null;
-  const branchName = branch ? branch.name : null;
+      const formatted = formatApptForResponse(a);
+      const patient = a.patient;
+      const branch = a.branch;
+      const patientRegNo = patient ? patient.regNo || null : null;
+      const branchName = branch ? branch.name : null;
 
-  return {
-    ...formatted,
+      return {
+        ...formatted,
 
-    // ✅ LEGACY aliases (so visits pages keep working)
-    startTime: formatted.scheduledAt,
-    endTime: formatted.endAt,
-    regNo: patientRegNo,
-    branchName,
-  };
-});
+        // ✅ LEGACY aliases (so visits pages keep working)
+        startTime: formatted.scheduledAt,
+        endTime: formatted.endAt,
+        regNo: patientRegNo,
+        branchName,
+      };
+    });
 
     res.json(rows);
   } catch (err) {
@@ -584,6 +584,7 @@ function formatApptForResponse(a) {
 //
 // @param {object} opts
 //   doctorId         {number}  – doctor to check (required)
+//   branchId         {number}  – branch to check (required; capacity is per doctor per branch)
 //   start            {Date}    – appointment start (inclusive)
 //   end              {Date}    – appointment end (exclusive); must be > start
 //   excludeId        {number|null} – appointment id to exclude (for PATCH)
@@ -591,9 +592,10 @@ function formatApptForResponse(a) {
 //
 // Returns true when capacity would be exceeded (caller should return 409).
 // ---------------------------------------------------------------------------
-async function isDoctorCapacityExceeded({ doctorId, start, end, excludeId = null, tx }) {
+async function isDoctorCapacityExceeded({ doctorId, branchId, start, end, excludeId = null, tx }) {
   const where = {
     doctorId,
+    branchId,
     status: { in: ["booked", "confirmed", "ongoing", "online", "other"] },
     scheduledAt: { lt: end },
     OR: [{ endAt: { gt: start } }, { endAt: null }],
@@ -748,6 +750,7 @@ if (req.user?.role === "receptionist" && req.user.branchId !== parsedBranchId) {
       if (parsedDoctorId !== null) {
         const exceeded = await isDoctorCapacityExceeded({
           doctorId: parsedDoctorId,
+          branchId: parsedBranchId,
           start: scheduledDate,
           end: endDate,
           tx,
@@ -976,6 +979,7 @@ router.patch("/:id", async (req, res) => {
 
           const exceeded = await isDoctorCapacityExceeded({
             doctorId: effectiveDoctorId,
+            branchId: existing.branchId,
             start: effectiveStart,
             end: effectiveEnd,
             excludeId: id,
