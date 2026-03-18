@@ -143,7 +143,7 @@ function AppointmentForm({
   onCreated,
   onBranchChange, // NEW
 }: AppointmentFormProps) {
-  const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (form date input default, ok for local use)
+  const todayStr = getBusinessYmd(); // YYYY-MM-DD in Mongolia timezone
 
   const [form, setForm] = useState({
     patientQuery: "",
