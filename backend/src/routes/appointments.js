@@ -824,6 +824,7 @@ router.patch("/:id", async (req, res) => {
       scheduledAt,
       endAt,
       doctorId,
+      visitCardType,
 
       // explicitly forbid these in this endpoint for safety
       patientId,
@@ -884,6 +885,34 @@ router.patch("/:id", async (req, res) => {
           return res.status(403).json({ error: "Үзлэг эхэлсэн байна" });
         }
       }
+
+      // Visit card completion guard: block moving to "ongoing" unless patient
+      // has a completed visit card (sharedConsentAccepted + patientSignaturePath).
+      if (normalizedStatus === "ongoing") {
+        const VISIT_CARD_ERROR = "Эмчилгээ эхлэхээс өмнө заавал карт бөглөсөн байх шаардлагатай.";
+        if (visitCardType !== "ADULT" && visitCardType !== "CHILD") {
+          return res.status(403).json({ error: VISIT_CARD_ERROR });
+        }
+        const apptWithPatient = await prisma.appointment.findUnique({
+          where: { id },
+          include: { patient: { include: { patientBook: true } } },
+        });
+        const patientBookId = apptWithPatient?.patient?.patientBook?.id;
+        if (!patientBookId) {
+          return res.status(403).json({ error: VISIT_CARD_ERROR });
+        }
+        const visitCard = await prisma.visitCard.findFirst({
+          where: { patientBookId, type: visitCardType },
+        });
+        if (
+          !visitCard ||
+          visitCard.answers?.sharedConsentAccepted !== true ||
+          !visitCard.patientSignaturePath
+        ) {
+          return res.status(403).json({ error: VISIT_CARD_ERROR });
+        }
+      }
+
       data.status = normalizedStatus;
     }
 
