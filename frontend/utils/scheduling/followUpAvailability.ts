@@ -1,4 +1,4 @@
-import { addMinutesLocal, getDayLabelMn, toLocalDateTime, ymdRangeInclusive } from "./localDate";
+import { addMinutesLocal, getDayLabelMn, parseNaiveOrIso, toLocalDateTime, ymdRangeInclusive } from "./localDate";
 import { buildFixedHeaderTimeLabels, getClinicWindowForDay, isTimeWithinRange } from "./timeLabels";
 
 export type FollowUpSlotStatus = "available" | "booked" | "off";
@@ -29,7 +29,7 @@ export type DoctorScheduleWindow = {
 
 export type AppointmentLite = {
   id: number;
-  scheduledAt: string; // ISO
+  scheduledAt: string; // ISO or naive wall-clock ("YYYY-MM-DD HH:mm:ss")
   endAt: string | null;
   status: string;
 };
@@ -67,10 +67,10 @@ export function buildFollowUpAvailability(opts: {
   const parsedAppointments = (opts.appointments || [])
     .filter((a) => a && a.status !== "cancelled")
     .map((a) => {
-      const start = new Date(a.scheduledAt);
+      const start = parseNaiveOrIso(a.scheduledAt);
       const end =
-        a.endAt && !Number.isNaN(new Date(a.endAt).getTime())
-          ? new Date(a.endAt)
+        a.endAt && !Number.isNaN(parseNaiveOrIso(a.endAt).getTime())
+          ? parseNaiveOrIso(a.endAt)
           : addMinutesLocal(start, slotMinutes);
 
       return {

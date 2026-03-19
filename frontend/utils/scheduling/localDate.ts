@@ -1,3 +1,22 @@
+/**
+ * Parse a datetime string that is either:
+ *   - ISO 8601: "YYYY-MM-DDTHH:mm:ss..." (with or without timezone offset)
+ *   - Naive wall-clock: "YYYY-MM-DD HH:mm:ss" (server local time, no TZ designator)
+ *
+ * Naive strings use a space separator which is non-standard per ECMAScript and
+ * parsed inconsistently across browsers (Invalid Date in Firefox/Safari).
+ * We normalise them to "YYYY-MM-DDTHH:mm:ss" before constructing Date so that
+ * all engines treat it as local-wall-clock time, matching the server intent.
+ */
+export function parseNaiveOrIso(s: string): Date {
+  if (!s) return new Date(NaN);
+  // "YYYY-MM-DD HH:mm:ss" — space at position 10 → replace with T
+  if (s.length >= 19 && s[10] === " ") {
+    return new Date(s.slice(0, 10) + "T" + s.slice(11));
+  }
+  return new Date(s);
+}
+
 export function parseYmd(
   ymd: string
 ): { y: number; m: number; d: number } | null {

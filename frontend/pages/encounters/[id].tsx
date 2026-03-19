@@ -1259,6 +1259,9 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
         `Цаг амжилттай үүсгэлээ: ${params.date} ${params.time}`
       );
 
+      // Refresh the grid so the newly-created appointment appears
+      await loadFollowUpAvailability();
+
       // Auto-hide success message after 5 seconds
       setTimeout(() => {
         setFollowUpSuccess("");

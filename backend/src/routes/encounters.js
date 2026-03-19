@@ -5,7 +5,7 @@ import path from "path";
 import fs from "fs";
 import { authenticateJWT, optionalAuthenticateJWT } from "../middleware/auth.js";
 import { finalizeSterilizationForEncounter } from "../services/sterilizationFinalize.js";
-import { sseBroadcast } from "./appointments.js";
+import { sseBroadcast, naiveTsToYmd, formatApptForResponse } from "./appointments.js";
 
 const router = express.Router();
 
@@ -2136,7 +2136,14 @@ const slotTimeString = `${String(slotHourLocal).padStart(2, "0")}:${String(
       },
     });
 
-    res.status(201).json(appointment);
+    const responsePayload = formatApptForResponse(appointment);
+    res.status(201).json(responsePayload);
+
+    // Broadcast SSE so reception/admin appointment pages update immediately
+    if (appointment.scheduledAt) {
+      const apptDate = naiveTsToYmd(appointment.scheduledAt);
+      sseBroadcast("appointment_created", responsePayload, apptDate, appointment.branchId);
+    }
   } catch (err) {
     console.error("Error creating follow-up appointment:", err);
     res.status(500).json({ error: "Failed to create follow-up appointment" });

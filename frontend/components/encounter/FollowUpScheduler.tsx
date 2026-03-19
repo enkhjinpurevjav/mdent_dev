@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { formatGridShortLabel } from "../../utils/scheduling";
+import { formatGridShortLabel, parseNaiveOrIso } from "../../utils/scheduling";
 
 type FollowUpAvailability = {
   days: Array<{
@@ -69,9 +69,9 @@ type FollowUpSchedulerProps = {
 };
 
 function getHmFromIso(iso: string): string {
-  const date = new Date(iso);
+  const date = parseNaiveOrIso(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toTimeString().substring(0, 5);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 const nameOnly = (label: string) =>
   (label || "").replace(/\s*\([^)]*\)\s*$/, "").trim();
@@ -153,7 +153,7 @@ export default function FollowUpScheduler({
     const isCurrentEncounter = appointment.sourceEncounterId === encounterId;
     
     // Must be scheduled in the future
-    const isFutureAppointment = new Date(appointment.scheduledAt) > new Date();
+    const isFutureAppointment = parseNaiveOrIso(appointment.scheduledAt) > new Date();
     
     return isFutureAppointment && isFollowUpSource && isCurrentEncounter;
   };
@@ -184,8 +184,8 @@ export default function FollowUpScheduler({
         continue; // Don't count cancelled/no-show/completed
       }
       
-      const aptStart = new Date(apt.scheduledAt);
-      const aptEnd = apt.endAt ? new Date(apt.endAt) : new Date(aptStart.getTime() + followUpSlotMinutes * 60_000);
+      const aptStart = parseNaiveOrIso(apt.scheduledAt);
+      const aptEnd = apt.endAt ? parseNaiveOrIso(apt.endAt) : new Date(aptStart.getTime() + followUpSlotMinutes * 60_000);
       
       // Check if they overlap: aptStart < newEnd && aptEnd > newStart
       if (aptStart < newEnd && aptEnd > newStart) {
@@ -223,8 +223,8 @@ export default function FollowUpScheduler({
         continue;
       }
       
-      const aptStart = new Date(apt.scheduledAt);
-      const aptEnd = apt.endAt ? new Date(apt.endAt) : new Date(aptStart.getTime() + followUpSlotMinutes * 60_000);
+      const aptStart = parseNaiveOrIso(apt.scheduledAt);
+      const aptEnd = apt.endAt ? parseNaiveOrIso(apt.endAt) : new Date(aptStart.getTime() + followUpSlotMinutes * 60_000);
       
       if (aptStart < slotEnd && aptEnd > dt) {
         overlappingIds.push(apt.id);
@@ -286,12 +286,12 @@ useEffect(() => {
     
     // Sort by start time, then by duration (longer first), then by id
     const sorted = [...appointments].sort((a, b) => {
-      const startA = new Date(a.scheduledAt).getTime();
-      const startB = new Date(b.scheduledAt).getTime();
+      const startA = parseNaiveOrIso(a.scheduledAt).getTime();
+      const startB = parseNaiveOrIso(b.scheduledAt).getTime();
       if (startA !== startB) return startA - startB;
       
-      const endA = a.endAt ? new Date(a.endAt).getTime() : startA + DEFAULT_SLOT_DURATION_MS;
-      const endB = b.endAt ? new Date(b.endAt).getTime() : startB + DEFAULT_SLOT_DURATION_MS;
+      const endA = a.endAt ? parseNaiveOrIso(a.endAt).getTime() : startA + DEFAULT_SLOT_DURATION_MS;
+      const endB = b.endAt ? parseNaiveOrIso(b.endAt).getTime() : startB + DEFAULT_SLOT_DURATION_MS;
       const durA = endA - startA;
       const durB = endB - startB;
       
@@ -303,9 +303,9 @@ useEffect(() => {
     const laneEndTime: { lane0: number | null; lane1: number | null } = { lane0: null, lane1: null };
     
     for (const apt of sorted) {
-      const start = new Date(apt.scheduledAt).getTime();
+      const start = parseNaiveOrIso(apt.scheduledAt).getTime();
       const end = apt.endAt 
-        ? new Date(apt.endAt).getTime() 
+        ? parseNaiveOrIso(apt.endAt).getTime() 
         : start + DEFAULT_SLOT_DURATION_MS;
       
       // Try to assign to first available lane
@@ -338,7 +338,7 @@ useEffect(() => {
         if (apt.status === "cancelled" || apt.status === "no_show" || apt.status === "completed") {
           return false;
         }
-        const aptDate = new Date(apt.scheduledAt).toISOString().split('T')[0];
+        const aptDate = apt.scheduledAt.slice(0, 10);
         return aptDate === day.date;
       });
 
@@ -373,8 +373,8 @@ useEffect(() => {
               
               // Calculate column spans for appointments
               const getColSpan = (apt: AppointmentLiteForDetails): number => {
-                const start = new Date(apt.scheduledAt);
-                const end = apt.endAt ? new Date(apt.endAt) : new Date(start.getTime() + DEFAULT_SLOT_DURATION_MS);
+                const start = parseNaiveOrIso(apt.scheduledAt);
+                const end = apt.endAt ? parseNaiveOrIso(apt.endAt) : new Date(start.getTime() + DEFAULT_SLOT_DURATION_MS);
                 const durationMs = end.getTime() - start.getTime();
                 return Math.max(1, Math.ceil(durationMs / DEFAULT_SLOT_DURATION_MS));
               };
