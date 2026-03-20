@@ -1,22 +1,19 @@
 /** @type {import('next').NextConfig} */
-const apiBase =
-  process.env.NEXT_PUBLIC_API_URL || "https://api.mdent.cloud";
-
 const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
     return [
       {
         source: "/api/:path*",
-        destination: `${apiBase}/api/:path*`,
+        destination: "https://api.mdent.cloud/api/:path*",
       },
       {
         source: "/uploads/:path*",
-        destination: `${apiBase}/uploads/:path*`,
+        destination: "https://api.mdent.cloud/uploads/:path*",
       },
       {
         source: "/media/:path*",
-        destination: `${apiBase}/media/:path*`,
+        destination: "https://api.mdent.cloud/media/:path*",
       },
     ];
   },
