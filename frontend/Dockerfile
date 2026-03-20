@@ -1,7 +1,7 @@
 FROM node:20-alpine AS build
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package*.json ./
+RUN npm install
 COPY . .
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_PORTAL_URL
@@ -16,13 +16,11 @@ RUN npm run build
 
 FROM node:20-alpine AS run
 WORKDIR /app
+# 👇 ADD THIS LINE TO INSTALL CURL!
 RUN apk add --no-cache curl
 ENV NODE_ENV=production
-
-# ✅ IMPORTANT: copy lockfile too
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
-
+COPY package*.json ./
+RUN npm install --omit=dev
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
 EXPOSE 3000
