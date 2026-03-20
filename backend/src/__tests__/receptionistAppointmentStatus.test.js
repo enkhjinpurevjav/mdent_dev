@@ -177,7 +177,7 @@ describe("non-receptionist roles — not subject to this guard", () => {
  * @returns {{ blocked: boolean, error?: string }}
  */
 function applyVisitCardCompletionGuard({ requesterRole, normalizedStatus, latestVisitCard, sharedSig }) {
-  const VISIT_CARD_ERROR = "Эмчилгээ эхлэхээс өмнө заавал карт бөглөсөн байх шаардлагатай.";
+  const VISIT_CARD_ERROR = "Үйлчлүүлэгч карт бөглөөгүй байна.";
   if (normalizedStatus === "ongoing" && requesterRole === "receptionist") {
     const consentOk = latestVisitCard?.answers?.sharedConsentAccepted === true;
     const signatureOk = !!(sharedSig?.filePath || latestVisitCard?.patientSignaturePath);
@@ -197,7 +197,7 @@ describe("visit card completion guard — receptionist setting ongoing", () => {
       sharedSig: null,
     });
     assert.equal(result.blocked, true);
-    assert.equal(result.error, "Эмчилгээ эхлэхээс өмнө заавал карт бөглөсөн байх шаардлагатай.");
+    assert.equal(result.error, "Үйлчлүүлэгч карт бөглөөгүй байна.");
   });
 
   it("blocks when consent is not accepted", () => {

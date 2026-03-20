@@ -698,6 +698,8 @@ model User {
   createdPatients   Patient[] @relation("PatientCreator")
   updatedPatients   Patient[] @relation("PatientUpdater")
 
+  updatedVisitCards VisitCard[] @relation("VisitCardUpdater")
+
   createdPayments   Payment[] @relation("PaymentCreator")
 }
 
@@ -776,6 +778,9 @@ model VisitCard {
   patientSignaturePath String?
   signedAt             DateTime?
   savedAt              DateTime? // Timestamp when form is saved (Хадгалах button)
+
+  updatedById Int?
+  updatedBy   User? @relation("VisitCardUpdater", fields: [updatedById], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -524,7 +524,11 @@ router.get("/profile/by-book/:bookNumber", async (req, res) => {
             updatedBy: { select: { id: true, name: true, ovog: true } },
           },
         },
-        visitCards: true, // Changed to plural
+        visitCards: {
+          include: {
+            updatedBy: { select: { id: true, name: true, ovog: true } },
+          },
+        }, // Changed to plural
       },
     });
 
@@ -817,6 +821,7 @@ router.put("/visit-card/:patientBookId", async (req, res) => {
         answers: answers ?? {},
         savedAt: now,
         signedAt: signed ? now : null,
+        updatedById: req.user?.id ?? null,
       },
       update: {
         answers: answers ?? {},
@@ -824,6 +829,7 @@ router.put("/visit-card/:patientBookId", async (req, res) => {
         // Keep existing signature if signed flag is false
         // In Prisma, undefined means "do not update this field"
         signedAt: signed ? now : undefined,
+        updatedById: req.user?.id ?? null,
       },
     });
 

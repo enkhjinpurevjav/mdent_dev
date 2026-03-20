@@ -947,6 +947,19 @@ export default function PatientProfilePage() {
                         )}
                       </div>
 
+                      {/* Visit card last update record */}
+                      {data?.visitCard?.savedAt && (
+                        <div className="col-span-full">
+                          <div className="text-gray-500 mb-0.5">Карт шинэчилсэн</div>
+                          <div>
+                            {data.visitCard.updatedBy
+                              ? formatAuditUserDisplay(data.visitCard.updatedBy)
+                              : "-"}{" "}
+                            — {formatDateTime(data.visitCard.savedAt)}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Address */}
                       <div className="col-span-full">
                         <div className="text-gray-500 mb-0.5">Хаяг</div>

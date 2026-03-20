@@ -9,6 +9,8 @@ export type VisitCard = {
   answers: any;
   patientSignaturePath?: string | null;
   signedAt?: string | null;
+  savedAt?: string | null;
+  updatedBy?: { id: number; name: string | null; ovog: string | null } | null;
 };
 
 export type VisitCardAnswers = {

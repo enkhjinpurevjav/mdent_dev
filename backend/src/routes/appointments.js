@@ -873,9 +873,36 @@ router.patch("/:id", async (req, res) => {
         return res.status(400).json({ error: "invalid status" });
       }
       // Receptionist-specific status transition rule:
-      // - Receptionist CAN set status to "ongoing" (patient check-in).
+      // - Receptionist CAN set status to "ongoing" ONLY if the patient's visit card
+      //   is completed (sharedConsentAccepted and a signature on file).
       // - Receptionist CANNOT change status away from "ongoing" once an encounter
       //   has been created for this appointment (doctor has started the visit).
+      if (req.user?.role === "receptionist" && normalizedStatus === "ongoing") {
+        // Fetch the patientBook for this appointment to check visit card completion
+        const apptWithPatient = await prisma.appointment.findUnique({
+          where: { id },
+          select: { patient: { select: { patientBook: { select: { id: true } } } } },
+        });
+        const patientBookId = apptWithPatient?.patient?.patientBook?.id ?? null;
+        let cardComplete = false;
+        if (patientBookId) {
+          const [latestCard, sharedSig] = await Promise.all([
+            prisma.visitCard.findFirst({
+              where: { patientBookId },
+              orderBy: { savedAt: "desc" },
+            }),
+            prisma.visitCardSharedSignature.findUnique({
+              where: { patientBookId },
+            }),
+          ]);
+          const consentOk = latestCard?.answers?.sharedConsentAccepted === true;
+          const signatureOk = !!(sharedSig?.filePath || latestCard?.patientSignaturePath);
+          cardComplete = consentOk && signatureOk;
+        }
+        if (!cardComplete) {
+          return res.status(400).json({ error: "Үйлчлүүлэгч карт бөглөөгүй байна." });
+        }
+      }
       if (req.user?.role === "receptionist" && existing.status === "ongoing" && normalizedStatus !== "ongoing") {
         const encounterCount = await prisma.encounter.count({
           where: { appointmentId: id },
