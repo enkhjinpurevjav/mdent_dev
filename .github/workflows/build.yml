@@ -40,15 +40,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build frontend Docker image
-        # NEXT_PUBLIC_* vars must be supplied at build time so Next.js can
-        # inline them into the compiled output. The values below are
-        # build-time defaults used only in CI; they do not affect production
-        # deployments (which receive real values via docker-compose build args).
         run: |
           docker build \
             --progress=plain \
-            --build-arg NEXT_PUBLIC_API_URL="https://api.mdent.cloud" \
-            --build-arg NEXT_PUBLIC_PORTAL_URL="https://mdent.cloud" \
+            --build-arg NEXT_PUBLIC_API_URL="https://example.com" \
+            --build-arg NEXT_PUBLIC_PORTAL_URL="https://example.com" \
             --build-arg NEXT_PUBLIC_CAPTCHA_KEY="dummy" \
             --build-arg NEXT_PUBLIC_BOOKING_FLOW_VERSION="v1" \
             -t mdent-frontend:ci \
