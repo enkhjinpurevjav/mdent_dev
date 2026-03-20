@@ -229,11 +229,10 @@ export default function VisitsListPage({ hideBranchSelector = false }: Props) {
     }
     setStatusSaveLoading(true);
     try {
-      const payload: Record<string, string> = { status: editingStatus };
       const res = await fetch(`/api/appointments/${row.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ status: editingStatus }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => null);
@@ -260,7 +259,6 @@ export default function VisitsListPage({ hideBranchSelector = false }: Props) {
 
       setEditingRowId(null);
       setEditingStatus("");
-      setEditingVisitCardType("ADULT");
     } catch {
       showToast("Алдаа гарлаа. Дахин оролдоно уу.");
     } finally {
