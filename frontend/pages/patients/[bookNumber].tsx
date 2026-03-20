@@ -1238,6 +1238,7 @@ export default function PatientProfilePage() {
                       onClick={() => setVisitCardOpen((o) => !o)}
                       role="button"
                       aria-expanded={visitCardOpen}
+                      aria-label={visitCardOpen ? "Үзлэгийн картын төрөл хаах" : "Үзлэгийн картын төрөл нээх"}
                     >
                       <div className="flex items-center gap-2 text-sm font-semibold">
                         <span>{visitCardOpen ? "▾" : "▸"}</span>
@@ -1856,6 +1857,7 @@ export default function PatientProfilePage() {
                       {visitCardSaving ? "Хадгалж байна..." : "Хадгалах"}
                     </button>
                   </div>
+                  {/* End: collapsible visit card form content */}
                   </>
                   )}
                 </>
