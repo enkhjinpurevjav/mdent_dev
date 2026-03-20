@@ -1,11 +1,10 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
-# Print versions (helps debugging in logs)
-RUN node -v && npm -v
+# Pin npm (prevents surprises if base image npm changes)
+RUN npm i -g npm@10.9.2
 
-# Deterministic install using package-lock.json
-COPY package*.json ./
+COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
@@ -23,13 +22,16 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
 RUN mkdir -p public
 RUN npm run build
 
+
 FROM node:20-alpine AS run
 WORKDIR /app
+
 RUN apk add --no-cache curl
+RUN npm i -g npm@10.9.2
 
 ENV NODE_ENV=production
 
-COPY package*.json ./
+COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY --from=build /app/.next ./.next
