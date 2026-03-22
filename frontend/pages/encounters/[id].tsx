@@ -111,38 +111,34 @@ export default function EncounterAdminPage() {
 
   const loadActiveIndicators = async (branchId: number) => {
   try {
-    // Try new cycle-based API first
-    const resNew = await fetch(
-      `/api/sterilization/cycles/active-indicators?branchId=${branchId}`
-    );
-    if (resNew.ok) {
-      const jsonNew = await resNew.json().catch(() => []);
-      if (Array.isArray(jsonNew)) {
-        // Transform new format to match old ActiveIndicator type
-        const transformed = jsonNew.map((item: any) => ({
-          id: item.cycleId, // Use cycleId as the identifier
-          packageName: item.toolName, // Tool name instead of package name
-          code: item.cycleCode, // Cycle code
-          current: item.remaining,
-          produced: item.produced,
-          used: item.used,
-          indicatorDate: item.completedAt || new Date().toISOString(),
-        }));
-        setActiveIndicators(transformed);
-        return;
-      }
-    }
-
-    // Fallback to old API if new one fails
+    // Use active-cycles endpoint and flatten toolLines to get per-tool-line items with correct toolLineId
     const res = await fetch(
-      `/api/sterilization/indicators/active?branchId=${branchId}`
+      `/api/sterilization/active-cycles?branchId=${branchId}`
     );
-    const json = await res.json().catch(() => []);
-    if (res.ok && Array.isArray(json)) {
-      setActiveIndicators(json);
-    } else {
-      setActiveIndicators([]);
+    if (res.ok) {
+      const json = await res.json().catch(() => null);
+      const activeCycles = Array.isArray(json?.activeCycles) ? json.activeCycles : [];
+      const transformed: ActiveIndicator[] = [];
+      for (const cycle of activeCycles) {
+        const toolLines = Array.isArray(cycle.toolLines) ? cycle.toolLines : [];
+        for (const tl of toolLines) {
+          if ((tl.remaining ?? 0) > 0) {
+            transformed.push({
+              id: tl.toolLineId, // Use toolLineId as the identifier
+              packageName: tl.toolName,
+              code: cycle.code,
+              current: tl.remaining,
+              produced: tl.produced,
+              used: tl.used,
+              indicatorDate: cycle.completedAt || new Date().toISOString(),
+            });
+          }
+        }
+      }
+      setActiveIndicators(transformed);
+      return;
     }
+    setActiveIndicators([]);
   } catch {
     setActiveIndicators([]);
   }

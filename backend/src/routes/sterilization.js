@@ -1928,10 +1928,11 @@ router.get("/sterilization/tool-lines/search", async (req, res) => {
           const toolName = line.tool.name || "";
           const cycleCode = cycle.code || "";
           
-          // Filter by search query if provided
+          // Filter by search query if provided: match on tool name OR cycle code independently
           if (searchQuery) {
-            const searchable = `${toolName} ${cycleCode}`.toLowerCase();
-            if (!searchable.includes(searchQuery)) {
+            const nameMatch = toolName.toLowerCase().includes(searchQuery);
+            const codeMatch = cycleCode.toLowerCase().includes(searchQuery);
+            if (!nameMatch && !codeMatch) {
               continue;
             }
           }
