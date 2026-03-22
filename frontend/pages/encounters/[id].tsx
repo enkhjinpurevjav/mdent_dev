@@ -396,6 +396,32 @@ export default function EncounterAdminPage() {
     setCustomToothRange("");
   }
 
+  function checkSurgeryConsent(): string | null {
+    const hasSurgeryService = editableDxRows.some((row) => {
+      if (!row.serviceId) return false;
+      const svc = services.find((s) => s.id === row.serviceId);
+      return svc?.category === "SURGERY";
+    });
+    if (!hasSurgeryService) return null;
+
+    const surgeryConsent = consents.find((c) => c.type === "surgery");
+    const answers = (surgeryConsent?.answers || {}) as Record<string, unknown>;
+    // Either acceptance checkbox (main consent or information acknowledgment) is sufficient
+    const isAccepted = !!(answers.patientConsentMain || answers.patientConsentInfo);
+    const patientSigned = !!encounter?.patientSignaturePath;
+    const doctorSigned = !!encounter?.doctorSignaturePath;
+    if (!isAccepted || !patientSigned || !doctorSigned) {
+      return "Мэс заслын зөвшөөрлийн хуудас бөглөөгүй байна";
+    }
+    return null;
+  }
+
+  const handleSetActiveDxRowIndex = (index: number | null) => {
+    setSelectedTeeth([]);
+    setCustomToothRange("");
+    setActiveDxRowIndex(index);
+  };
+
   function toggleToothSelection(code: string) {
     // 1) Handle "ALL"
     if (code === "ALL") {
@@ -896,6 +922,8 @@ function removeDiagnosisRow(index: number) {
     if (prev > index) return prev - 1;
     return prev;
   });
+
+  resetToothSelectionSession();
 }
 
   const unlockRow = (index: number) => {
@@ -1528,6 +1556,12 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
   const handleSaveDiagnoses = async () => {
   if (!id || typeof id !== "string") return;
 
+  const surgeryConsentError = checkSurgeryConsent();
+  if (surgeryConsentError) {
+    setSaveError(surgeryConsentError);
+    return;
+  }
+
   setSaving(true);
   setSaveError("");
 
@@ -1729,6 +1763,9 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
     if (deletedDiagnosisIds.length > 0) {
       console.log("Deleted diagnosis IDs:", deletedDiagnosisIds);
     }
+
+    // Reset tooth selection after successful save so next row starts fresh
+    resetToothSelectionSession();
   } catch (err: any) {
     console.error("handleSaveDiagnoses failed", err);
     setSaveError(err?.message || "Онош хадгалахад алдаа гарлаа.");
@@ -1981,6 +2018,12 @@ setRows((prev) =>
 
 const handleFinishEncounter = async () => {
     if (!id || typeof id !== "string") return;
+
+    const surgeryConsentError = checkSurgeryConsent();
+    if (surgeryConsentError) {
+      setSaveError(surgeryConsentError);
+      return;
+    }
 
     setFinishing(true);
     try {
@@ -2236,7 +2279,7 @@ const handleFinishEncounter = async () => {
               onSetOpenDxIndex={setOpenDxIndex}
               onSetOpenServiceIndex={setOpenServiceIndex}
               onSetOpenIndicatorIndex={setOpenIndicatorIndex}
-              onSetActiveDxRowIndex={setActiveDxRowIndex}
+              onSetActiveDxRowIndex={handleSetActiveDxRowIndex}
               onUpdateRowField={updateDxRowField}
               onAddToolLineDraft={handleAddToolLineDraft}
               onRemoveToolLineDraft={handleRemoveToolLineDraft}

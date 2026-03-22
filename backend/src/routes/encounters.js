@@ -1006,6 +1006,28 @@ router.put("/:id/finish", requireEncounterWriteAccess, async (req, res) => {
       return res.status(404).json({ error: "Encounter not found" });
     }
 
+    // Validate surgery consent requirement before finishing
+    const encounterSurgeryServices = await prisma.encounterService.findMany({
+      where: { encounterId },
+      include: { service: { select: { category: true } } },
+    });
+    const hasSurgeryService = encounterSurgeryServices.some(
+      (es) => es.service?.category === "SURGERY"
+    );
+    if (hasSurgeryService) {
+      const surgeryConsent = await prisma.encounterConsent.findFirst({
+        where: { encounterId, type: "surgery" },
+      });
+      const answers = (surgeryConsent?.answers || {});
+      // Either acceptance checkbox (main consent or information acknowledgment) is sufficient
+      const isAccepted = !!(answers.patientConsentMain || answers.patientConsentInfo);
+      const patientSigned = !!encounter.patientSignaturePath;
+      const doctorSigned = !!encounter.doctorSignaturePath;
+      if (!isAccepted || !patientSigned || !doctorSigned) {
+        return res.status(400).json({ error: "Мэс заслын зөвшөөрлийн хуудас бөглөөгүй байна" });
+      }
+    }
+
     // NEW: Finalize sterilization draft attachments
     let sterilizationResult = null;
     try {
@@ -1512,6 +1534,31 @@ router.put("/:encounterId/diagnosis-rows", requireEncounterWriteAccess, async (r
     }
 
     const isImagingEncounter = encounter.appointment?.status === "imaging";
+
+    // Validate surgery consent requirement
+    const surgeryServiceIds = rows
+      .map((r) => Number(r.serviceId))
+      .filter((n) => Number.isFinite(n) && n > 0);
+
+    if (surgeryServiceIds.length > 0) {
+      const surgeryServices = await prisma.service.findMany({
+        where: { id: { in: surgeryServiceIds }, category: "SURGERY" },
+        select: { id: true },
+      });
+      if (surgeryServices.length > 0) {
+        const surgeryConsent = await prisma.encounterConsent.findFirst({
+          where: { encounterId, type: "surgery" },
+        });
+        const answers = (surgeryConsent?.answers || {});
+        // Either acceptance checkbox (main consent or information acknowledgment) is sufficient
+        const isAccepted = !!(answers.patientConsentMain || answers.patientConsentInfo);
+        const patientSigned = !!encounter.patientSignaturePath;
+        const doctorSigned = !!encounter.doctorSignaturePath;
+        if (!isAccepted || !patientSigned || !doctorSigned) {
+          return res.status(400).json({ error: "Мэс заслын зөвшөөрлийн хуудас бөглөөгүй байна" });
+        }
+      }
+    }
 
     // Validate "Бүх шүд" uniqueness in payload
     const generalServiceRows = rows.filter(
