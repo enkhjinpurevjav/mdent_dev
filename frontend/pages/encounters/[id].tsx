@@ -82,9 +82,6 @@ export default function EncounterAdminPage() {
     Record<number, DiagnosisProblem[]>
   >({});
 
-  const [editableDxRows, setEditableDxRows] = useState<EditableDiagnosis[]>(
-    []
-  );
   const [editableServices, setEditableServices] = useState<
     EncounterService[]
   >([]);
@@ -184,7 +181,6 @@ export default function EncounterAdminPage() {
       draftServiceTexts: undefined,
     };
 
-    setEditableDxRows((prev) => [...prev, newRow]);
     setRows((prev) => [...prev, newRow]);
 
     return idx;
@@ -209,9 +205,6 @@ export default function EncounterAdminPage() {
       ? ALL_TEETH_LABEL
       : stringifyToothList(nextTeeth);
 
-    setEditableDxRows((prev) =>
-      prev.map((row, i) => (i === idx ? { ...row, toothCode: toothStr } : row))
-    );
     setRows((prev) =>
       prev.map((row, i) => (i === idx ? { ...row, toothCode: toothStr } : row))
     );
@@ -223,11 +216,6 @@ export default function EncounterAdminPage() {
     ? ALL_TEETH_LABEL
     : stringifyToothList(nextTeeth);
 
-  // update both
-  setEditableDxRows((prev) =>
-    prev.map((row, i) => (i === idx ? { ...row, toothCode: toothStr } : row))
-  );
-
   setRows((prev) => {
     const next = prev.map((row, i) =>
       i === idx ? { ...row, toothCode: toothStr } : row
@@ -235,8 +223,6 @@ export default function EncounterAdminPage() {
 
     if (nextTeeth.length === 0 && !opts?.isAllTeeth) {
       if (isDxRowEffectivelyEmpty(next[idx])) {
-        // remove from BOTH states
-        setEditableDxRows((prevEd) => prevEd.filter((_, i) => i !== idx));
         setActiveDxRowIndex(null);
         return next.filter((_, i) => i !== idx);
       }
@@ -393,7 +379,7 @@ export default function EncounterAdminPage() {
   }
 
   function checkSurgeryConsent(): string | null {
-    const hasSurgeryService = editableDxRows.some((row) => {
+    const hasSurgeryService = rows.some((row) => {
       if (!row.serviceId) return false;
       const svc = services.find((s) => s.id === row.serviceId);
       return svc?.category === "SURGERY";
@@ -460,7 +446,7 @@ export default function EncounterAdminPage() {
     updateActiveRowToothList(parsed, { isAllTeeth: false });
   }
 
-  // Helper to update a single field in both rows and editableDxRows
+  // Helper to update a single field in rows
   const updateDxRowField = useCallback(
     <K extends keyof EditableDiagnosis>(
       index: number,
@@ -474,9 +460,6 @@ export default function EncounterAdminPage() {
       }
       
       setRows((prev) =>
-        prev.map((row, i) => (i === index ? { ...row, ...updates } : row))
-      );
-      setEditableDxRows((prev) =>
         prev.map((row, i) => (i === index ? { ...row, ...updates } : row))
       );
     },
@@ -525,7 +508,7 @@ export default function EncounterAdminPage() {
 // based on the code you pasted, with the "merged" behavior:
 // - serviceId + serviceSearchText are restored from encounterServices using meta.diagnosisId
 // - serviceSearchText uses svc.name (as you requested)
-// - BOTH rows and editableDxRows are set to the same merged array (prevents drift + "sometimes disappears")
+// - rows is set to the merged array
 
 const loadEncounter = async () => {
   setLoading(true);
@@ -629,9 +612,8 @@ const loadEncounter = async () => {
       };
     });
 
-    // ✅ IMPORTANT: keep both arrays in sync to avoid "sometimes disappears"
+    // ✅ Set rows as the single source of truth
     setRows(mergedRows);
-    setEditableDxRows(mergedRows);
 
     // Preload problems for all diagnosis IDs in the encounter
     // ensureProblemsLoaded already handles errors internally
@@ -895,7 +877,6 @@ function removeDiagnosisRow(index: number) {
     return;
   }
 
-  setEditableDxRows((prev) => prev.filter((_, i) => i !== index));
   setRows((prev) => prev.filter((_, i) => i !== index));
 
   setOpenDxIndex((prev) => {
@@ -924,11 +905,6 @@ function removeDiagnosisRow(index: number) {
 
   const unlockRow = (index: number) => {
     if (confirm("Энэ мөрийн түгжээг тайлж, засварлахыг зөвшөөрч байна уу?")) {
-      setEditableDxRows((prev) =>
-        prev.map((row, i) =>
-          i === index ? { ...row, locked: false } : row
-        )
-      );
       setRows((prev) =>
         prev.map((row, i) =>
           i === index ? { ...row, locked: false } : row
@@ -938,11 +914,6 @@ function removeDiagnosisRow(index: number) {
   };
 
   const lockRow = (index: number) => {
-    setEditableDxRows((prev) =>
-      prev.map((row, i) =>
-        i === index ? { ...row, locked: true } : row
-      )
-    );
     setRows((prev) =>
       prev.map((row, i) =>
         i === index ? { ...row, locked: true } : row
@@ -1333,16 +1304,6 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
     index: number,
     diagnosisId: number
   ) => {
-    setEditableDxRows((prev) =>
-      prev.map((row, i) => {
-        if (i !== index || row.locked) return row;
-        return {
-          ...row,
-          diagnosisId,
-          selectedProblemIds: [],
-        };
-      })
-    );
     const dx = diagnoses.find((d) => d.id === diagnosisId) || null;
     setRows((prev) =>
       prev.map((row, i) => {
@@ -1362,18 +1323,6 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
   };
 
   const toggleProblem = (index: number, problemId: number) => {
-    setEditableDxRows((prev) =>
-      prev.map((row, i) => {
-        if (i !== index || row.locked) return row;
-        const exists = row.selectedProblemIds.includes(problemId);
-        return {
-          ...row,
-          selectedProblemIds: exists
-            ? row.selectedProblemIds.filter((id) => id !== problemId)
-            : [...row.selectedProblemIds, problemId],
-        };
-      })
-    );
     setRows((prev) =>
       prev.map((row, i) => {
         if (i !== index || row.locked) return row;
@@ -1391,11 +1340,6 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
   };
 
   const handleNoteChange = (index: number, value: string) => {
-    setEditableDxRows((prev) =>
-      prev.map((row, i) =>
-        i === index && !row.locked ? { ...row, note: value } : row
-      )
-    );
     setRows((prev) =>
       prev.map((row, i) =>
         i === index && !row.locked ? { ...row, note: value } : row
@@ -1404,11 +1348,6 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
   };
 
   const handleDxToothCodeChange = (index: number, value: string) => {
-    setEditableDxRows((prev) =>
-      prev.map((row, i) =>
-        i === index && !row.locked ? { ...row, toothCode: value } : row
-      )
-    );
     setRows((prev) =>
       prev.map((row, i) =>
         i === index && !row.locked ? { ...row, toothCode: value } : row
@@ -1418,7 +1357,7 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
 
   // NEW: Tool-line draft handlers
   const handleAddToolLineDraft = async (index: number, toolLineId: number) => {
-    const row = editableDxRows[index];
+    const row = rows[index];
     if (!row || !row.id) {
       console.error("Cannot add tool line draft: diagnosis row not saved yet");
       return;
@@ -1458,7 +1397,6 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
       };
 
       // Update local state with new draft
-      setEditableDxRows((prev) => prev.map(updateDraftsInRow));
       setRows((prev) => prev.map(updateDraftsInRow));
     } catch (err) {
       console.error("Failed to add tool line draft:", err);
@@ -1494,7 +1432,6 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
       };
 
       // Update local state
-      setEditableDxRows((prev) => prev.map(updateDraftsAfterRemoval));
       setRows((prev) => prev.map(updateDraftsAfterRemoval));
     } catch (err) {
       console.error("Failed to remove tool line draft:", err);
@@ -1532,7 +1469,6 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
         ? { ...r, selectedToolLineIds: [...(r.selectedToolLineIds || []), toolLineId] }
         : r;
     
-    setEditableDxRows((prev) => prev.map(updateRow));
     setRows((prev) => prev.map(updateRow));
   };
 
@@ -1545,7 +1481,6 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
       return { ...r, selectedToolLineIds: newIds };
     };
     
-    setEditableDxRows((prev) => prev.map(updateRow));
     setRows((prev) => prev.map(updateRow));
   };
 
@@ -1564,7 +1499,7 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
   try {
     // Build unified payload with all row state
     const payload = {
-      rows: editableDxRows.map((row) => {
+      rows: rows.map((row) => {
         // Build toolLineDrafts from TWO sources:
         // 1. Existing server-backed drafts (from row.draftAttachments)
         // 2. New local selections (from row.selectedToolLineIds)
@@ -1647,8 +1582,8 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
       // Ensure localId is a number for comparison
       const serverLocalId = serverRow.localId ?? 0;
 
-      // Find the original editable row to preserve UI state (match by localId)
-      const originalRow = editableDxRows.find(row => row.localId === serverLocalId);
+      // Find the original row to preserve UI state (match by localId)
+      const originalRow = rows.find(row => row.localId === serverLocalId);
 
       return {
         ...serverRow,
@@ -1687,15 +1622,14 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
       };
     });
 
-    setEditableDxRows(savedDxRows);
     setRows(savedDxRows);
 
     // Sync problem texts and service texts for each saved diagnosis
     for (const srvRow of savedRows) {
       if (!srvRow.id) continue;
 
-      // Find the corresponding editable row to get draft texts
-      const editableRow = editableDxRows.find(r => r.localId === srvRow.localId);
+      // Find the corresponding row to get draft texts
+      const editableRow = rows.find(r => r.localId === srvRow.localId);
       if (!editableRow) continue;
 
       // Sync problem texts if there are drafts
@@ -1751,7 +1685,6 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
           };
         });
         
-        setEditableDxRows(refreshedDxRows);
         setRows(refreshedDxRows);
       }
     }
