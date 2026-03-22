@@ -1549,13 +1549,13 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
     setRows((prev) => prev.map(updateRow));
   };
 
-  const handleSaveDiagnoses = async () => {
-  if (!id || typeof id !== "string") return;
+  const handleSaveDiagnoses = async (): Promise<boolean> => {
+  if (!id || typeof id !== "string") return false;
 
   const surgeryConsentError = checkSurgeryConsent();
   if (surgeryConsentError) {
     setSaveError(surgeryConsentError);
-    return;
+    return false;
   }
 
   setSaving(true);
@@ -1635,6 +1635,7 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
         .join("\n");
       console.error("Some rows failed to save:", errorMsg);
       setSaveError(`Зарим мөрүүд хадгалагдсангүй:\n${errorMsg}`);
+      return false;
     }
 
     // Update state with saved rows
@@ -1762,9 +1763,11 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
 
     // Reset tooth selection after successful save so next row starts fresh
     resetToothSelectionSession();
+    return true;
   } catch (err: any) {
     console.error("handleSaveDiagnoses failed", err);
     setSaveError(err?.message || "Онош хадгалахад алдаа гарлаа.");
+    return false;
   } finally {
     setSaving(false);
   }
@@ -1881,8 +1884,8 @@ setRows((prev) =>
     }
   };
 
-  const savePrescription = async () => {
-    if (!id || typeof id !== "string") return;
+  const savePrescription = async (): Promise<boolean> => {
+    if (!id || typeof id !== "string") return false;
     setPrescriptionSaving(true);
     setPrescriptionError("");
     try {
@@ -1937,11 +1940,13 @@ setRows((prev) =>
 }
 
       setPrescriptionItems(newItems);
+      return true;
     } catch (err: any) {
       console.error("savePrescription failed", err);
       setPrescriptionError(
         err?.message || "Жор хадгалахад алдаа гарлаа."
       );
+      return false;
     } finally {
       setPrescriptionSaving(false);
     }
@@ -2014,6 +2019,7 @@ setRows((prev) =>
 
 const handleFinishEncounter = async () => {
     if (!id || typeof id !== "string") return;
+    if (finishing) return;
 
     const surgeryConsentError = checkSurgeryConsent();
     if (surgeryConsentError) {
@@ -2023,9 +2029,12 @@ const handleFinishEncounter = async () => {
 
     setFinishing(true);
     try {
-      await handleSaveDiagnoses();
+      const okDx = await handleSaveDiagnoses();
+      if (!okDx) return;
+
       // Services are now saved by handleSaveDiagnoses - no separate call needed
-      await savePrescription();
+      const okRx = await savePrescription();
+      if (!okRx) return;
 
       const res = await fetch(`/api/encounters/${id}/finish`, { method: "PUT" });
       const json = await res.json().catch(() => null);
