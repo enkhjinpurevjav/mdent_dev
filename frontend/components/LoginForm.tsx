@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
-import { login } from "../utils/auth";
+import { login, getMe } from "../utils/auth";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -16,6 +16,19 @@ export default function LoginForm() {
 
     try {
       const user = await login(email, password);
+
+      // Verify the session cookie was stored correctly before redirecting.
+      // If /api/auth/me returns 401 right after login (e.g. cookie domain
+      // mismatch or proxy issue), surface a clear error instead of silently
+      // staying on the login page.
+      const verified = await getMe();
+      if (!verified) {
+        setError(
+          "Нэвтэрсэн боловч сессийг тогтоох боломжгүй байна. " +
+            "Хуудсаа дахин ачаалаад оролдоно уу."
+        );
+        return;
+      }
 
       const redirectParam =
         typeof router.query.redirect === "string" ? router.query.redirect : "";

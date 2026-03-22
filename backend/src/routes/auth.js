@@ -59,11 +59,14 @@ const COOKIE_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 
 function cookieOptions() {
   const isProd = process.env.NODE_ENV === "production";
+  // Use leading-dot domain in production so the cookie is valid for both
+  // mdent.cloud and any subdomains (e.g. api.mdent.cloud).
+  // COOKIE_DOMAIN env var overrides the default when set explicitly.
   return {
     httpOnly: true,
     secure: isProd,
     sameSite: "lax",
-    domain: process.env.COOKIE_DOMAIN || (isProd ? "mdent.cloud" : undefined),
+    domain: process.env.COOKIE_DOMAIN || (isProd ? ".mdent.cloud" : undefined),
     path: "/",
     maxAge: COOKIE_MAX_AGE_MS,
   };
@@ -138,7 +141,11 @@ router.post("/login", ipBackstopRateLimit, ipEmailRateLimit, async (req, res) =>
     { expiresIn: "8h" }
   );
 
-  res.cookie(COOKIE_NAME, token, cookieOptions());
+  const opts = cookieOptions();
+  res.cookie(COOKIE_NAME, token, opts);
+  console.info(
+    `[auth] login ok — user=${user.id} role=${user.role} cookieDomain=${opts.domain ?? "(none)"} secure=${opts.secure}`
+  );
 
   return res.json({
     user: {
