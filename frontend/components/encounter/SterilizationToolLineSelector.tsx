@@ -69,7 +69,7 @@ export default function SterilizationToolLineSelector({
 
   // Load tool line search results when search text changes
   useEffect(() => {
-    if (!isOpen || !branchId) {
+    if (!isOpen || !branchId || !searchText.trim()) {
       setToolLineResults([]);
       return;
     }
@@ -79,9 +79,7 @@ export default function SterilizationToolLineSelector({
       try {
         const params = new URLSearchParams();
         params.set("branchId", String(branchId));
-        if (searchText) {
-          params.set("query", searchText);
-        }
+        params.set("query", searchText.trim());
 
         const res = await fetch(`/api/sterilization/tool-lines/search?${params.toString()}`);
         if (res.ok) {
@@ -266,6 +264,9 @@ export default function SterilizationToolLineSelector({
                   >
                     <div style={{ fontWeight: 500 }}>
                       {result.toolName} — {result.cycleCode}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                      Үлдэгдэл: {result.remaining}
                     </div>
                   </div>
                 ))
