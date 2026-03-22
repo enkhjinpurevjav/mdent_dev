@@ -67,7 +67,7 @@ export default function EncounterAdminPage() {
   const [saving, setSaving] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [activeIndicators, setActiveIndicators] = useState<ActiveIndicator[]>([]);
-  const [openIndicatorIndex, setOpenIndicatorIndex] = useState<number | null>(null);
+  const [openIndicatorLocalId, setOpenIndicatorLocalId] = useState<number | null>(null);
   
   // Tool line metadata cache for rendering chips
   const [toolLineMetadata, setToolLineMetadata] = useState<Map<number, { toolName: string; cycleCode: string }>>(new Map());
@@ -103,7 +103,7 @@ export default function EncounterAdminPage() {
   const [chartError, setChartError] = useState("");
   const [toothMode, setToothMode] = useState<"ADULT" | "CHILD">("ADULT");
   const [selectedTeeth, setSelectedTeeth] = useState<string[]>([]);
-  const [activeDxRowIndex, setActiveDxRowIndex] = useState<number | null>(null);
+  const [activeDxRowLocalId, setActiveDxRowLocalId] = useState<number | null>(null);
   const [customToothRange, setCustomToothRange] = useState("");
 
   const loadActiveIndicators = async (branchId: number) => {
@@ -141,8 +141,8 @@ export default function EncounterAdminPage() {
   }
 };
 
-  const [openDxIndex, setOpenDxIndex] = useState<number | null>(null);
-  const [openServiceIndex, setOpenServiceIndex] = useState<number | null>(null);
+  const [openDxLocalId, setOpenDxLocalId] = useState<number | null>(null);
+  const [openServiceLocalId, setOpenServiceLocalId] = useState<number | null>(null);
 
   const toggleToothMode = (mode: "ADULT" | "CHILD") => {
     setToothMode(mode);
@@ -155,9 +155,16 @@ export default function EncounterAdminPage() {
     return allCodes.length > 0 && allCodes.every((c) => selectedTeeth.includes(c));
   };
  const [rows, setRows] = useState<DiagnosisServiceRow[]>([]);
-  
+
+  // --- Row helpers (stable identity via localId) ---
+  const updateRowByLocalId = useCallback(
+    (localId: number, fn: (r: DiagnosisServiceRow) => DiagnosisServiceRow) => {
+      setRows((prev) => prev.map((r) => (r.localId === localId ? fn(r) : r)));
+    },
+    []
+  );
+
   function createDiagnosisRow(initialTeeth: string[]): number {
-    const idx = rows.length;
     const nextLocalId =
       rows.length === 0 ? 1 : Math.max(...rows.map((r) => r.localId)) + 1;
 
@@ -183,53 +190,54 @@ export default function EncounterAdminPage() {
 
     setRows((prev) => [...prev, newRow]);
 
-    return idx;
+    return nextLocalId;
   }
 
  const updateActiveRowToothList = (
   nextTeeth: string[],
   opts?: { isAllTeeth?: boolean }
 ) => {
-  const hasWritableActiveRow =
-    activeDxRowIndex !== null &&
-    rows[activeDxRowIndex] &&
-    !rows[activeDxRowIndex].locked;
+  const activeRow =
+    activeDxRowLocalId !== null
+      ? rows.find((r) => r.localId === activeDxRowLocalId) ?? null
+      : null;
+  const hasWritableActiveRow = activeRow !== null && !activeRow.locked;
 
   if (!hasWritableActiveRow) {
     if (nextTeeth.length === 0 && !opts?.isAllTeeth) return;
 
-    const idx = createDiagnosisRow(nextTeeth);
-    setActiveDxRowIndex(idx);
+    const newLocalId = createDiagnosisRow(nextTeeth);
+    setActiveDxRowLocalId(newLocalId);
 
     const toothStr = opts?.isAllTeeth
       ? ALL_TEETH_LABEL
       : stringifyToothList(nextTeeth);
 
     setRows((prev) =>
-      prev.map((row, i) => (i === idx ? { ...row, toothCode: toothStr } : row))
+      prev.map((row) => (row.localId === newLocalId ? { ...row, toothCode: toothStr } : row))
     );
     return;
   }
 
-  const idx = activeDxRowIndex as number;
+  const localId = activeDxRowLocalId as number;
   const toothStr = opts?.isAllTeeth
     ? ALL_TEETH_LABEL
     : stringifyToothList(nextTeeth);
 
-  setRows((prev) => {
-    const next = prev.map((row, i) =>
-      i === idx ? { ...row, toothCode: toothStr } : row
-    );
+  const nextRows = rows.map((row) =>
+    row.localId === localId ? { ...row, toothCode: toothStr } : row
+  );
 
-    if (nextTeeth.length === 0 && !opts?.isAllTeeth) {
-      if (isDxRowEffectivelyEmpty(next[idx])) {
-        setActiveDxRowIndex(null);
-        return next.filter((_, i) => i !== idx);
-      }
+  if (nextTeeth.length === 0 && !opts?.isAllTeeth) {
+    const updatedRow = nextRows.find((r) => r.localId === localId);
+    if (isDxRowEffectivelyEmpty(updatedRow)) {
+      setRows(nextRows.filter((r) => r.localId !== localId));
+      setActiveDxRowLocalId(null);
+      return;
     }
+  }
 
-    return next;
-  });
+  setRows(nextRows);
 };
 
   const [consents, setConsents] = useState<EncounterConsent[]>([]);
@@ -374,7 +382,7 @@ export default function EncounterAdminPage() {
 
   function resetToothSelectionSession() {
     setSelectedTeeth([]);
-    setActiveDxRowIndex(null);
+    setActiveDxRowLocalId(null);
     setCustomToothRange("");
   }
 
@@ -398,10 +406,10 @@ export default function EncounterAdminPage() {
     return null;
   }
 
-  const handleSetActiveDxRowIndex = (index: number | null) => {
+  const handleSetActiveDxRowLocalId = (localId: number | null) => {
     setSelectedTeeth([]);
     setCustomToothRange("");
-    setActiveDxRowIndex(index);
+    setActiveDxRowLocalId(localId);
   };
 
   function toggleToothSelection(code: string) {
@@ -449,7 +457,7 @@ export default function EncounterAdminPage() {
   // Helper to update a single field in rows
   const updateDxRowField = useCallback(
     <K extends keyof EditableDiagnosis>(
-      index: number,
+      localId: number,
       field: K,
       value: EditableDiagnosis[K]
     ) => {
@@ -460,7 +468,7 @@ export default function EncounterAdminPage() {
       }
       
       setRows((prev) =>
-        prev.map((row, i) => (i === index ? { ...row, ...updates } : row))
+        prev.map((row) => (row.localId === localId ? { ...row, ...updates } : row))
       );
     },
     []
@@ -870,55 +878,29 @@ useEffect(() => {
     }
   };
 
-function removeDiagnosisRow(index: number) {
-  const row = rows[index];
+function removeDiagnosisRow(localId: number) {
+  const row = rows.find((r) => r.localId === localId) ?? null;
   if (row?.locked) {
     alert("Түгжигдсэн мөрийг устгах боломжгүй. Эхлээд түгжээг тайлна уу.");
     return;
   }
 
-  setRows((prev) => prev.filter((_, i) => i !== index));
+  setRows((prev) => prev.filter((r) => r.localId !== localId));
 
-  setOpenDxIndex((prev) => {
-    if (prev === null) return null;
-    if (prev === index) return null;
-    if (prev > index) return prev - 1;
-    return prev;
-  });
-
-  setOpenServiceIndex((prev) => {
-    if (prev === null) return null;
-    if (prev === index) return null;
-    if (prev > index) return prev - 1;
-    return prev;
-  });
-
-  setActiveDxRowIndex((prev) => {
-    if (prev === null) return null;
-    if (prev === index) return null;
-    if (prev > index) return prev - 1;
-    return prev;
-  });
-
-  resetToothSelectionSession();
+  if (openDxLocalId === localId) setOpenDxLocalId(null);
+  if (openServiceLocalId === localId) setOpenServiceLocalId(null);
+  if (openIndicatorLocalId === localId) setOpenIndicatorLocalId(null);
+  if (activeDxRowLocalId === localId) resetToothSelectionSession();
 }
 
-  const unlockRow = (index: number) => {
+  const unlockRow = (localId: number) => {
     if (confirm("Энэ мөрийн түгжээг тайлж, засварлахыг зөвшөөрч байна уу?")) {
-      setRows((prev) =>
-        prev.map((row, i) =>
-          i === index ? { ...row, locked: false } : row
-        )
-      );
+      updateRowByLocalId(localId, (row) => ({ ...row, locked: false }));
     }
   };
 
-  const lockRow = (index: number) => {
-    setRows((prev) =>
-      prev.map((row, i) =>
-        i === index ? { ...row, locked: true } : row
-      )
-    );
+  const lockRow = (localId: number) => {
+    updateRowByLocalId(localId, (row) => ({ ...row, locked: true }));
   };
 
   const saveConsentApi = async (type: ConsentType | null) => {
@@ -1301,13 +1283,13 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
   };
 
   const handleDiagnosisChange = async (
-    index: number,
+    localId: number,
     diagnosisId: number
   ) => {
     const dx = diagnoses.find((d) => d.id === diagnosisId) || null;
     setRows((prev) =>
-      prev.map((row, i) => {
-        if (i !== index || row.locked) return row;
+      prev.map((row) => {
+        if (row.localId !== localId || row.locked) return row;
         return {
           ...row,
           diagnosisId,
@@ -1322,10 +1304,10 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
     }
   };
 
-  const toggleProblem = (index: number, problemId: number) => {
+  const toggleProblem = (localId: number, problemId: number) => {
     setRows((prev) =>
-      prev.map((row, i) => {
-        if (i !== index || row.locked) return row;
+      prev.map((row) => {
+        if (row.localId !== localId || row.locked) return row;
         const exists =
           row.selectedProblemIds &&
           row.selectedProblemIds.includes(problemId);
@@ -1339,26 +1321,30 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
     );
   };
 
-  const handleNoteChange = (index: number, value: string) => {
+  const handleNoteChange = (localId: number, value: string) => {
     setRows((prev) =>
-      prev.map((row, i) =>
-        i === index && !row.locked ? { ...row, note: value } : row
+      prev.map((row) =>
+        row.localId === localId && !row.locked ? { ...row, note: value } : row
       )
     );
   };
 
-  const handleDxToothCodeChange = (index: number, value: string) => {
+  const handleDxToothCodeChange = (localId: number, value: string) => {
     setRows((prev) =>
-      prev.map((row, i) =>
-        i === index && !row.locked ? { ...row, toothCode: value } : row
+      prev.map((row) =>
+        row.localId === localId && !row.locked ? { ...row, toothCode: value } : row
       )
     );
   };
 
   // NEW: Tool-line draft handlers
-  const handleAddToolLineDraft = async (index: number, toolLineId: number) => {
-    const row = rows[index];
-    if (!row || !row.id) {
+  const handleAddToolLineDraft = async (localId: number, toolLineId: number) => {
+    const row = rows.find((r) => r.localId === localId) ?? null;
+    if (!row) {
+      console.error(`Cannot add tool line draft: row with localId ${localId} not found`);
+      return;
+    }
+    if (!row.id) {
       console.error("Cannot add tool line draft: diagnosis row not saved yet");
       return;
     }
@@ -1379,31 +1365,26 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
 
       const draft = await res.json();
 
-      // Helper to update draft attachments in a row
-      const updateDraftsInRow = (r: EditableDiagnosis, i: number) => {
-        if (i !== index) return r;
-        const existing = r.draftAttachments || [];
-        // Check if we're incrementing an existing draft or adding new
-        const existingIndex = existing.findIndex((d) => d.id === draft.id);
-        if (existingIndex >= 0) {
-          // Update existing draft with new requestedQty
-          const updated = [...existing];
-          updated[existingIndex] = draft;
-          return { ...r, draftAttachments: updated };
-        } else {
-          // Add new draft
-          return { ...r, draftAttachments: [...existing, draft] };
-        }
-      };
-
-      // Update local state with new draft
-      setRows((prev) => prev.map(updateDraftsInRow));
+      setRows((prev) =>
+        prev.map((r) => {
+          if (r.localId !== localId) return r;
+          const existing = r.draftAttachments || [];
+          const existingIndex = existing.findIndex((d) => d.id === draft.id);
+          if (existingIndex >= 0) {
+            const updated = [...existing];
+            updated[existingIndex] = draft;
+            return { ...r, draftAttachments: updated };
+          } else {
+            return { ...r, draftAttachments: [...existing, draft] };
+          }
+        })
+      );
     } catch (err) {
       console.error("Failed to add tool line draft:", err);
     }
   };
 
-  const handleRemoveToolLineDraft = async (index: number, draftId: number) => {
+  const handleRemoveToolLineDraft = async (localId: number, draftId: number) => {
     try {
       const res = await fetch(`/api/sterilization/draft-attachments/${draftId}/decrement`, {
         method: "DELETE",
@@ -1415,31 +1396,27 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
 
       const result = await res.json();
 
-      // Helper to update drafts after removal/decrement
-      const updateDraftsAfterRemoval = (r: EditableDiagnosis, i: number) => {
-        if (i !== index) return r;
-        const drafts = r.draftAttachments || [];
-        if (result.deleted) {
-          // Remove draft entirely
-          return { ...r, draftAttachments: drafts.filter((d) => d.id !== draftId) };
-        } else {
-          // Update with decremented qty
-          return {
-            ...r,
-            draftAttachments: drafts.map((d) => (d.id === draftId ? result : d)),
-          };
-        }
-      };
-
-      // Update local state
-      setRows((prev) => prev.map(updateDraftsAfterRemoval));
+      setRows((prev) =>
+        prev.map((r) => {
+          if (r.localId !== localId) return r;
+          const drafts = r.draftAttachments || [];
+          if (result.deleted) {
+            return { ...r, draftAttachments: drafts.filter((d) => d.id !== draftId) };
+          } else {
+            return {
+              ...r,
+              draftAttachments: drafts.map((d) => (d.id === draftId ? result : d)),
+            };
+          }
+        })
+      );
     } catch (err) {
       console.error("Failed to remove tool line draft:", err);
     }
   };
 
   // NEW: Local handlers for tool line selection (no API calls until save)
-  const handleAddToolLineLocal = async (index: number, toolLineId: number) => {
+  const handleAddToolLineLocal = async (localId: number, toolLineId: number) => {
     // Fetch metadata if not cached
     if (!toolLineMetadata.has(toolLineId)) {
       try {
@@ -1464,24 +1441,24 @@ const apptRes = await fetch(`/api/appointments?${apptParams}`);
     }
 
     // Add toolLineId to local array (allow duplicates)
-    const updateRow = (r: EditableDiagnosis, i: number) =>
-      i === index
-        ? { ...r, selectedToolLineIds: [...(r.selectedToolLineIds || []), toolLineId] }
-        : r;
-    
-    setRows((prev) => prev.map(updateRow));
+    setRows((prev) =>
+      prev.map((r) =>
+        r.localId === localId
+          ? { ...r, selectedToolLineIds: [...(r.selectedToolLineIds || []), toolLineId] }
+          : r
+      )
+    );
   };
 
-  const handleRemoveToolLineLocal = (index: number, chipIndex: number) => {
-    // Remove one occurrence at chipIndex
-    const updateRow = (r: EditableDiagnosis, i: number) => {
-      if (i !== index) return r;
-      const newIds = [...(r.selectedToolLineIds || [])];
-      newIds.splice(chipIndex, 1);
-      return { ...r, selectedToolLineIds: newIds };
-    };
-    
-    setRows((prev) => prev.map(updateRow));
+  const handleRemoveToolLineLocal = (localId: number, chipIndex: number) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.localId !== localId) return r;
+        const newIds = [...(r.selectedToolLineIds || [])];
+        newIds.splice(chipIndex, 1);
+        return { ...r, selectedToolLineIds: newIds };
+      })
+    );
   };
 
   const handleSaveDiagnoses = async (): Promise<boolean> => {
@@ -2200,10 +2177,10 @@ const handleFinishEncounter = async () => {
               saving={saving}
               finishing={finishing}
               prescriptionSaving={prescriptionSaving}
-              openDxIndex={openDxIndex}
-              openServiceIndex={openServiceIndex}
-              openIndicatorIndex={openIndicatorIndex}
-              activeDxRowIndex={activeDxRowIndex}
+              openDxLocalId={openDxLocalId}
+              openServiceLocalId={openServiceLocalId}
+              openIndicatorLocalId={openIndicatorLocalId}
+              activeDxRowLocalId={activeDxRowLocalId}
               totalDiagnosisServicesPrice={totalDiagnosisServicesPrice}
               encounterServices={editableServices}
               branchId={encounter?.patientBook?.patient?.branchId}
@@ -2214,10 +2191,10 @@ const handleFinishEncounter = async () => {
               onRemoveRow={removeDiagnosisRow}
               onUnlockRow={unlockRow}
               onLockRow={lockRow}
-              onSetOpenDxIndex={setOpenDxIndex}
-              onSetOpenServiceIndex={setOpenServiceIndex}
-              onSetOpenIndicatorIndex={setOpenIndicatorIndex}
-              onSetActiveDxRowIndex={handleSetActiveDxRowIndex}
+              onSetOpenDxLocalId={setOpenDxLocalId}
+              onSetOpenServiceLocalId={setOpenServiceLocalId}
+              onSetOpenIndicatorLocalId={setOpenIndicatorLocalId}
+              onSetActiveDxRowLocalId={handleSetActiveDxRowLocalId}
               onUpdateRowField={updateDxRowField}
               onAddToolLineDraft={handleAddToolLineDraft}
               onRemoveToolLineDraft={handleRemoveToolLineDraft}
