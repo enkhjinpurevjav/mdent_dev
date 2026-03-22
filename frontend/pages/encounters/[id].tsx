@@ -660,7 +660,7 @@ const loadEncounter = async () => {
     setPrescriptionItems(rxItems);
   } catch (err) {
     console.error(err);
-    setError("Үзлэгийн дэлгэ��энгүйг ачааллах үед алдаа гарлаа");
+    setError("Үзлэгийн дэлгэрэнгүйг ачааллах үед алдаа гарлаа");
     setEncounter(null);
   } finally {
     setLoading(false);
