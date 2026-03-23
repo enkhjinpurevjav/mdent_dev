@@ -609,7 +609,7 @@ export default function PatientProfilePage() {
               {activeTab === "profile" && (
                 <>
                   {/* Summary cards row — hidden for doctors on all screen sizes */}
-                  {!isDoctor && (
+                 {!isDoctor && (
   <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
     {/* Wallet balance card */}
     <div className="rounded-xl border border-gray-200 p-3 bg-gray-50">
