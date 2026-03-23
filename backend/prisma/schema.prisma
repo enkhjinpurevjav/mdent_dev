@@ -773,6 +773,8 @@ model User {
   updatedVisitCards VisitCard[] @relation("VisitCardUpdater")
 
   createdPayments   Payment[] @relation("PaymentCreator")
+
+  createdBalanceAdjustments BalanceAdjustmentLog[] @relation("BalanceAdjCreatedBy")
 }
 
 // ==========================================================
@@ -822,6 +824,7 @@ model Patient {
   employeeBenefitUsages EmployeeBenefitUsage[]
   barterUsages          BarterUsage[]
   giftCardUsages        GiftCardUsage[]
+  balanceAdjustments    BalanceAdjustmentLog[]
 }
 
 // ==========================================================
@@ -1826,4 +1829,29 @@ model AttendanceSession {
 
   @@index([userId, checkInAt])
   @@index([branchId, checkInAt])
+}
+
+
+// ==========================================================
+// BALANCE ADJUSTMENT LOG (Manual wallet corrections)
+// ==========================================================
+model BalanceAdjustmentLog {
+  id          Int      @id @default(autoincrement())
+
+  patientId   Int
+  patient     Patient  @relation(fields: [patientId], references: [id])
+
+  /// Positive amount = reduces patient debt (credit to patient)
+  /// Negative amount = increases patient debt (debit from patient)
+  amount      Float
+
+  reason      String
+
+  createdById Int
+  createdBy   User     @relation("BalanceAdjCreatedBy", fields: [createdById], references: [id])
+
+  createdAt   DateTime @default(now())
+
+  @@index([patientId])
+  @@index([createdById])
 }
