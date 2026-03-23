@@ -7,6 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import prisma from "./db.js";
 import incomeRoutes from "./routes/admin/income.js";
+import dailyIncomeRouter from "./routes/admin/dailyIncome.js";
 
 import branchesRouter from "./routes/branches.js";
 import patientsRouter from "./routes/patients.js";
@@ -220,6 +221,7 @@ app.use("/api/admin", employeeBenefitsRouter); // This line can remain for admin
 app.use("/api/admin", bartersRouter);
 app.use("/api/admin", giftCardsRouter);
 app.use("/api/admin", incomeRoutes);
+app.use("/api/admin", dailyIncomeRouter);
 app.use("/api/admin", doctorDashboardRouter);
 
 app.use("/api/doctors", doctorsRouter);

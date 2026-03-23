@@ -110,6 +110,11 @@ const navItems: NavItem[] = [
         href: "/admin/finance/employee-vouchers",
         icon: "🎟️",
       },
+      {
+        label: "Өдрийн орлогын тайлан",
+        href: "/finance/daily-income",
+        icon: "📅",
+      },
        {
         // Only the General Income Page
         label: "Эмчийн орлогын тайлан",
