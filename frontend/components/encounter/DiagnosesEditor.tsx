@@ -24,33 +24,33 @@ type DiagnosesEditorProps = {
   saving: boolean;
   finishing: boolean;
   prescriptionSaving: boolean;
-  openDxIndex: number | null;
-  openServiceIndex: number | null;
-  openIndicatorIndex: number | null;
-  activeDxRowIndex: number | null;
+  openDxLocalId: number | null;
+  openServiceLocalId: number | null;
+  openIndicatorLocalId: number | null;
+  activeDxRowLocalId: number | null;
   totalDiagnosisServicesPrice: number;
   encounterServices?: EncounterService[];
   branchId?: number;
-  onDiagnosisChange: (index: number, diagnosisId: number) => Promise<void>;
-  onToggleProblem: (index: number, problemId: number) => void;
-  onNoteChange: (index: number, value: string) => void;
-  onToothCodeChange: (index: number, value: string) => void;
-  onRemoveRow: (index: number) => void;
-  onUnlockRow: (index: number) => void;
-  onLockRow: (index: number) => void;
-  onSetOpenDxIndex: (index: number | null) => void;
-  onSetOpenServiceIndex: (index: number | null) => void;
-  onSetOpenIndicatorIndex: (index: number | null) => void;
-  onSetActiveDxRowIndex: (index: number | null) => void;
+  onDiagnosisChange: (localId: number, diagnosisId: number) => Promise<void>;
+  onToggleProblem: (localId: number, problemId: number) => void;
+  onNoteChange: (localId: number, value: string) => void;
+  onToothCodeChange: (localId: number, value: string) => void;
+  onRemoveRow: (localId: number) => void;
+  onUnlockRow: (localId: number) => void;
+  onLockRow: (localId: number) => void;
+  onSetOpenDxLocalId: (localId: number | null) => void;
+  onSetOpenServiceLocalId: (localId: number | null) => void;
+  onSetOpenIndicatorLocalId: (localId: number | null) => void;
+  onSetActiveDxRowLocalId: (localId: number | null) => void;
   onUpdateRowField: <K extends keyof EditableDiagnosis>(
-    index: number,
+    localId: number,
     field: K,
     value: EditableDiagnosis[K]
   ) => void;
-  onAddToolLineDraft?: (index: number, toolLineId: number) => Promise<void>;
-  onRemoveToolLineDraft?: (index: number, draftId: number) => Promise<void>;
-  onAddToolLineLocal?: (index: number, toolLineId: number) => void;
-  onRemoveToolLineLocal?: (index: number, chipIndex: number) => void;
+  onAddToolLineDraft?: (localId: number, toolLineId: number) => Promise<void>;
+  onRemoveToolLineDraft?: (localId: number, draftId: number) => Promise<void>;
+  onAddToolLineLocal?: (localId: number, toolLineId: number) => void;
+  onRemoveToolLineLocal?: (localId: number, chipIndex: number) => void;
   toolLineMetadata?: Map<number, { toolName: string; cycleCode: string }>;
   onSave: () => Promise<void>;
   onFinish: () => Promise<void>;
@@ -71,10 +71,10 @@ export default function DiagnosesEditor({
   saving,
   finishing,
   prescriptionSaving,
-  openDxIndex,
-  openServiceIndex,
-  openIndicatorIndex,
-  activeDxRowIndex,
+  openDxLocalId,
+  openServiceLocalId,
+  openIndicatorLocalId,
+  activeDxRowLocalId,
   totalDiagnosisServicesPrice,
   encounterServices,
   branchId,
@@ -85,10 +85,10 @@ export default function DiagnosesEditor({
   onRemoveRow,
   onUnlockRow,
   onLockRow,
-  onSetOpenDxIndex,
-  onSetOpenServiceIndex,
-  onSetOpenIndicatorIndex,
-  onSetActiveDxRowIndex,
+  onSetOpenDxLocalId,
+  onSetOpenServiceLocalId,
+  onSetOpenIndicatorLocalId,
+  onSetActiveDxRowLocalId,
   onUpdateRowField,
   onAddToolLineDraft,
   onRemoveToolLineDraft,
@@ -161,11 +161,7 @@ export default function DiagnosesEditor({
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {rows.reduce<[number[], number[]]>(
-          (acc, r, i) => { acc[r.locked ? 1 : 0].push(i); return acc; },
-          [[], []]
-        ).flat().map((index) => {
-          const row = rows[index];
+        {[...rows.filter((r) => !r.locked), ...rows.filter((r) => r.locked)].map((row) => {
           const problems = problemsByDiagnosis[row.diagnosisId ?? 0] || [];
           const isLocked = row.locked ?? false;
           const hasSearchText = (row.searchText || "").trim().length > 0;
@@ -176,7 +172,7 @@ export default function DiagnosesEditor({
 
           return (
             <div
-              key={index}
+              key={row.localId}
               style={{
                 border: "1px solid #e5e7eb",
                 borderRadius: 8,
@@ -211,7 +207,7 @@ export default function DiagnosesEditor({
                     <span>🔒 Түгжсэн</span>
                     <button
                       type="button"
-                      onClick={() => onUnlockRow(index)}
+                      onClick={() => onUnlockRow(row.localId)}
                       style={{
                         marginLeft: "auto",
                         padding: "4px 12px",
@@ -238,7 +234,7 @@ export default function DiagnosesEditor({
                   >
                     <button
                       type="button"
-                      onClick={() => onLockRow(index)}
+                      onClick={() => onLockRow(row.localId)}
                       style={{
                         padding: "4px 12px",
                         borderRadius: 4,
@@ -269,9 +265,9 @@ export default function DiagnosesEditor({
                 <input
                   placeholder="Шүдний код (ж: 11, 21, 22)"
                   value={row.toothCode || ""}
-                  onChange={(e) => onToothCodeChange(index, e.target.value)}
+                  onChange={(e) => onToothCodeChange(row.localId, e.target.value)}
                   onFocus={() => {
-                    if (!row.locked) onSetActiveDxRowIndex(index);
+                    if (!row.locked) onSetActiveDxRowLocalId(row.localId);
                   }}
                   disabled={isLocked}
                   style={{
@@ -314,14 +310,14 @@ export default function DiagnosesEditor({
                     onChange={(e) => {
                       if (isLocked) return;
                       const text = e.target.value;
-                      onSetOpenServiceIndex(index);
-                      onUpdateRowField(index, "serviceSearchText", text);
+                      onSetOpenServiceLocalId(row.localId);
+                      onUpdateRowField(row.localId, "serviceSearchText", text);
                       if (!text.trim()) {
-                        onUpdateRowField(index, "serviceId", undefined);
+                        onUpdateRowField(row.localId, "serviceId", undefined);
                       }
                     }}
                     onFocus={() => {
-                      if (!isLocked) onSetOpenServiceIndex(index);
+                      if (!isLocked) onSetOpenServiceLocalId(row.localId);
                     }}
                     disabled={isLocked}
                     style={{
@@ -337,7 +333,7 @@ export default function DiagnosesEditor({
                   />
 
                   {services.length > 0 &&
-                    openServiceIndex === index &&
+                    openServiceLocalId === row.localId &&
                     (row.serviceSearchText || "").length > 0 && (
                       <div
                         style={{
@@ -378,22 +374,22 @@ export default function DiagnosesEditor({
                                     ? (row.assignedTo ?? "DOCTOR")
                                     : undefined;
 
-                                onUpdateRowField(index, "serviceId", svc.id);
+                                onUpdateRowField(row.localId, "serviceId", svc.id);
                                 onUpdateRowField(
-                                  index,
+                                  row.localId,
                                   "serviceSearchText",
                                   svc.name
                                 );
                                 onUpdateRowField(
-                                  index,
+                                  row.localId,
                                   "assignedTo",
                                   nextAssignedTo
                                 );
                                 // Initialize draft service texts with one empty field if not already set
                                 if (!row.draftServiceTexts) {
-                                  onUpdateRowField(index, "draftServiceTexts", [""]);
+                                  onUpdateRowField(row.localId, "draftServiceTexts", [""]);
                                 }
-                                onSetOpenServiceIndex(null);
+                                onSetOpenServiceLocalId(null);
                               }}
                               style={{
                                 padding: "6px 8px",
@@ -451,12 +447,12 @@ export default function DiagnosesEditor({
                   >
                     <input
                       type="radio"
-                      name={`assignedTo-${index}`}
+                      name={`assignedTo-${row.localId}`}
                       disabled={isLocked}
                       checked={(row.assignedTo ?? "DOCTOR") === "DOCTOR"}
                       onChange={() => {
                         if (isLocked) return;
-                        onUpdateRowField(index, "assignedTo", "DOCTOR");
+                        onUpdateRowField(row.localId, "assignedTo", "DOCTOR");
                       }}
                     />
                     Эмч
@@ -472,12 +468,12 @@ export default function DiagnosesEditor({
                   >
                     <input
                       type="radio"
-                      name={`assignedTo-${index}`}
+                      name={`assignedTo-${row.localId}`}
                       disabled={isLocked}
                       checked={row.assignedTo === "NURSE"}
                       onChange={() => {
                         if (isLocked) return;
-                        onUpdateRowField(index, "assignedTo", "NURSE");
+                        onUpdateRowField(row.localId, "assignedTo", "NURSE");
                       }}
                     />
                     Сувилагч
@@ -493,7 +489,7 @@ export default function DiagnosesEditor({
                           if (isLocked) return;
                           const val = e.target.value;
                           onUpdateRowField(
-                            index,
+                            row.localId,
                             "nurseId",
                             val === "" ? null : Number(val)
                           );
@@ -536,26 +532,26 @@ export default function DiagnosesEditor({
                     selectedToolLineIds={row.selectedToolLineIds || []}
                     toolLineMetadata={toolLineMetadata}
                     searchText={row.toolLineSearchText || ""}
-                    isOpen={openIndicatorIndex === index}
+                    isOpen={openIndicatorLocalId === row.localId}
                     isLocked={isLocked}
                     onSearchTextChange={(text) =>
-                      onUpdateRowField(index, "toolLineSearchText", text)
+                      onUpdateRowField(row.localId, "toolLineSearchText", text)
                     }
-                    onOpen={() => onSetOpenIndicatorIndex(index)}
-                    onClose={() => onSetOpenIndicatorIndex(null)}
+                    onOpen={() => onSetOpenIndicatorLocalId(row.localId)}
+                    onClose={() => onSetOpenIndicatorLocalId(null)}
                     onAddToolLine={(toolLineId) => {
                       if (onAddToolLineLocal) {
-                        onAddToolLineLocal(index, toolLineId);
+                        onAddToolLineLocal(row.localId, toolLineId);
                       }
                     }}
                     onRemoveToolLine={(chipIndex) => {
                       if (onRemoveToolLineLocal) {
-                        onRemoveToolLineLocal(index, chipIndex);
+                        onRemoveToolLineLocal(row.localId, chipIndex);
                       }
                     }}
                     onRemoveToolLineDraft={
                       row.id && onRemoveToolLineDraft 
-                        ? (draftId) => onRemoveToolLineDraft(index, draftId)
+                        ? (draftId) => onRemoveToolLineDraft(row.localId, draftId)
                         : undefined
                     }
                   />
@@ -593,19 +589,19 @@ export default function DiagnosesEditor({
                     onChange={(e) => {
                       if (isLocked) return;
                       const text = e.target.value;
-                      onSetOpenDxIndex(index);
-                      onUpdateRowField(index, "searchText", text);
+                      onSetOpenDxLocalId(row.localId);
+                      onUpdateRowField(row.localId, "searchText", text);
                       if (!text.trim()) {
-                        onUpdateRowField(index, "diagnosisId", null);
-                        onUpdateRowField(index, "diagnosis", undefined);
-                        onUpdateRowField(index, "selectedProblemIds", []);
+                        onUpdateRowField(row.localId, "diagnosisId", null);
+                        onUpdateRowField(row.localId, "diagnosis", undefined);
+                        onUpdateRowField(row.localId, "selectedProblemIds", []);
                       }
                     }}
                     onFocus={() => {
-                      if (!isLocked && hasSearchText) onSetOpenDxIndex(index);
+                      if (!isLocked && hasSearchText) onSetOpenDxLocalId(row.localId);
                     }}
                     onBlur={() => {
-                      setTimeout(() => onSetOpenDxIndex(null), 150);
+                      setTimeout(() => onSetOpenDxLocalId(null), 150);
                     }}
                     disabled={isLocked}
                     style={{
@@ -620,7 +616,7 @@ export default function DiagnosesEditor({
                     }}
                   />
 
-                  {openDxIndex === index && diagnoses.length > 0 && hasSearchText && (
+                  {openDxLocalId === row.localId && diagnoses.length > 0 && hasSearchText && (
                     <div
                       style={{
                         position: "absolute",
@@ -651,8 +647,8 @@ export default function DiagnosesEditor({
                             key={d.id}
                             onMouseDown={async (e) => {
                               e.preventDefault();
-                              await onDiagnosisChange(index, d.id);
-                              onSetOpenDxIndex(null);
+                              await onDiagnosisChange(row.localId, d.id);
+                              onSetOpenDxLocalId(null);
                             }}
                             style={{
                               padding: "6px 8px",
@@ -686,7 +682,7 @@ export default function DiagnosesEditor({
 
                 <button
                   type="button"
-                  onClick={() => onRemoveRow(index)}
+                  onClick={() => onRemoveRow(row.localId)}
                   disabled={isLocked}
                   style={{
                     padding: "4px 10px",
@@ -752,7 +748,7 @@ export default function DiagnosesEditor({
                             <input
                               type="checkbox"
                               checked={checked}
-                              onChange={() => onToggleProblem(index, p.id)}
+                              onChange={() => onToggleProblem(row.localId, p.id)}
                               disabled={isLocked}
                               style={{
                                 cursor: isLocked ? "not-allowed" : "pointer",
@@ -771,7 +767,7 @@ export default function DiagnosesEditor({
               {row.diagnosisId && (
                 <ProblemTextsEditor
                   texts={row.draftProblemTexts ?? (row.problemTexts?.map(pt => pt.text) || [""])}
-                  onChange={(texts) => onUpdateRowField(index, "draftProblemTexts", texts)}
+                  onChange={(texts) => onUpdateRowField(row.localId, "draftProblemTexts", texts)}
                   isLocked={isLocked}
                 />
               )}
@@ -792,7 +788,7 @@ export default function DiagnosesEditor({
                 return (
                   <ServiceTextsEditor
                     texts={drafts}
-                    onChange={(texts) => onUpdateRowField(index, "draftServiceTexts", texts)}
+                    onChange={(texts) => onUpdateRowField(row.localId, "draftServiceTexts", texts)}
                     isLocked={isLocked}
                   />
                 );
@@ -802,7 +798,7 @@ export default function DiagnosesEditor({
               <textarea
                 placeholder="Энэ оношид холбогдох тэмдэглэл (сонголттой)"
                 value={row.note}
-                onChange={(e) => onNoteChange(index, e.target.value)}
+                onChange={(e) => onNoteChange(row.localId, e.target.value)}
                 rows={2}
                 disabled={isLocked}
                 style={{
