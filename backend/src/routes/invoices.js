@@ -279,6 +279,134 @@ router.post("/:id/settlement", async (req, res) => {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // SPECIAL CASE: BARTER
+    // ─────────────────────────────────────────────────────────────
+    if (methodStr === "BARTER") {
+      const barterCode =
+        meta && typeof meta.code === "string" ? meta.code.trim() : null;
+
+      if (!barterCode) {
+        return res.status(400).json({
+          error: "barterCode is required for BARTER.",
+        });
+      }
+
+      try {
+        const result = await prisma.$transaction(async (trx) => {
+          const barter = await trx.barter.findFirst({
+            where: { code: { equals: barterCode, mode: "insensitive" }, isActive: true },
+          });
+
+          if (!barter) {
+            throw new Error("Бартерийн код хүчингүй байна.");
+          }
+
+          if (barter.remainingAmount < payAmount) {
+            throw new Error("Бартерийн үлдэгдэл хүрэлцэхгүй байна.");
+          }
+
+          // 1) Deduct barter balance
+          await trx.barter.update({
+            where: { id: barter.id },
+            data: {
+              spentAmount: { increment: payAmount },
+              remainingAmount: { decrement: payAmount },
+            },
+          });
+
+          // 2) Record usage
+          await trx.barterUsage.create({
+            data: {
+              barterId: barter.id,
+              invoiceId: invoice.id,
+              encounterId: invoice.encounterId,
+              amountUsed: payAmount,
+              patientId: invoice.patientId,
+              usedByUserId: req.user?.id ?? null,
+            },
+          });
+
+          // 3) Apply payment using shared settlement logic
+          const { updatedInvoice, paidTotal } = await applyPaymentToInvoice(trx, {
+            invoice,
+            payAmount,
+            methodStr,
+            meta,
+            createdByUserId: req.user?.id || null,
+          });
+
+          return { updatedInvoice, paidTotal };
+        });
+
+        const { updatedInvoice, paidTotal } = result;
+
+        // Broadcast SSE
+        const appointmentIdForSse = invoice.encounter?.appointmentId ?? null;
+        if (appointmentIdForSse) {
+          try {
+            const apptForBroadcast = await prisma.appointment.findUnique({
+              where: { id: appointmentIdForSse },
+              include: {
+                patient: { select: { id: true, name: true, ovog: true, phone: true, patientBook: true } },
+                doctor: { select: { id: true, name: true, ovog: true } },
+                branch: { select: { id: true, name: true } },
+              },
+            });
+            if (apptForBroadcast?.scheduledAt) {
+              const apptDate = apptForBroadcast.scheduledAt.toISOString().slice(0, 10);
+              sseBroadcast(
+                "appointment_updated",
+                { ...apptForBroadcast, encounterId: invoice.encounterId },
+                apptDate,
+                apptForBroadcast.branchId
+              );
+            }
+          } catch (sseErr) {
+            console.error("SSE broadcast error after barter settlement (non-fatal):", sseErr);
+          }
+        }
+
+        return res.json({
+          id: updatedInvoice.id,
+          branchId: updatedInvoice.branchId,
+          encounterId: updatedInvoice.encounterId,
+          patientId: updatedInvoice.patientId,
+          status: updatedInvoice.statusLegacy,
+          totalBeforeDiscount: updatedInvoice.totalBeforeDiscount,
+          discountPercent: updatedInvoice.discountPercent,
+          collectionDiscountAmount: updatedInvoice.collectionDiscountAmount || 0,
+          finalAmount: updatedInvoice.finalAmount,
+          totalAmountLegacy: updatedInvoice.totalAmount,
+          paidTotal,
+          unpaidAmount: Math.max(baseAmount - paidTotal, 0),
+          hasEBarimt: !!updatedInvoice.eBarimtReceipt,
+          items: updatedInvoice.items.map((it) => ({
+            id: it.id,
+            itemType: it.itemType,
+            serviceId: it.serviceId,
+            productId: it.productId,
+            name: it.name,
+            unitPrice: it.unitPrice,
+            quantity: it.quantity,
+            lineTotal: it.lineTotal,
+          })),
+          payments: updatedInvoice.payments.map((p) => ({
+            id: p.id,
+            amount: p.amount,
+            method: p.method,
+            timestamp: p.timestamp,
+            createdByUser: p.createdBy ? { id: p.createdBy.id, name: p.createdBy.name || null, ovog: p.createdBy.ovog || null } : null,
+          })),
+        });
+      } catch (err) {
+        console.error("BARTER settlement transaction error:", err);
+        return res
+          .status(400)
+          .json({ error: err.message || "Төлбөр бүртгэхэд алдаа гарлаа." });
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // DEFAULT: other methods (CASH, QPAY, POS, TRANSFER, etc.)
     // ─────────────────────────────────────────────────────────────
 

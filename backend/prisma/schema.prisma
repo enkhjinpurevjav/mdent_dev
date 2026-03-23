@@ -230,6 +230,41 @@ model EmployeeBenefitUsage {
   @@index([patientId])
 }
 
+model Barter {
+  id              Int       @id @default(autoincrement())
+  name            String    // e.g. "CEO", "Marketing"
+  code            String    @unique // unique passcode, case-insensitive stored as-is
+  limitAmount     Int       // total limit (₮)
+  spentAmount     Int       @default(0) // how much has been spent
+  remainingAmount Int       // limitAmount - spentAmount
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  usages BarterUsage[]
+}
+
+model BarterUsage {
+  id          Int      @id @default(autoincrement())
+  barterId    Int
+  invoiceId   Int
+  encounterId Int
+  amountUsed  Int
+  patientId   Int
+  usedByUserId Int?    // who recorded the payment
+  createdAt   DateTime @default(now())
+
+  barter    Barter    @relation(fields: [barterId], references: [id])
+  invoice   Invoice   @relation(fields: [invoiceId], references: [id])
+  encounter Encounter @relation(fields: [encounterId], references: [id])
+  patient   Patient   @relation(fields: [patientId], references: [id])
+
+  @@index([barterId])
+  @@index([invoiceId])
+  @@index([encounterId])
+  @@index([patientId])
+}
+
 model SterilizationItem {
   id             Int      @id @default(autoincrement())
   branchId       Int      // Branch-scoped tool master
@@ -748,6 +783,7 @@ model Patient {
   // NEW: financial movements related to this patient
   ledgerEntries         LedgerEntry[]
   employeeBenefitUsages EmployeeBenefitUsage[]
+  barterUsages          BarterUsage[]
 }
 
 // ==========================================================
@@ -935,6 +971,7 @@ model Encounter {
   consents                 EncounterConsent[]
   sterilizationPackageUses EncounterSterilizationPackageUse[] @relation("EncounterSterilizationUses")
   employeeBenefitUsages    EmployeeBenefitUsage[]
+  barterUsages             BarterUsage[]
   sourceAppointments       Appointment[]                      @relation("SourceEncounter")
   
   // NEW: v1 sterilization relations
@@ -1257,6 +1294,7 @@ model Invoice {
   payments Payment[]
 
   employeeBenefitUsages EmployeeBenefitUsage[] 
+  barterUsages          BarterUsage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt

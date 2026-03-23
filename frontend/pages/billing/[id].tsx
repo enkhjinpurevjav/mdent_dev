@@ -259,6 +259,8 @@ function BillingPaymentSection({
 
   const [voucherCode, setVoucherCode] = useState("");
   const [barterCode, setBarterCode] = useState("");
+  const [barterRemaining, setBarterRemaining] = useState<number | null>(null);
+  const [barterLimit, setBarterLimit] = useState<number | null>(null);
   const [employeeCode, setEmployeeCode] = useState("");
   const [employeeRemaining, setEmployeeRemaining] = useState<number | null>(null);
 
@@ -342,6 +344,8 @@ function BillingPaymentSection({
     setOtherNote("");
     setVoucherCode("");
     setBarterCode("");
+    setBarterRemaining(null);
+    setBarterLimit(null);
     setEmployeeCode("");
     setEmployeeRemaining(null);
     setError("");
@@ -369,7 +373,11 @@ function BillingPaymentSection({
       if (methodKey !== "INSURANCE") setInsuranceProviderId(null);
       if (methodKey !== "TRANSFER") setTransferNote("");
       if (methodKey !== "OTHER") setOtherNote("");
-      if (methodKey !== "BARTER") setBarterCode("");
+      if (methodKey !== "BARTER") {
+        setBarterCode("");
+        setBarterRemaining(null);
+        setBarterLimit(null);
+      }
       if (methodKey !== "EMPLOYEE_BENEFIT") {
         setEmployeeCode("");
         setEmployeeRemaining(null);
@@ -390,7 +398,11 @@ function BillingPaymentSection({
       if (methodKey === "INSURANCE") setInsuranceProviderId(null);
       if (methodKey === "TRANSFER") setTransferNote("");
       if (methodKey === "OTHER") setOtherNote("");
-      if (methodKey === "BARTER") setBarterCode("");
+      if (methodKey === "BARTER") {
+        setBarterCode("");
+        setBarterRemaining(null);
+        setBarterLimit(null);
+      }
       if (methodKey === "EMPLOYEE_BENEFIT") {
         setEmployeeCode("");
         setEmployeeRemaining(null);
@@ -480,6 +492,39 @@ function BillingPaymentSection({
       console.error("verify employee benefit code failed:", e);
       setEmployeeRemaining(null);
       setError(e.message || "Код шалгахад алдаа гарлаа.");
+    }
+  };
+
+  // verify barter code via backend
+  const handleVerifyBarterCode = async () => {
+    setError("");
+    setSuccess("");
+
+    if (!barterCode.trim()) {
+      setError("Бартерийн кодыг оруулна уу.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/billing/barter/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: barterCode.trim() }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) {
+        throw new Error((data && data.error) || "Бартер шалгахад алдаа гарлаа.");
+      }
+
+      setBarterRemaining(data.remainingAmount ?? 0);
+      setBarterLimit(data.limitAmount ?? 0);
+      setSuccess(`Бартер баталгаажлаа (${data.name}). Үлдэгдэл: ${formatMoney(data.remainingAmount ?? 0)} ₮`);
+    } catch (e: any) {
+      console.error("verify barter code failed:", e);
+      setBarterRemaining(null);
+      setBarterLimit(null);
+      setError(e.message || "Бартер шалгахад алдаа гарлаа.");
     }
   };
 
@@ -614,7 +659,15 @@ function BillingPaymentSection({
 
       if (m.key === "BARTER") {
         if (!barterCode.trim()) {
-          setError("Бартерын кодыг оруулна уу.");
+          setError("Бартерийн кодыг оруулна уу.");
+          return;
+        }
+        if (barterRemaining == null) {
+          setError("Бартерийг эхлээд 'Шалгах' товчоор баталгаажуулна уу.");
+          return;
+        }
+        if (amt > barterRemaining) {
+          setError("Оруулсан дүн бартерийн үлдэгдлээс их байна.");
           return;
         }
         entry.meta = { ...(entry.meta || {}), code: barterCode.trim() };
@@ -756,6 +809,8 @@ function BillingPaymentSection({
       setOtherNote("");
       setVoucherCode("");
       setBarterCode("");
+      setBarterRemaining(null);
+      setBarterLimit(null);
       setEmployeeCode("");
       setEmployeeRemaining(null);
       setVoucherType("");
@@ -1093,12 +1148,32 @@ function BillingPaymentSection({
                         <input
                           type="text"
                           value={barterCode}
-                          onChange={(e) =>
-                            setBarterCode(e.target.value)
-                          }
-                          placeholder="Бартерын код"
+                          onChange={(e) => {
+                            setBarterCode(e.target.value);
+                            setBarterRemaining(null);
+                            setBarterLimit(null);
+                          }}
+                          placeholder="Бартерийн код"
                           className="w-[140px] rounded-md border border-gray-300 py-1 px-[6px] text-xs"
                         />
+                        <button
+                          type="button"
+                          onClick={handleVerifyBarterCode}
+                          className="py-1 px-2 rounded border border-blue-600 bg-blue-50 text-blue-600 text-[11px] cursor-pointer"
+                        >
+                          Шалгах
+                        </button>
+                        {barterRemaining != null && (
+                          <span className="text-xs text-green-600 ml-1">
+                            Үлдэгдэл:{" "}
+                            {formatMoney(barterRemaining)} ₮
+                            {barterLimit != null && (
+                              <span className="text-gray-400">
+                                {" "}/ {formatMoney(barterLimit)} ₮
+                              </span>
+                            )}
+                          </span>
+                        )}
                       </div>
                     )}
 

@@ -25,6 +25,7 @@ import staffSummaryRoutes from "./routes/staff-summary.js";
 import invoicesRouter from "./routes/invoices.js";
 import sterilizationRouter from "./routes/sterilization.js";
 import employeeBenefitsRouter from "./routes/employeeBenefits.js";
+import bartersRouter from "./routes/barters.js";
 import reportsPatientBalancesRouter from "./routes/reports-patient-balances.js";
 import inventoryRouter from "./routes/inventory.js";
 import staffIncomeSettingsRouter from "./routes/admin/staffIncomeSettings.js";
@@ -200,6 +201,7 @@ app.use("/api/employees", employeesRouter);
 app.use("/api/encounters", encountersRouter);
 app.use("/api/billing", billingRouter);
 app.use("/api/billing", employeeBenefitsRouter); // <-- ADD THIS LINE TO FIX! 
+app.use("/api/billing", bartersRouter);
 app.use("/api/invoices", invoicesRouter);
 app.use("/api/appointments", appointmentsRouter);
 app.use("/api/services", servicesRouter);
@@ -213,6 +215,7 @@ app.use("/api/admin", staffIncomeSettingsRouter);
 
 // Admin routes
 app.use("/api/admin", employeeBenefitsRouter); // This line can remain for admin UI if you want both.
+app.use("/api/admin", bartersRouter);
 app.use("/api/admin", incomeRoutes);
 app.use("/api/admin", doctorDashboardRouter);
 
