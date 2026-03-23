@@ -22,11 +22,12 @@ type Doctor = { id: number; name?: string | null; ovog?: string | null; email: s
 
 type Service = { id: number; code?: string | null; name: string; price: number; category?: string | null };
 
-// ✅ NEW
 type Product = { id: number; name: string; price: number; sku?: string | null };
 
 type InvoiceItem = {
   id?: number;
+  /** Stable client-side key for new (unsaved) rows; never sent to the server. */
+  _tempKey?: string;
   itemType: "SERVICE" | "PRODUCT";
   serviceId?: number | null;
   productId?: number | null;
@@ -155,6 +156,11 @@ type ReceiptForDisplay = {
   totalAmount?: number | null;
   qrData?: string | null;
 };
+
+/** Generate a stable temporary key for new (unsaved) billing rows. */
+function generateTempKey(): string {
+  return `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
 
 function formatDateTime(iso: string) {
   try {
@@ -1797,7 +1803,7 @@ export default function BillingPage() {
   const [nurses, setNurses] = useState<{ id: number; name: string | null }[]>([]);
   const [nursesLoading, setNursesLoading] = useState(false);
 
- // --- NEW: inline service autocomplete (per-row) ---
+  // Inline service autocomplete state (per-row)
 const [svcOpenRow, setSvcOpenRow] = useState<number | null>(null);
 const [svcQueryByRow, setSvcQueryByRow] = useState<Record<number, string>>({});
 const [svcLoading, setSvcLoading] = useState(false);
@@ -1849,9 +1855,9 @@ const [consents, setConsents] = useState<EncounterConsent[]>([]);
 const [consentLoading, setConsentLoading] = useState(false);
 const [consentError, setConsentError] = useState("");
 
-  // Service selector state (modal removed - using inline autocomplete only)
+  // Service selector state removed — using inline per-row autocomplete only
 
-  // ✅ NEW: load products for product modal
+  // Load products for product modal
   const loadProducts = async () => {
     if (!encounter) {
       setProductsError("Үзлэгийн мэдээлэл ачаалагдаагүй байна.");
@@ -1893,9 +1899,11 @@ const [consentError, setConsentError] = useState("");
 
   
 
-  // ✅ Add product row
+  // Add product row
   const handleAddRowFromProduct = (p: Product) => {
     const newRow: InvoiceItem = {
+      // Stable key so React doesn't mismatch rows if items are reordered or deleted
+      _tempKey: generateTempKey(),
       itemType: "PRODUCT",
       productId: p.id,
       serviceId: null,
@@ -2084,6 +2092,8 @@ const [consentError, setConsentError] = useState("");
   const newIndex = items.length;
 
   const newRow: InvoiceItem = {
+    // Stable key so React doesn't mismatch rows if items are reordered or deleted
+    _tempKey: generateTempKey(),
     itemType: "SERVICE",
     serviceId: null,
     productId: null,
@@ -2123,10 +2133,10 @@ const discountedServices = Math.max(
   0
 );
 
-// ✅ discount amount (services only)
+// Discount amount (services only)
 const discountAmount = Math.max(Math.round(servicesSubtotal) - discountedServices, 0);
 
-// ✅ final amount = discounted services + full products
+// Final amount = discounted services + full products
 const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 0);
 
   const handleSaveBilling = async () => {
@@ -2193,8 +2203,6 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
       setSaving(false);
     }
   };
-
-  // ---- Service modal logic removed (using inline autocomplete only) ----
 
   const filteredProducts = useMemo(() => {
     const q = productQuery.trim().toLowerCase();
@@ -2333,7 +2341,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
       </div>
     </div>
 
-    {/* ✅ Buttons */}
+    {/* Buttons */}
     <div className="flex gap-[10px]">
       <button
         type="button"
@@ -2403,7 +2411,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
 
   return (
     <div
-      key={index}
+      key={row.id != null ? `srv-${row.id}` : (row._tempKey ?? `idx-${index}`)}
       className={`gap-2 rounded-lg border p-2 bg-gray-50 ${imagingMissingAttribution || imagingMissingNurse ? "border-red-300" : "border-gray-200"}`}
     >
       <div
@@ -2428,17 +2436,25 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
             <>
               <input
                 type="text"
-                value={row.itemType === "SERVICE" && svcOpenRow === index ? (svcQueryByRow[index] ?? "") : row.name}
+                value={row.itemType === "SERVICE" && svcOpenRow === index ? (svcQueryByRow[index] ?? row.name) : row.name}
                 disabled={locked}
                 onFocus={() => {
                   if (row.itemType !== "SERVICE" || locked) return;
                   setSvcOpenRow(index);
-                  setSvcQueryByRow((prev) => ({ ...prev, [index]: "" }));
+                  // Retain the current row name so user can see/edit the value without it clearing on focus
+                  setSvcQueryByRow((prev) => ({
+                    ...prev,
+                    [index]: prev[index] !== undefined ? prev[index] : row.name,
+                  }));
                 }}
                 onClick={() => {
                   if (row.itemType !== "SERVICE" || locked) return;
                   setSvcOpenRow(index);
-                  setSvcQueryByRow((prev) => ({ ...prev, [index]: "" }));
+                  // Same retention logic for click: only initialize if not already set
+                  setSvcQueryByRow((prev) => ({
+                    ...prev,
+                    [index]: prev[index] !== undefined ? prev[index] : row.name,
+                  }));
                 }}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -2711,7 +2727,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
             </div>
 
             <div className="mt-3 flex flex-col gap-1 items-end text-[13px]">
-  {/* ✅ Subtotals */}
+  {/* Subtotals */}
   <div>
     Үйлчилгээний дүн:{" "}
     <strong>{servicesSubtotal.toLocaleString("mn-MN")}₮</strong>
@@ -2721,7 +2737,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
     <strong>{productsSubtotal.toLocaleString("mn-MN")}₮</strong>
   </div>
 
-  {/* ✅ Discount amount (services only) */}
+  {/* Discount amount (services only) */}
   <div>
     Хөнгөлөлт (зөвхөн үйлчилгээ):{" "}
     <strong className={discountAmount > 0 ? "text-red-700" : undefined}>
@@ -2944,7 +2960,7 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
           </section>
         </>
       )}
-{/* ✅ Product picker modal (rendered once, outside header) */}
+{/* Product picker modal */}
       {productModalOpen && (
         <div
           className="fixed inset-0 bg-black/35 flex items-center justify-center z-[80]"
@@ -3004,8 +3020,6 @@ const finalAmount = Math.max(discountedServices + Math.round(productsSubtotal), 
           </div>
         </div>
       )}
-
-      {/* Service picker modal - removed in favor of inline autocomplete */}
     </main>
   );
 }

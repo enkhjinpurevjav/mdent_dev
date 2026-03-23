@@ -135,7 +135,14 @@ router.get("/encounters/:id/invoice", async (req, res) => {
       include: {
         patientBook: { include: { patient: { include: { branch: true } } } },
         encounterServices: { include: { service: true } },
-        invoice: { include: { items: { include: { service: true } }, eBarimtReceipt: true } },
+        invoice: {
+          include: {
+            items: { include: { service: true } },
+            eBarimtReceipt: true,
+            // Include payments so GET response is consistent with payment endpoints
+            payments: { include: { createdBy: { select: { id: true, name: true, ovog: true } } } },
+          },
+        },
         appointment: { select: { branchId: true } },
       },
     });
@@ -187,6 +194,8 @@ router.get("/encounters/:id/invoice", async (req, res) => {
         allocGroups.map((a) => [a.invoiceItemId, Number(a._sum.amount || 0)])
       );
 
+      // Standardized canonical Invoice response for GET existing invoice
+      const existingPaidTotal = computePaidTotal(existingInvoice.payments);
       return res.json({
         id: existingInvoice.id,
         branchId: existingInvoice.branchId,
@@ -214,6 +223,18 @@ router.get("/encounters/:id/invoice", async (req, res) => {
               lottery: existingInvoice.eBarimtReceipt.lottery ?? null,
             }
           : null,
+        // paidTotal / unpaidAmount always present for consistent frontend consumption
+        paidTotal: existingPaidTotal,
+        unpaidAmount: Math.max(Number(existingInvoice.finalAmount) - existingPaidTotal, 0),
+        payments: existingInvoice.payments.map((p) => ({
+          id: p.id,
+          amount: p.amount,
+          method: p.method,
+          timestamp: p.timestamp,
+          createdByUser: p.createdBy
+            ? { id: p.createdBy.id, name: p.createdBy.name || null, ovog: p.createdBy.ovog || null }
+            : null,
+        })),
         items: existingInvoice.items.map((it) => ({
           id: it.id,
           itemType: it.itemType,
@@ -274,6 +295,7 @@ router.get("/encounters/:id/invoice", async (req, res) => {
       ? await getPatientOldBalance(patientId, null)
       : 0;
 
+    // Standardized canonical Invoice response for provisional (no saved invoice yet)
     return res.json({
       id: null,
       branchId,
@@ -287,6 +309,11 @@ router.get("/encounters/:id/invoice", async (req, res) => {
       hasEBarimt: false,
       buyerType: "B2C",
       buyerTin: null,
+      ebarimtReceipt: null,
+      // No payments on provisional invoice
+      paidTotal: 0,
+      unpaidAmount: totalBeforeDiscount,
+      payments: [],
       items: provisionalItems,
       isProvisional: true,
       patientTotalBilled: balanceData.totalBilled,
@@ -294,6 +321,9 @@ router.get("/encounters/:id/invoice", async (req, res) => {
       patientBalance: balanceData.balance,
       hasMarker,
       patientOldBalance,
+      patientOvog: patient.ovog ?? null,
+      patientName: patient.name,
+      patientRegNo: patient.regNo ?? null,
     });
   } catch (err) {
     console.error("GET /encounters/:id/invoice failed:", err);
@@ -495,6 +525,7 @@ router.post("/encounters/:id/invoice", async (req, res) => {
     // ---------- save ----------
     let invoice;
     if (!existingInvoice) {
+      // New invoice: create header + all items
       invoice = await prisma.invoice.create({
         data: {
           branchId,
@@ -519,38 +550,117 @@ router.post("/encounters/:id/invoice", async (req, res) => {
             })),
           },
         },
-        include: { items: { include: { service: true } }, eBarimtReceipt: true },
+        include: {
+          items: { include: { service: true } },
+          eBarimtReceipt: true,
+          payments: { include: { createdBy: { select: { id: true, name: true, ovog: true } } } },
+        },
       });
     } else {
-      invoice = await prisma.invoice.update({
-        where: { id: existingInvoice.id },
-        data: {
-          branchId,
-          patientId,
-          totalBeforeDiscount,
-          discountPercent: discountEnum,
-          collectionDiscountAmount: collectionDiscount,
-          finalAmount,
-          items: {
-            deleteMany: { invoiceId: existingInvoice.id },
-            create: normalizedItems.map((it) => ({
-              itemType: it.itemType,
-              serviceId: it.serviceId,
-              productId: it.productId,
-              name: it.name,
-              unitPrice: it.unitPrice,
-              quantity: it.quantity,
-              lineTotal: it.lineTotal,
-              source: it.source,
-              meta: it.meta ?? undefined,
-            })),
+      // Upsert logic: update existing items (preserve IDs), create new items,
+      // delete removed items — but only if they have no payment allocations.
+
+      // Validate that all provided item IDs belong to this invoice
+      const existingItemMap = new Map(existingInvoice.items.map((it) => [it.id, it]));
+      for (const it of normalizedItems) {
+        if (it.id != null && !existingItemMap.has(it.id)) {
+          return res.status(400).json({
+            error: `Invoice item id ${it.id} does not belong to this invoice.`,
+          });
+        }
+      }
+
+      // Determine which existing items are being removed
+      const incomingIds = new Set(
+        normalizedItems.filter((it) => it.id != null).map((it) => it.id)
+      );
+      const itemIdsToDelete = existingInvoice.items
+        .filter((it) => !incomingIds.has(it.id))
+        .map((it) => it.id);
+
+      // Block deletion if any removed item has payment allocations (audit integrity)
+      if (itemIdsToDelete.length > 0) {
+        const allocatedItem = await prisma.paymentAllocation.findFirst({
+          where: { invoiceItemId: { in: itemIdsToDelete } },
+          select: { invoiceItemId: true },
+        });
+        if (allocatedItem) {
+          return res.status(409).json({
+            error:
+              "Хуваарилалт бүртгэгдсэн мөрийг устгах боломжгүй. Нэхэмжлэлийн бүтцийг өөрчилж болохгүй.",
+          });
+        }
+      }
+
+      const itemsToUpdate = normalizedItems.filter((it) => it.id != null);
+      const itemsToCreate = normalizedItems.filter((it) => it.id == null);
+
+      // Execute upsert within a transaction for atomicity
+      invoice = await prisma.$transaction(async (trx) => {
+        // Delete removed items (safe — confirmed no allocations above)
+        if (itemIdsToDelete.length > 0) {
+          await trx.invoiceItem.deleteMany({ where: { id: { in: itemIdsToDelete } } });
+        }
+
+        // Update existing items in-place (preserves IDs and allocation references).
+        // Run in parallel — invoice items per billing are typically small (< 20).
+        await Promise.all(
+          itemsToUpdate.map((it) =>
+            trx.invoiceItem.update({
+              where: { id: it.id },
+              data: {
+                itemType: it.itemType,
+                serviceId: it.serviceId,
+                productId: it.productId,
+                name: it.name,
+                unitPrice: it.unitPrice,
+                quantity: it.quantity,
+                lineTotal: it.lineTotal,
+                source: it.source,
+                meta: it.meta ?? undefined,
+              },
+            })
+          )
+        );
+
+        // Update invoice header and create any brand-new items
+        return trx.invoice.update({
+          where: { id: existingInvoice.id },
+          data: {
+            branchId,
+            patientId,
+            totalBeforeDiscount,
+            discountPercent: discountEnum,
+            collectionDiscountAmount: collectionDiscount,
+            finalAmount,
+            ...(itemsToCreate.length > 0 && {
+              items: {
+                create: itemsToCreate.map((it) => ({
+                  itemType: it.itemType,
+                  serviceId: it.serviceId,
+                  productId: it.productId,
+                  name: it.name,
+                  unitPrice: it.unitPrice,
+                  quantity: it.quantity,
+                  lineTotal: it.lineTotal,
+                  source: it.source,
+                  meta: it.meta ?? undefined,
+                })),
+              },
+            }),
           },
-        },
-        include: { items: { include: { service: true } }, eBarimtReceipt: true },
+          include: {
+            items: { include: { service: true } },
+            eBarimtReceipt: true,
+            payments: { include: { createdBy: { select: { id: true, name: true, ovog: true } } } },
+          },
+        });
       });
     }
 
+    // Standardized canonical Invoice response for POST (structure save)
     const respDiscount = discountPercentToNumber(invoice.discountPercent);
+    const invoicePaidTotal = computePaidTotal(invoice.payments);
     return res.json({
       id: invoice.id,
       branchId: invoice.branchId,
@@ -562,6 +672,21 @@ router.post("/encounters/:id/invoice", async (req, res) => {
       collectionDiscountAmount: invoice.collectionDiscountAmount || 0,
       finalAmount: invoice.finalAmount,
       hasEBarimt: !!invoice.eBarimtReceipt,
+      buyerType: invoice.buyerType || "B2C",
+      buyerTin: invoice.buyerTin || null,
+      // ebarimtReceipt is always null here: POST is blocked when a receipt already exists
+      ebarimtReceipt: null,
+      paidTotal: invoicePaidTotal,
+      unpaidAmount: Math.max(Number(invoice.finalAmount) - invoicePaidTotal, 0),
+      payments: invoice.payments.map((p) => ({
+        id: p.id,
+        amount: p.amount,
+        method: p.method,
+        timestamp: p.timestamp,
+        createdByUser: p.createdBy
+          ? { id: p.createdBy.id, name: p.createdBy.name || null, ovog: p.createdBy.ovog || null }
+          : null,
+      })),
       items: invoice.items.map((it) => ({
         id: it.id,
         itemType: it.itemType,
@@ -574,6 +699,7 @@ router.post("/encounters/:id/invoice", async (req, res) => {
         source: it.source,
         meta: it.meta ?? null,
         serviceCategory: it.service?.category ?? null,
+        alreadyAllocated: 0, // No allocations mutated during structure save
       })),
     });
   } catch (err) {
@@ -898,11 +1024,11 @@ router.post("/encounters/:id/batch-settlement", async (req, res) => {
         });
       }
 
-      // 4) Reload updated current invoice
+      // 4) Reload updated current invoice (include service for category in response)
       const updatedInvoice = await trx.invoice.findUnique({
         where: { id: invoice.id },
         include: {
-          items: true,
+          items: { include: { service: true } },
           payments: { include: { createdBy: { select: { id: true, name: true, ovog: true } } } },
           eBarimtReceipt: true,
         },
@@ -941,19 +1067,36 @@ router.post("/encounters/:id/batch-settlement", async (req, res) => {
       }
     }
 
+    // Standardized canonical Invoice response for batch-settlement
     return res.json({
       id: updatedInvoice.id,
       branchId: updatedInvoice.branchId,
       encounterId: updatedInvoice.encounterId,
       patientId: updatedInvoice.patientId,
-      status: updatedInvoice.statusLegacy,
+      status: updatedInvoice.statusLegacy || "UNPAID",
       totalBeforeDiscount: updatedInvoice.totalBeforeDiscount,
       discountPercent: discountPercentToNumber(updatedInvoice.discountPercent),
       collectionDiscountAmount: updatedInvoice.collectionDiscountAmount || 0,
       finalAmount: updatedInvoice.finalAmount,
+      hasEBarimt: !!updatedInvoice.eBarimtReceipt,
+      buyerType: updatedInvoice.buyerType || "B2C",
+      buyerTin: updatedInvoice.buyerTin || null,
+      ebarimtReceipt: updatedInvoice.eBarimtReceipt
+        ? {
+            id: updatedInvoice.eBarimtReceipt.id,
+            status: updatedInvoice.eBarimtReceipt.status,
+            ddtd: updatedInvoice.eBarimtReceipt.ddtd ?? null,
+            printedAtText: updatedInvoice.eBarimtReceipt.printedAtText ?? null,
+            printedAt: updatedInvoice.eBarimtReceipt.printedAt
+              ? updatedInvoice.eBarimtReceipt.printedAt.toISOString()
+              : null,
+            totalAmount: updatedInvoice.eBarimtReceipt.totalAmount ?? null,
+            qrData: updatedInvoice.eBarimtReceipt.qrData ?? null,
+            lottery: updatedInvoice.eBarimtReceipt.lottery ?? null,
+          }
+        : null,
       paidTotal,
       unpaidAmount: Math.max(currentBaseAmount - paidTotal, 0),
-      hasEBarimt: !!updatedInvoice.eBarimtReceipt,
       amountAppliedToOld: amountForOld,
       amountAppliedToCurrent: amountForCurrent,
       items: updatedInvoice.items.map((it) => ({
@@ -967,13 +1110,17 @@ router.post("/encounters/:id/batch-settlement", async (req, res) => {
         lineTotal: it.lineTotal,
         source: it.source,
         meta: it.meta ?? null,
+        serviceCategory: it.service?.category ?? null,
+        alreadyAllocated: 0, // Allocation totals not recomputed after payment; use GET for fresh data
       })),
       payments: updatedInvoice.payments.map((p) => ({
         id: p.id,
         amount: p.amount,
         method: p.method,
         timestamp: p.timestamp,
-        createdByUser: p.createdBy ? { id: p.createdBy.id, name: p.createdBy.name || null, ovog: p.createdBy.ovog || null } : null,
+        createdByUser: p.createdBy
+          ? { id: p.createdBy.id, name: p.createdBy.name || null, ovog: p.createdBy.ovog || null }
+          : null,
       })),
     });
   } catch (err) {
