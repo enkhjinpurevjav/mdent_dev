@@ -1050,39 +1050,94 @@ router.get("/clinic", async (req, res) => {
       schedByBranchDate[sch.branchId][date].doctorSet.add(sch.doctorId);
     }
 
-    // ---------- booked appointment minutes per date/branch/doctor ----------
-    const bookedByDate = {};
-    const bookedByBranch = {};
-    const bookedByDoctor = {};
-    const bookedByBranchDate = {}; // { [branchId]: { [date]: number } }
+    // ---------- slot-based occupancy (completed filled 30-min slots) ----------
+    // Rules:
+    //  - Possible slots = floor(workMins / 30) per doctor per day (union of schedule windows)
+    //  - Filled slot  = a slot that has ≥1 COMPLETED appointment whose start time falls in it
+    //  - Double-bookings do NOT increase filled slots (max 1 filled per slot)
+    //  - Branch occupancyPct = filledSlots / possibleSlots * 100
+    //  - "Нийт" dailyPct = simple average of all active branch percentages for that day
+    const SLOT_MINS = 30;
 
-    const DEFAULT_SLOT = 30; // minutes if endAt is null
+    // completedSlotsByDoctorDate[doctorId][date] = Set<slotKey>
+    // slotKey = floor(appointmentHHMM_in_minutes / SLOT_MINS)
+    const completedSlotsByDoctorDate = {};
     for (const appt of appointments) {
-      const s = appt.status?.toLowerCase();
-      if (s === "cancelled" || s === "no_show") continue;
+      if (appt.status?.toLowerCase() !== "completed") continue;
+      if (!appt.doctorId) continue;
       const date = appt.scheduledAt.toISOString().slice(0, 10);
-      let mins = DEFAULT_SLOT;
-      if (appt.endAt) {
-        const diff =
-          (new Date(appt.endAt).getTime() - new Date(appt.scheduledAt).getTime()) / 60000;
-        if (diff > 0) mins = diff;
+      const apptMins = appt.scheduledAt.getHours() * 60 + appt.scheduledAt.getMinutes();
+      const slotKey = Math.floor(apptMins / SLOT_MINS);
+      if (!completedSlotsByDoctorDate[appt.doctorId])
+        completedSlotsByDoctorDate[appt.doctorId] = {};
+      if (!completedSlotsByDoctorDate[appt.doctorId][date])
+        completedSlotsByDoctorDate[appt.doctorId][date] = new Set();
+      completedSlotsByDoctorDate[appt.doctorId][date].add(slotKey);
+    }
+
+    // Group schedules by (doctorId, date) to properly union multiple windows per day
+    const schedGrouped = {};
+    for (const sch of schedules) {
+      const date =
+        sch.date instanceof Date ? sch.date.toISOString().slice(0, 10) : String(sch.date).slice(0, 10);
+      const startMins = hmToMin(sch.startTime);
+      const endMins = hmToMin(sch.endTime);
+      if (endMins <= startMins) continue;
+      if (!schedGrouped[sch.doctorId]) schedGrouped[sch.doctorId] = {};
+      if (!schedGrouped[sch.doctorId][date])
+        schedGrouped[sch.doctorId][date] = { branchId: sch.branchId, windows: [] };
+      schedGrouped[sch.doctorId][date].windows.push({ startMins, endMins });
+    }
+
+    // slotsByBranchDate[branchId][date] = { possible, filled }
+    // slotsByDoctor[doctorId] = { possible, filled } (aggregated across all dates)
+    const slotsByBranchDate = {};
+    const slotsByDoctor = {};
+    for (const [doctorIdStr, dateMap] of Object.entries(schedGrouped)) {
+      const doctorId = Number(doctorIdStr);
+      for (const [date, { branchId, windows }] of Object.entries(dateMap)) {
+        // Build possible slot set as union of all schedule windows for this doctor+day
+        const possibleSlotSet = new Set();
+        for (const { startMins, endMins } of windows) {
+          const firstSlot = Math.ceil(startMins / SLOT_MINS);
+          const lastSlot = Math.floor(endMins / SLOT_MINS) - 1;
+          for (let s = firstSlot; s <= lastSlot; s++) possibleSlotSet.add(s);
+        }
+        const possible = possibleSlotSet.size;
+        if (possible === 0) continue;
+
+        // Count filled slots: completed-appointment slots that fall within schedule window
+        const completedSlots = completedSlotsByDoctorDate[doctorId]?.[date] || new Set();
+        let filled = 0;
+        for (const slotKey of completedSlots) {
+          if (possibleSlotSet.has(slotKey)) filled++;
+        }
+
+        if (!slotsByBranchDate[branchId]) slotsByBranchDate[branchId] = {};
+        if (!slotsByBranchDate[branchId][date])
+          slotsByBranchDate[branchId][date] = { possible: 0, filled: 0 };
+        slotsByBranchDate[branchId][date].possible += possible;
+        slotsByBranchDate[branchId][date].filled += filled;
+
+        if (!slotsByDoctor[doctorId]) slotsByDoctor[doctorId] = { possible: 0, filled: 0 };
+        slotsByDoctor[doctorId].possible += possible;
+        slotsByDoctor[doctorId].filled += filled;
       }
-      bookedByDate[date] = (bookedByDate[date] || 0) + mins;
-      bookedByBranch[appt.branchId] = (bookedByBranch[appt.branchId] || 0) + mins;
-      if (!bookedByBranchDate[appt.branchId]) bookedByBranchDate[appt.branchId] = {};
-      bookedByBranchDate[appt.branchId][date] =
-        (bookedByBranchDate[appt.branchId][date] || 0) + mins;
-      if (appt.doctorId)
-        bookedByDoctor[appt.doctorId] = (bookedByDoctor[appt.doctorId] || 0) + mins;
     }
 
     // ---------- daily data array (totals) ----------
     const days = eachDay(fromDate, toDate);
     const dailyData = days.map((date) => {
       const revenue = revenueByDate[date] || 0;
-      const availMins = schedByDate[date]?.availMins || 0;
-      const bookedMins = bookedByDate[date] || 0;
-      const occupancyPct = availMins > 0 ? Math.round((bookedMins / availMins) * 100) : 0;
+      // "Нийт" occupancyPct = simple average of active-branch percentages for this day
+      const branchPcts = targetBranches
+        .map((b) => slotsByBranchDate[b.id]?.[date])
+        .filter((s) => s?.possible > 0)
+        .map((s) => Math.round((s.filled / s.possible) * 100));
+      const occupancyPct =
+        branchPcts.length > 0
+          ? Math.round(branchPcts.reduce((a, v) => a + v, 0) / branchPcts.length)
+          : 0;
       const doctorCount = schedByDate[date]?.doctorSet?.size || 0;
       const completedAppointments = completedByDate[date] || 0;
       // Per-method revenue for this date
@@ -1099,9 +1154,9 @@ router.get("/clinic", async (req, res) => {
       branchName: b.name,
       daily: days.map((date) => {
         const revenue = revenueByBranchDate[b.id]?.[date] || 0;
-        const availMins = schedByBranchDate[b.id]?.[date]?.availMins || 0;
-        const bookedMins = bookedByBranchDate[b.id]?.[date] || 0;
-        const occupancyPct = availMins > 0 ? Math.round((bookedMins / availMins) * 100) : 0;
+        const bSlots = slotsByBranchDate[b.id]?.[date];
+        const occupancyPct =
+          bSlots?.possible > 0 ? Math.round((bSlots.filled / bSlots.possible) * 100) : 0;
         const doctorCount = schedByBranchDate[b.id]?.[date]?.doctorSet?.size || 0;
         const completedAppointments = completedByBranchDate[b.id]?.[date] || 0;
         // Per-method revenue for this branch+date
@@ -1121,13 +1176,16 @@ router.get("/clinic", async (req, res) => {
         value: revenueByBranch[b.id] || 0,
       })),
       occupancy: targetBranches.map((b) => {
-        const avail = schedByBranch[b.id]?.availMins || 0;
-        const booked = bookedByBranch[b.id] || 0;
-        return {
-          branchId: b.id,
-          branchName: b.name,
-          value: avail > 0 ? Math.round((booked / avail) * 100) : 0,
-        };
+        // Average daily occupancy percentage for this branch (only days with schedule data)
+        const activeDays = days.filter((d) => slotsByBranchDate[b.id]?.[d]?.possible > 0);
+        if (activeDays.length === 0) return { branchId: b.id, branchName: b.name, value: 0 };
+        const avgPct = Math.round(
+          activeDays.reduce((s, d) => {
+            const sl = slotsByBranchDate[b.id][d];
+            return s + Math.round((sl.filled / sl.possible) * 100);
+          }, 0) / activeDays.length
+        );
+        return { branchId: b.id, branchName: b.name, value: avgPct };
       }),
       doctorCount: targetBranches.map((b) => ({
         branchId: b.id,
@@ -1170,14 +1228,13 @@ router.get("/clinic", async (req, res) => {
           value: revenueByDoctor[dId] || 0,
         })),
         occupancy: doctorIds.map((dId) => {
-          const avail = schedByDoctor[dId]?.availMins || 0;
-          const booked = bookedByDoctor[dId] || 0;
+          const slots = slotsByDoctor[dId];
           return {
             doctorId: dId,
             doctorName: docMap[dId]
               ? [docMap[dId].ovog, docMap[dId].name].filter(Boolean).join(" ")
               : `Эмч #${dId}`,
-            value: avail > 0 ? Math.round((booked / avail) * 100) : 0,
+            value: slots?.possible > 0 ? Math.round((slots.filled / slots.possible) * 100) : 0,
           };
         }),
         doctorCount: doctorIds.map((dId) => ({
@@ -1204,11 +1261,15 @@ router.get("/clinic", async (req, res) => {
     // today's revenue from payments (same logic, but fetched within main range if today is in it)
     const todayRevenue = revenueByDate[todayDateStr] || 0;
 
-    // today's occupancy
-    const todayAvail = schedByDate[todayDateStr]?.availMins || 0;
-    const todayBooked = bookedByDate[todayDateStr] || 0;
+    // today's occupancy (slot-based, average of branch percentages)
+    const todayBranchPcts = targetBranches
+      .map((b) => slotsByBranchDate[b.id]?.[todayDateStr])
+      .filter((s) => s?.possible > 0)
+      .map((s) => Math.round((s.filled / s.possible) * 100));
     const todayOccupancyPct =
-      todayAvail > 0 ? Math.round((todayBooked / todayAvail) * 100) : 0;
+      todayBranchPcts.length > 0
+        ? Math.round(todayBranchPcts.reduce((a, v) => a + v, 0) / todayBranchPcts.length)
+        : 0;
 
     // monthly average: days 1..today for the current month
     const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
