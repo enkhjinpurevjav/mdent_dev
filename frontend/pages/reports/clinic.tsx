@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   ComposedChart,
   Bar,
@@ -209,6 +209,16 @@ function sanitizeFilename(name: string) {
   return name.replace(/[^\w\u0400-\u04FF]/g, "_");
 }
 
+/** Aggregate a DailyRow array into a single period value for the given key */
+function aggregatePeriodValue(rows: DailyRow[], key: MetricKey): number {
+  if (rows.length === 0) return 0;
+  if (key === "occupancyPct") {
+    const vals = rows.map((d) => d.occupancyPct);
+    return Math.round(vals.reduce((s, v) => s + v, 0) / vals.length);
+  }
+  return rows.reduce((sum, d) => sum + (d[key] as number), 0);
+}
+
 const MS_PER_DAY = 86400000;
 
 /** Top summary card */
@@ -289,21 +299,54 @@ function MetricBlock({
     ? buildYearChartData(dailyData, branchDailyData, dataKey)
     : buildDailyChartData(dailyData, branchDailyData, dataKey);
 
+  // Нийт column first, then branches
   const tableRows: Record<string, unknown>[] = chartData.map((r) => {
-    const row: Record<string, unknown> = { Огноо: r.label };
+    const row: Record<string, unknown> = {
+      Огноо: r.label,
+      Нийт: String(r.total) + (unit ? ` ${unit}` : ""),
+    };
     for (const bName of branchNames) {
       const v = (r as Record<string, unknown>)[bName];
       row[bName] = v !== undefined ? String(v) + (unit ? ` ${unit}` : "") : "-";
     }
-    row["Нийт"] = String(r.total) + (unit ? ` ${unit}` : "");
     return row;
   });
 
-  const pieData = breakdownItems
-    .filter((b) => b.value > 0)
-    .map((b) => ({ name: b.branchName || b.doctorName || "", value: b.value }));
+  // Compute period breakdown from the same data source as the chart (branchDailyData),
+  // so pie/table values always match chart values. For the "Нийт" total we use dailyData.
+  const effectiveBreakdown = useMemo<BreakdownItem[]>(() => {
+    // Detect doctor-level breakdown (single branch filtered) – can't recompute from daily data
+    const isDocBreakdown =
+      breakdownItems.length > 0 && breakdownItems[0]?.doctorId != null;
 
-  const pieTableRows = breakdownItems.map((b) => ({
+    let items: BreakdownItem[];
+    if (isDocBreakdown) {
+      items = breakdownItems;
+    } else {
+      // Re-derive from branchDailyData to match chart calculation exactly
+      items = branchDailyData.map((b) => ({
+        branchId: b.branchId,
+        branchName: b.branchName,
+        value: aggregatePeriodValue(b.daily, dataKey),
+      }));
+    }
+
+    // Compute "Нийт" total from dailyData (same as chart's "total" line)
+    const totalValue = aggregatePeriodValue(dailyData, dataKey);
+
+    // "Нийт" always first
+    return [{ branchName: "Нийт", value: totalValue }, ...items];
+  }, [breakdownItems, branchDailyData, dailyData, dataKey]);
+
+  // Pie slices = branches only (Нийт is not a slice – it's the whole pie)
+  const pieSlices = effectiveBreakdown.slice(1).filter((b) => b.value > 0);
+  const pieData = pieSlices.map((b) => ({
+    name: b.branchName || b.doctorName || "",
+    value: b.value,
+  }));
+
+  // CSV for the pie/salbar section – Нийт first (effectiveBreakdown already ordered)
+  const pieTableRows = effectiveBreakdown.map((b) => ({
     [breakdownLabel]: b.branchName || b.doctorName || "",
     [title]: b.value + (unit ? ` ${unit}` : ""),
   }));
@@ -323,10 +366,19 @@ function MetricBlock({
               <Tooltip
                 formatter={(v: number, name: string) => [
                   v.toLocaleString("mn-MN") + (unit ? " " + unit : ""),
-                  name === "total" ? "Нийт" : name,
+                  name,
                 ]}
               />
-              <Legend formatter={(value) => (value === "total" ? "Нийт" : value)} />
+              <Legend />
+              {/* Render "Нийт" (total line) FIRST so it always appears first in tooltip and legend */}
+              <Line
+                type="monotone"
+                dataKey="total"
+                name="Нийт"
+                stroke="#10b981"
+                strokeWidth={2.5}
+                dot={false}
+              />
               {branchNames.map((bName, idx) => (
                 <Bar
                   key={bName}
@@ -336,13 +388,6 @@ function MetricBlock({
                   radius={idx === branchNames.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
                 />
               ))}
-              <Line
-                type="monotone"
-                dataKey="total"
-                stroke="#10b981"
-                strokeWidth={2.5}
-                dot={false}
-              />
             </ComposedChart>
           </ResponsiveContainer>
 
@@ -363,6 +408,9 @@ function MetricBlock({
                         <th className="px-3 py-2 text-left font-semibold text-gray-600 whitespace-nowrap">
                           Огноо
                         </th>
+                        <th className="px-3 py-2 text-right font-semibold text-gray-600 whitespace-nowrap">
+                          Нийт
+                        </th>
                         {branchNames.map((bName) => (
                           <th
                             key={bName}
@@ -371,15 +419,16 @@ function MetricBlock({
                             {bName}
                           </th>
                         ))}
-                        <th className="px-3 py-2 text-right font-semibold text-gray-600 whitespace-nowrap">
-                          Нийт
-                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {chartData.map((r, i) => (
                         <tr key={i} className="border-t border-gray-100 hover:bg-gray-50">
                           <td className="px-3 py-1.5 text-gray-700">{r.label}</td>
+                          <td className="px-3 py-1.5 text-right text-gray-800 font-semibold">
+                            {r.total.toLocaleString("mn-MN")}
+                            {unit ? ` ${unit}` : ""}
+                          </td>
                           {branchNames.map((bName) => (
                             <td key={bName} className="px-3 py-1.5 text-right text-gray-700">
                               {(
@@ -388,10 +437,6 @@ function MetricBlock({
                               {unit ? ` ${unit}` : ""}
                             </td>
                           ))}
-                          <td className="px-3 py-1.5 text-right text-gray-800 font-semibold">
-                            {r.total.toLocaleString("mn-MN")}
-                            {unit ? ` ${unit}` : ""}
-                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -459,21 +504,45 @@ function MetricBlock({
                 </tr>
               </thead>
               <tbody>
-                {breakdownItems.map((b, i) => (
-                  <tr key={i} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="px-3 py-1.5 flex items-center gap-2">
-                      <span
-                        className="inline-block w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: BRANCH_COLORS[i % BRANCH_COLORS.length] }}
-                      />
-                      <span className="text-gray-700">{b.branchName || b.doctorName}</span>
-                    </td>
-                    <td className="px-3 py-1.5 text-right text-gray-800 font-medium">
-                      {b.value.toLocaleString("mn-MN")}
-                      {unit ? ` ${unit}` : ""}
-                    </td>
-                  </tr>
-                ))}
+                {effectiveBreakdown.map((b, i) => {
+                  const isTotal = i === 0;
+                  return (
+                    <tr key={i} className="border-t border-gray-100 hover:bg-gray-50">
+                      <td className="px-3 py-1.5 flex items-center gap-2">
+                        {isTotal ? (
+                          <span className="inline-block w-3 h-3 rounded-full flex-shrink-0 bg-emerald-500" />
+                        ) : (
+                          <span
+                            className="inline-block w-3 h-3 rounded-full flex-shrink-0"
+                            style={{
+                              backgroundColor:
+                                BRANCH_COLORS[(i - 1) % BRANCH_COLORS.length],
+                            }}
+                          />
+                        )}
+                        <span
+                          className={
+                            isTotal
+                              ? "text-gray-900 font-semibold"
+                              : "text-gray-700"
+                          }
+                        >
+                          {b.branchName || b.doctorName}
+                        </span>
+                      </td>
+                      <td
+                        className={`px-3 py-1.5 text-right ${
+                          isTotal
+                            ? "text-gray-900 font-bold"
+                            : "text-gray-800 font-medium"
+                        }`}
+                      >
+                        {b.value.toLocaleString("mn-MN")}
+                        {unit ? ` ${unit}` : ""}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
