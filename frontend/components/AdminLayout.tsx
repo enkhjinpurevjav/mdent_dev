@@ -181,6 +181,7 @@ const navItems: NavItem[] = [
     children: [
       { label: "Үндсэн тайлан", href: "/reports", icon: "📊" },
       { label: "Эмнэлэг", href: "/reports/clinic", icon: "🏥" },
+      { label: "Цаг захиалга", href: "/reports/appointments", icon: "📅" },
     ],
   },
 ];

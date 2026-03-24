@@ -1396,4 +1396,338 @@ router.get("/clinic", async (req, res) => {
   }
 });
 
+/**
+ * GET /api/reports/appointments-report
+ * Appointment booking page report.
+ * Query: from (YYYY-MM-DD), to (YYYY-MM-DD), branchId? (number)
+ *
+ * Returns:
+ *  - branches: [{ id, name }]
+ *  - patientDailyData: [{ date, total, newCount, returningCount }]
+ *  - branchPatientDailyData: [{ branchId, branchName, daily: [{ date, total, newCount, returningCount }] }]
+ *  - ratesDailyData: [{ date, total, fillRate, noShowRate, cancelRate }]
+ *  - branchRatesDailyData: [{ branchId, branchName, daily: [{ date, total, fillRate, noShowRate, cancelRate }] }]
+ */
+router.get("/appointments-report", async (req, res) => {
+  try {
+    const { from, to, branchId } = req.query;
+
+    if (!from || !to) {
+      return res
+        .status(400)
+        .json({ error: "from and to query parameters are required" });
+    }
+
+    const [fy, fm, fd] = String(from).split("-").map(Number);
+    const [ty, tm, td] = String(to).split("-").map(Number);
+    const fromDate = new Date(fy, fm - 1, fd, 0, 0, 0, 0);
+    const toDate = new Date(ty, tm - 1, td, 23, 59, 59, 999);
+
+    const branchFilter = branchId ? Number(branchId) : null;
+
+    // ---------- helper: iterate dates ----------
+    function eachDay(start, end) {
+      const days = [];
+      const cur = new Date(start);
+      cur.setHours(0, 0, 0, 0);
+      const last = new Date(end);
+      last.setHours(0, 0, 0, 0);
+      while (cur <= last) {
+        days.push(cur.toISOString().slice(0, 10));
+        cur.setDate(cur.getDate() + 1);
+      }
+      return days;
+    }
+
+    // ---------- helper: parse "HH:MM" to minutes since midnight ----------
+    function hmToMin(hm) {
+      if (!hm || typeof hm !== "string") return 0;
+      const [h, m] = hm.split(":").map(Number);
+      return (h || 0) * 60 + (m || 0);
+    }
+
+    // ---------- fetch all branches ----------
+    const allBranches = await prisma.branch.findMany({
+      select: { id: true, name: true },
+      orderBy: { id: "asc" },
+    });
+
+    const targetBranches = branchFilter
+      ? allBranches.filter((b) => b.id === branchFilter)
+      : allBranches;
+
+    const branchIds = targetBranches.map((b) => b.id);
+
+    // ---------- fetch all appointments (any status) ----------
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        scheduledAt: { gte: fromDate, lte: toDate },
+        branchId: { in: branchIds },
+      },
+      select: {
+        id: true,
+        branchId: true,
+        doctorId: true,
+        patientId: true,
+        scheduledAt: true,
+        status: true,
+      },
+      orderBy: { scheduledAt: "asc" },
+    });
+
+    // ---------- fetch doctor schedules (for fill rate) ----------
+    const schedules = await prisma.doctorSchedule.findMany({
+      where: {
+        date: { gte: fromDate, lte: toDate },
+        branchId: { in: branchIds },
+      },
+      select: {
+        doctorId: true,
+        branchId: true,
+        date: true,
+        startTime: true,
+        endTime: true,
+      },
+    });
+
+    const days = eachDay(fromDate, toDate);
+
+    // ──────────────────────────────────────────────────────────────
+    // SECTION 1: Patient counting (new vs returning)
+    // ──────────────────────────────────────────────────────────────
+    // Sort appointments by patientId then scheduledAt (already ordered by scheduledAt)
+    // For each patient, the chronologically FIRST appointment in the period is "new",
+    // all subsequent appointments (same or different day) are "returning".
+    // If 2 appointments same day: count = 2.
+    // Per branch: patient's first appointment IN THAT BRANCH is "new" for that branch.
+
+    // Track first appearance per patient (globally across branches)
+    const patientFirstApptId = new Map(); // patientId -> first appt id globally
+
+    // Sort by scheduledAt to correctly assign "new"
+    const sortedAppts = [...appointments].sort(
+      (a, b) => a.scheduledAt - b.scheduledAt
+    );
+
+    for (const appt of sortedAppts) {
+      if (!appt.patientId) continue;
+      if (!patientFirstApptId.has(appt.patientId)) {
+        patientFirstApptId.set(appt.patientId, appt.id);
+      }
+    }
+
+    // patientByDate[date] = { total, newCount, returningCount }
+    const patientByDate = {};
+    // patientByBranchDate[branchId][date] = { total, newCount, returningCount }
+    const patientByBranchDate = {};
+
+    // Per-branch: track first appointment of each patient in that branch
+    // Branch-level "new" = first appearance of patient in that branch
+    const patientFirstInBranch = new Map(); // `${patientId}-${branchId}` -> first appt id in branch
+
+    for (const appt of sortedAppts) {
+      const date = appt.scheduledAt.toISOString().slice(0, 10);
+      const bId = appt.branchId;
+
+      // Global new/returning
+      const isGlobalNew = appt.patientId
+        ? patientFirstApptId.get(appt.patientId) === appt.id
+        : false;
+
+      if (!patientByDate[date])
+        patientByDate[date] = { total: 0, newCount: 0, returningCount: 0 };
+      patientByDate[date].total += 1;
+      if (isGlobalNew) patientByDate[date].newCount += 1;
+      else patientByDate[date].returningCount += 1;
+
+      // Branch-level new/returning
+      if (!patientByBranchDate[bId]) patientByBranchDate[bId] = {};
+      if (!patientByBranchDate[bId][date])
+        patientByBranchDate[bId][date] = { total: 0, newCount: 0, returningCount: 0 };
+      patientByBranchDate[bId][date].total += 1;
+
+      const branchKey = `${appt.patientId}-${bId}`;
+      const isBranchNew = appt.patientId
+        ? !patientFirstInBranch.has(branchKey)
+        : false;
+      if (appt.patientId && isBranchNew) {
+        patientFirstInBranch.set(branchKey, appt.id);
+      }
+      if (isBranchNew) patientByBranchDate[bId][date].newCount += 1;
+      else patientByBranchDate[bId][date].returningCount += 1;
+    }
+
+    // Build patientDailyData array
+    const patientDailyData = days.map((date) => ({
+      date,
+      total: patientByDate[date]?.total || 0,
+      newCount: patientByDate[date]?.newCount || 0,
+      returningCount: patientByDate[date]?.returningCount || 0,
+    }));
+
+    // Build branchPatientDailyData
+    const branchPatientDailyData = targetBranches.map((b) => ({
+      branchId: b.id,
+      branchName: b.name,
+      daily: days.map((date) => ({
+        date,
+        total: patientByBranchDate[b.id]?.[date]?.total || 0,
+        newCount: patientByBranchDate[b.id]?.[date]?.newCount || 0,
+        returningCount: patientByBranchDate[b.id]?.[date]?.returningCount || 0,
+      })),
+    }));
+
+    // ──────────────────────────────────────────────────────────────
+    // SECTION 2: Rates (fill rate, no-show rate, cancellation rate)
+    // ──────────────────────────────────────────────────────────────
+    // Rates per day and per branch
+
+    // Count by status per date and per branch+date
+    const countByDate = {}; // { [date]: { total, noShow, cancelled } }
+    const countByBranchDate = {}; // { [branchId]: { [date]: { total, noShow, cancelled } } }
+
+    for (const appt of appointments) {
+      const date = appt.scheduledAt.toISOString().slice(0, 10);
+      const bId = appt.branchId;
+      const s = appt.status?.toLowerCase();
+
+      if (!countByDate[date])
+        countByDate[date] = { total: 0, noShow: 0, cancelled: 0 };
+      countByDate[date].total += 1;
+      if (s === "no_show") countByDate[date].noShow += 1;
+      if (s === "cancelled") countByDate[date].cancelled += 1;
+
+      if (!countByBranchDate[bId]) countByBranchDate[bId] = {};
+      if (!countByBranchDate[bId][date])
+        countByBranchDate[bId][date] = { total: 0, noShow: 0, cancelled: 0 };
+      countByBranchDate[bId][date].total += 1;
+      if (s === "no_show") countByBranchDate[bId][date].noShow += 1;
+      if (s === "cancelled") countByBranchDate[bId][date].cancelled += 1;
+    }
+
+    // Slot-based fill rate (same logic as clinic endpoint)
+    const SLOT_MINS = 30;
+
+    // completedSlotsByDoctorDate[doctorId][date] = Set<slotKey>
+    const completedSlotsByDoctorDate = {};
+    for (const appt of appointments) {
+      if (appt.status?.toLowerCase() !== "completed") continue;
+      if (!appt.doctorId) continue;
+      const date = appt.scheduledAt.toISOString().slice(0, 10);
+      const apptMins =
+        appt.scheduledAt.getHours() * 60 + appt.scheduledAt.getMinutes();
+      const slotKey = Math.floor(apptMins / SLOT_MINS);
+      if (!completedSlotsByDoctorDate[appt.doctorId])
+        completedSlotsByDoctorDate[appt.doctorId] = {};
+      if (!completedSlotsByDoctorDate[appt.doctorId][date])
+        completedSlotsByDoctorDate[appt.doctorId][date] = new Set();
+      completedSlotsByDoctorDate[appt.doctorId][date].add(slotKey);
+    }
+
+    // Group schedules by (doctorId, date)
+    const schedGrouped = {};
+    for (const sch of schedules) {
+      const date =
+        sch.date instanceof Date
+          ? sch.date.toISOString().slice(0, 10)
+          : String(sch.date).slice(0, 10);
+      const startMins = hmToMin(sch.startTime);
+      const endMins = hmToMin(sch.endTime);
+      if (endMins <= startMins) continue;
+      if (!schedGrouped[sch.doctorId]) schedGrouped[sch.doctorId] = {};
+      if (!schedGrouped[sch.doctorId][date])
+        schedGrouped[sch.doctorId][date] = { branchId: sch.branchId, windows: [] };
+      schedGrouped[sch.doctorId][date].windows.push({ startMins, endMins });
+    }
+
+    // slotsByBranchDate[branchId][date] = { possible, filled }
+    const slotsByBranchDate = {};
+    for (const [doctorIdStr, dateMap] of Object.entries(schedGrouped)) {
+      const doctorId = Number(doctorIdStr);
+      for (const [date, { branchId: bId, windows }] of Object.entries(dateMap)) {
+        const possibleSlotSet = new Set();
+        for (const { startMins, endMins } of windows) {
+          const firstSlot = Math.ceil(startMins / SLOT_MINS);
+          const lastSlot = Math.floor(endMins / SLOT_MINS) - 1;
+          for (let s = firstSlot; s <= lastSlot; s++) possibleSlotSet.add(s);
+        }
+        const possible = possibleSlotSet.size;
+        if (possible === 0) continue;
+
+        const completedSlots =
+          completedSlotsByDoctorDate[doctorId]?.[date] || new Set();
+        let filled = 0;
+        for (const slotKey of completedSlots) {
+          if (possibleSlotSet.has(slotKey)) filled++;
+        }
+
+        if (!slotsByBranchDate[bId]) slotsByBranchDate[bId] = {};
+        if (!slotsByBranchDate[bId][date])
+          slotsByBranchDate[bId][date] = { possible: 0, filled: 0 };
+        slotsByBranchDate[bId][date].possible += possible;
+        slotsByBranchDate[bId][date].filled += filled;
+      }
+    }
+
+    // Helper: compute fill rate for a day (average across branches with data)
+    function computeFillRate(date) {
+      const branchPcts = targetBranches
+        .map((b) => slotsByBranchDate[b.id]?.[date])
+        .filter((s) => s?.possible > 0)
+        .map((s) => Math.round((s.filled / s.possible) * 100));
+      return branchPcts.length > 0
+        ? Math.round(branchPcts.reduce((a, v) => a + v, 0) / branchPcts.length)
+        : 0;
+    }
+
+    function computeBranchFillRate(branchId, date) {
+      const sl = slotsByBranchDate[branchId]?.[date];
+      return sl?.possible > 0 ? Math.round((sl.filled / sl.possible) * 100) : 0;
+    }
+
+    // Build ratesDailyData
+    const ratesDailyData = days.map((date) => {
+      const cnt = countByDate[date] || { total: 0, noShow: 0, cancelled: 0 };
+      const total = cnt.total;
+      const fillRate = computeFillRate(date);
+      const noShowRate =
+        total > 0 ? Math.round((cnt.noShow / total) * 100 * 10) / 10 : 0;
+      const cancelRate =
+        total > 0 ? Math.round((cnt.cancelled / total) * 100 * 10) / 10 : 0;
+      return { date, total, fillRate, noShowRate, cancelRate };
+    });
+
+    // Build branchRatesDailyData
+    const branchRatesDailyData = targetBranches.map((b) => ({
+      branchId: b.id,
+      branchName: b.name,
+      daily: days.map((date) => {
+        const cnt = countByBranchDate[b.id]?.[date] || {
+          total: 0,
+          noShow: 0,
+          cancelled: 0,
+        };
+        const total = cnt.total;
+        const fillRate = computeBranchFillRate(b.id, date);
+        const noShowRate =
+          total > 0 ? Math.round((cnt.noShow / total) * 100 * 10) / 10 : 0;
+        const cancelRate =
+          total > 0 ? Math.round((cnt.cancelled / total) * 100 * 10) / 10 : 0;
+        return { date, total, fillRate, noShowRate, cancelRate };
+      }),
+    }));
+
+    return res.json({
+      branches: targetBranches,
+      patientDailyData,
+      branchPatientDailyData,
+      ratesDailyData,
+      branchRatesDailyData,
+    });
+  } catch (err) {
+    console.error("GET /api/reports/appointments-report error:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
 export default router;
