@@ -641,6 +641,148 @@ async function isDoctorCapacityExceeded({ doctorId, branchId, start, end, exclud
 }
 
 /**
+ * GET /api/appointments/occupancy
+ *
+ * Returns the slot-based occupancy rate for a given day and optional branch.
+ *
+ * Business rules:
+ *  - For each doctor with a schedule for the day, generate 30-min slots from
+ *    their working interval (startTime..endTime).
+ *  - A slot is considered "booked" if at least 1 non-cancelled appointment
+ *    falls within it (maximum 2 appointments per slot is the clinical limit,
+ *    but both 1 and 2 bookings count as exactly 1 booked slot).
+ *  - occupancyRate = bookedSlots / totalSlots × 100 (rounded to nearest integer).
+ *
+ * Query params:
+ *  - date     (YYYY-MM-DD, required)
+ *  - branchId (number, optional)
+ */
+router.get("/occupancy", async (req, res) => {
+  const { date, branchId } = req.query;
+
+  if (!date) {
+    return res.status(400).json({ error: "date is required (YYYY-MM-DD)" });
+  }
+
+  const parsed = parseClinicDay(date);
+  if (!parsed) {
+    return res.status(400).json({ error: "Invalid date format" });
+  }
+
+  const { localStart, localEnd } = parsed;
+  const [y, m, d] = String(date).split("-").map(Number);
+
+  let parsedBranchId = null;
+  if (branchId) {
+    const n = Number(branchId);
+    if (!Number.isNaN(n)) parsedBranchId = n;
+  }
+
+  try {
+    // 1. Fetch doctor schedules for the day
+    const scheduleWhere = { date: { gte: localStart, lte: localEnd } };
+    if (parsedBranchId !== null) scheduleWhere.branchId = parsedBranchId;
+
+    const doctorSchedules = await prisma.doctorSchedule.findMany({
+      where: scheduleWhere,
+      select: { doctorId: true, startTime: true, endTime: true },
+    });
+
+    if (doctorSchedules.length === 0) {
+      return res.json({ occupancyRate: 0, totalSlots: 0, bookedSlots: 0 });
+    }
+
+    // 2. Generate 30-min capacity slots per doctor (using server local time)
+    const SLOT_MS = 30 * 60 * 1000;
+    const capacitySlots = new Set();
+
+    for (const sched of doctorSchedules) {
+      const [sh, sm] = String(sched.startTime || "").split(":").map(Number);
+      const [eh, em] = String(sched.endTime || "").split(":").map(Number);
+
+      if (
+        !Number.isFinite(sh) ||
+        !Number.isFinite(sm) ||
+        !Number.isFinite(eh) ||
+        !Number.isFinite(em)
+      )
+        continue;
+
+      const schedStart = new Date(y, m - 1, d, sh, sm, 0, 0);
+      const schedEnd = new Date(y, m - 1, d, eh, em, 0, 0);
+
+      if (schedEnd <= schedStart) continue;
+
+      let slotStart = new Date(schedStart.getTime());
+      while (slotStart < schedEnd) {
+        capacitySlots.add(`${sched.doctorId}_${slotStart.getTime()}`);
+        slotStart = new Date(slotStart.getTime() + SLOT_MS);
+      }
+    }
+
+    if (capacitySlots.size === 0) {
+      return res.json({ occupancyRate: 0, totalSlots: 0, bookedSlots: 0 });
+    }
+
+    // 3. Fetch non-cancelled appointments for the day
+    const apptWhere = {
+      status: { not: "cancelled" },
+      scheduledAt: { gte: localStart, lte: localEnd },
+      doctorId: { not: null },
+    };
+    if (parsedBranchId !== null) apptWhere.branchId = parsedBranchId;
+
+    const appointments = await prisma.appointment.findMany({
+      where: apptWhere,
+      select: { doctorId: true, scheduledAt: true, endAt: true },
+    });
+
+    // 4. Mark booked slots: a slot is booked if ≥1 appointment overlaps it.
+    //    Multiple appointments in the same slot still count as 1 booked slot.
+    const bookedSlotKeys = new Set();
+
+    for (const appt of appointments) {
+      if (!appt.doctorId) continue;
+
+      const apptStart = new Date(appt.scheduledAt);
+      const apptEnd = appt.endAt
+        ? new Date(appt.endAt)
+        : new Date(apptStart.getTime() + SLOT_MS);
+
+      if (apptEnd <= apptStart) continue;
+
+      // Walk through all slots that overlap the appointment's time range.
+      // Floor the start to the nearest 30-min boundary relative to local midnight,
+      // so that the slot keys align with the capacity slots generated above.
+      const dayStartMs = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+      const minutesFromMidnight = apptStart.getTime() - dayStartMs;
+      let cur = new Date(
+        dayStartMs + Math.floor(minutesFromMidnight / SLOT_MS) * SLOT_MS
+      );
+      while (cur < apptEnd) {
+        const key = `${appt.doctorId}_${cur.getTime()}`;
+        if (capacitySlots.has(key)) {
+          bookedSlotKeys.add(key);
+        }
+        cur = new Date(cur.getTime() + SLOT_MS);
+      }
+    }
+
+    const totalSlots = capacitySlots.size;
+    const bookedSlotsCount = bookedSlotKeys.size;
+    const occupancyRate =
+      totalSlots === 0
+        ? 0
+        : Math.round((bookedSlotsCount / totalSlots) * 100);
+
+    return res.json({ occupancyRate, totalSlots, bookedSlots: bookedSlotsCount });
+  } catch (err) {
+    console.error("GET /appointments/occupancy error:", err);
+    return res.status(500).json({ error: "Failed to calculate occupancy rate." });
+  }
+});
+
+/**
  * POST /api/appointments
  *
  * Body:

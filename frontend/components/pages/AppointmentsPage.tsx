@@ -1337,10 +1337,18 @@ const [editingAppointment, setEditingAppointment] = useState<Appointment | null>
 // NEW: per‑day revenue
 const [dailyRevenue, setDailyRevenue] = useState<number | null>(null);
 
+// NEW: backend-computed occupancy rate for the selected day + branch
+const [apiOccupancy, setApiOccupancy] = useState<{
+  occupancyRate: number;
+  totalSlots: number;
+  bookedSlots: number;
+} | null>(null);
+
 // Request ID tracking to prevent stale fetch overwrites
 const appointmentsRequestIdRef = useRef(0);
 const scheduledDoctorsRequestIdRef = useRef(0);
 const revenueRequestIdRef = useRef(0);
+const occupancyRequestIdRef = useRef(0);
 
 
 type DraftAppointmentChange = {
@@ -1759,6 +1767,7 @@ const workingDoctorsForFilter = scheduledDoctors.length
     setScheduledDoctors([]);
     setGridDoctorsOverride(null);
     setDailyRevenue(null);
+    setApiOccupancy(null);
   }, [effectiveBranchId, filterDate]);
 
   // ---- Hydrate booking mode from bookPatientId query param ----
@@ -2076,7 +2085,49 @@ useEffect(() => {
 
   loadRevenue();
 }, [filterDate, effectiveBranchId]);
-  
+
+// ---- Load backend-computed occupancy rate for selected date + branch ----
+useEffect(() => {
+  const loadOccupancy = async () => {
+    try {
+      occupancyRequestIdRef.current += 1;
+      const currentRequestId = occupancyRequestIdRef.current;
+
+      const params = new URLSearchParams();
+      if (filterDate) params.set("date", filterDate);
+      if (effectiveBranchId) params.set("branchId", effectiveBranchId);
+
+      const res = await fetch(`/api/appointments/occupancy?${params.toString()}`);
+
+      if (currentRequestId !== occupancyRequestIdRef.current) return;
+
+      if (!res.ok) {
+        setApiOccupancy(null);
+        return;
+      }
+      const data = await res.json().catch(() => null);
+      if (
+        !data ||
+        typeof data.occupancyRate !== "number" ||
+        typeof data.totalSlots !== "number" ||
+        typeof data.bookedSlots !== "number"
+      ) {
+        setApiOccupancy(null);
+        return;
+      }
+      setApiOccupancy({
+        occupancyRate: data.occupancyRate,
+        totalSlots: data.totalSlots,
+        bookedSlots: data.bookedSlots,
+      });
+    } catch {
+      setApiOccupancy(null);
+    }
+  };
+
+  loadOccupancy();
+}, [filterDate, effectiveBranchId, lastSseEventAt]);
+
   // current time line
   useEffect(() => {
     const updateNow = () => {
@@ -3038,10 +3089,12 @@ const handleCancelDraft = (appointmentId: number) => {
       </div>
     </div>
     <div style={{ fontSize: 26, fontWeight: 700, color: "#111827" }}>
-      {fillingStats.percent}%
+      {apiOccupancy != null ? apiOccupancy.occupancyRate : fillingStats.percent}%
     </div>
     <div style={{ fontSize: 11, color: "#6b7280" }}>
-      {formatDateYmdDash(selectedDay)} өдрийн нийт цаг дүүргэлт
+      {apiOccupancy != null
+        ? `${apiOccupancy.bookedSlots}/${apiOccupancy.totalSlots} цаг захиалагдсан`
+        : `${formatDateYmdDash(selectedDay)} өдрийн нийт цаг дүүргэлт`}
     </div>
   </div>
 
