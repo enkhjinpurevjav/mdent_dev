@@ -893,25 +893,24 @@ router.get("/clinic", async (req, res) => {
 
     const branchIds = targetBranches.map((b) => b.id);
 
-    // ---------- fetch invoices (revenue) ----------
-    const invoices = await prisma.invoice.findMany({
-      where: {
-        createdAt: { gte: fromDate, lte: toDate },
-        statusLegacy: "paid",
-        encounter: {
-          patientBook: {
-            patient: { branchId: { in: branchIds } },
-          },
-        },
-      },
+    // ---------- fetch payments (revenue) – identical aggregation to Санхүү daily-income ----------
+    const paymentWhere = {
+      timestamp: { gte: fromDate, lte: toDate },
+    };
+    if (branchFilter) {
+      paymentWhere.invoice = { branchId: branchFilter };
+    }
+
+    const payments = await prisma.payment.findMany({
+      where: paymentWhere,
       select: {
-        totalAmount: true,
-        createdAt: true,
-        encounter: {
+        amount: true,
+        timestamp: true,
+        invoice: {
           select: {
-            doctorId: true,
-            patientBook: {
-              select: { patient: { select: { branchId: true } } },
+            branchId: true,
+            encounter: {
+              select: { doctorId: true },
             },
           },
         },
@@ -949,72 +948,90 @@ router.get("/clinic", async (req, res) => {
       },
     });
 
-    // ---------- pre-group by date ----------
-    // invoices by date
-    const invoiceByDate = {};
-    const invoiceByBranch = {};
-    const invoiceByDoctor = {};
-    for (const inv of invoices) {
-      const date = inv.createdAt.toISOString().slice(0, 10);
-      const bId = inv.encounter?.patientBook?.patient?.branchId;
-      const dId = inv.encounter?.doctorId;
-      const amt = Number(inv.totalAmount || 0);
+    // ---------- pre-group revenue by date/branch/doctor ----------
+    const revenueByDate = {};
+    const revenueByBranch = {};
+    const revenueByDoctor = {};
+    // per-branch-per-date revenue for stacked bar charts
+    const revenueByBranchDate = {}; // { [branchId]: { [date]: number } }
 
-      invoiceByDate[date] = (invoiceByDate[date] || 0) + amt;
-      if (bId) invoiceByBranch[bId] = (invoiceByBranch[bId] || 0) + amt;
-      if (dId) invoiceByDoctor[dId] = (invoiceByDoctor[dId] || 0) + amt;
+    for (const p of payments) {
+      const date = p.timestamp.toISOString().slice(0, 10);
+      const bId = p.invoice?.branchId;
+      const dId = p.invoice?.encounter?.doctorId;
+      const amt = Number(p.amount || 0);
+
+      revenueByDate[date] = (revenueByDate[date] || 0) + amt;
+      if (bId) {
+        revenueByBranch[bId] = (revenueByBranch[bId] || 0) + amt;
+        if (!revenueByBranchDate[bId]) revenueByBranchDate[bId] = {};
+        revenueByBranchDate[bId][date] = (revenueByBranchDate[bId][date] || 0) + amt;
+      }
+      if (dId) revenueByDoctor[dId] = (revenueByDoctor[dId] || 0) + amt;
     }
 
-    // completed appointments by date
+    // ---------- completed appointments by date/branch/doctor ----------
     const completedByDate = {};
     const completedByBranch = {};
     const completedByDoctor = {};
+    // per-branch-per-date for stacked bar charts
+    const completedByBranchDate = {}; // { [branchId]: { [date]: number } }
+
     for (const appt of appointments) {
       const s = appt.status?.toLowerCase();
       if (s !== "completed") continue;
       const date = appt.scheduledAt.toISOString().slice(0, 10);
       completedByDate[date] = (completedByDate[date] || 0) + 1;
-      completedByBranch[appt.branchId] =
-        (completedByBranch[appt.branchId] || 0) + 1;
+      completedByBranch[appt.branchId] = (completedByBranch[appt.branchId] || 0) + 1;
+      if (!completedByBranchDate[appt.branchId]) completedByBranchDate[appt.branchId] = {};
+      completedByBranchDate[appt.branchId][date] =
+        (completedByBranchDate[appt.branchId][date] || 0) + 1;
       if (appt.doctorId)
-        completedByDoctor[appt.doctorId] =
-          (completedByDoctor[appt.doctorId] || 0) + 1;
+        completedByDoctor[appt.doctorId] = (completedByDoctor[appt.doctorId] || 0) + 1;
     }
 
-    // schedules: available minutes and unique doctors per date/branch
-    const schedByDate = {}; // date -> { availMins, doctorSet, branchSet }
+    // ---------- schedules: available minutes and unique doctors per date/branch ----------
+    const schedByDate = {}; // date -> { availMins, doctorSet }
     const schedByBranch = {}; // branchId -> { availMins, doctorSet }
     const schedByDoctor = {}; // doctorId -> { availMins, scheduledDays }
+    // per-branch-per-date schedule data
+    const schedByBranchDate = {}; // { [branchId]: { [date]: { availMins, doctorSet } } }
+
     for (const sch of schedules) {
-      const date = sch.date instanceof Date
-        ? sch.date.toISOString().slice(0, 10)
-        : String(sch.date).slice(0, 10);
+      const date =
+        sch.date instanceof Date
+          ? sch.date.toISOString().slice(0, 10)
+          : String(sch.date).slice(0, 10);
       const avail = hmToMin(sch.endTime) - hmToMin(sch.startTime);
       if (avail <= 0) continue;
 
-      if (!schedByDate[date]) {
-        schedByDate[date] = { availMins: 0, doctorSet: new Set() };
-      }
+      if (!schedByDate[date]) schedByDate[date] = { availMins: 0, doctorSet: new Set() };
       schedByDate[date].availMins += avail;
       schedByDate[date].doctorSet.add(sch.doctorId);
 
-      if (!schedByBranch[sch.branchId]) {
+      if (!schedByBranch[sch.branchId])
         schedByBranch[sch.branchId] = { availMins: 0, doctorSet: new Set() };
-      }
       schedByBranch[sch.branchId].availMins += avail;
       schedByBranch[sch.branchId].doctorSet.add(sch.doctorId);
 
-      if (!schedByDoctor[sch.doctorId]) {
+      if (!schedByDoctor[sch.doctorId])
         schedByDoctor[sch.doctorId] = { availMins: 0, scheduledDays: 0 };
-      }
       schedByDoctor[sch.doctorId].availMins += avail;
       schedByDoctor[sch.doctorId].scheduledDays += 1;
+
+      if (!schedByBranchDate[sch.branchId]) schedByBranchDate[sch.branchId] = {};
+      if (!schedByBranchDate[sch.branchId][date])
+        schedByBranchDate[sch.branchId][date] = { availMins: 0, doctorSet: new Set() };
+      schedByBranchDate[sch.branchId][date].availMins += avail;
+      schedByBranchDate[sch.branchId][date].doctorSet.add(sch.doctorId);
     }
 
-    // booked appointment minutes per date/branch/doctor
+    // ---------- booked appointment minutes per date/branch/doctor ----------
     const bookedByDate = {};
     const bookedByBranch = {};
     const bookedByDoctor = {};
+    const bookedByBranchDate = {}; // { [branchId]: { [date]: number } }
+
     const DEFAULT_SLOT = 30; // minutes if endAt is null
     for (const appt of appointments) {
       const s = appt.status?.toLowerCase();
@@ -1023,38 +1040,51 @@ router.get("/clinic", async (req, res) => {
       let mins = DEFAULT_SLOT;
       if (appt.endAt) {
         const diff =
-          (new Date(appt.endAt).getTime() -
-            new Date(appt.scheduledAt).getTime()) /
-          60000;
+          (new Date(appt.endAt).getTime() - new Date(appt.scheduledAt).getTime()) / 60000;
         if (diff > 0) mins = diff;
       }
       bookedByDate[date] = (bookedByDate[date] || 0) + mins;
-      bookedByBranch[appt.branchId] =
-        (bookedByBranch[appt.branchId] || 0) + mins;
+      bookedByBranch[appt.branchId] = (bookedByBranch[appt.branchId] || 0) + mins;
+      if (!bookedByBranchDate[appt.branchId]) bookedByBranchDate[appt.branchId] = {};
+      bookedByBranchDate[appt.branchId][date] =
+        (bookedByBranchDate[appt.branchId][date] || 0) + mins;
       if (appt.doctorId)
-        bookedByDoctor[appt.doctorId] =
-          (bookedByDoctor[appt.doctorId] || 0) + mins;
+        bookedByDoctor[appt.doctorId] = (bookedByDoctor[appt.doctorId] || 0) + mins;
     }
 
-    // ---------- daily data array ----------
+    // ---------- daily data array (totals) ----------
     const days = eachDay(fromDate, toDate);
     const dailyData = days.map((date) => {
-      const revenue = invoiceByDate[date] || 0;
+      const revenue = revenueByDate[date] || 0;
       const availMins = schedByDate[date]?.availMins || 0;
       const bookedMins = bookedByDate[date] || 0;
-      const occupancyPct =
-        availMins > 0 ? Math.round((bookedMins / availMins) * 100) : 0;
+      const occupancyPct = availMins > 0 ? Math.round((bookedMins / availMins) * 100) : 0;
       const doctorCount = schedByDate[date]?.doctorSet?.size || 0;
       const completedAppointments = completedByDate[date] || 0;
       return { date, revenue, occupancyPct, doctorCount, completedAppointments };
     });
 
-    // ---------- branch breakdowns ----------
+    // ---------- per-branch daily data (for stacked bar charts) ----------
+    const branchDailyData = targetBranches.map((b) => ({
+      branchId: b.id,
+      branchName: b.name,
+      daily: days.map((date) => {
+        const revenue = revenueByBranchDate[b.id]?.[date] || 0;
+        const availMins = schedByBranchDate[b.id]?.[date]?.availMins || 0;
+        const bookedMins = bookedByBranchDate[b.id]?.[date] || 0;
+        const occupancyPct = availMins > 0 ? Math.round((bookedMins / availMins) * 100) : 0;
+        const doctorCount = schedByBranchDate[b.id]?.[date]?.doctorSet?.size || 0;
+        const completedAppointments = completedByBranchDate[b.id]?.[date] || 0;
+        return { date, revenue, occupancyPct, doctorCount, completedAppointments };
+      }),
+    }));
+
+    // ---------- branch breakdowns (pie chart totals) ----------
     const branchBreakdown = {
       revenue: targetBranches.map((b) => ({
         branchId: b.id,
         branchName: b.name,
-        value: invoiceByBranch[b.id] || 0,
+        value: revenueByBranch[b.id] || 0,
       })),
       occupancy: targetBranches.map((b) => {
         const avail = schedByBranch[b.id]?.availMins || 0;
@@ -1080,10 +1110,9 @@ router.get("/clinic", async (req, res) => {
     // ---------- doctor breakdowns (only if branch is filtered) ----------
     let doctorBreakdown = null;
     if (branchFilter) {
-      // get doctor names
       const doctorIds = [
         ...new Set([
-          ...Object.keys(invoiceByDoctor).map(Number),
+          ...Object.keys(revenueByDoctor).map(Number),
           ...Object.keys(completedByDoctor).map(Number),
           ...Object.keys(schedByDoctor).map(Number),
         ]),
@@ -1104,7 +1133,7 @@ router.get("/clinic", async (req, res) => {
           doctorName: docMap[dId]
             ? [docMap[dId].ovog, docMap[dId].name].filter(Boolean).join(" ")
             : `Эмч #${dId}`,
-          value: invoiceByDoctor[dId] || 0,
+          value: revenueByDoctor[dId] || 0,
         })),
         occupancy: doctorIds.map((dId) => {
           const avail = schedByDoctor[dId]?.availMins || 0;
@@ -1134,30 +1163,29 @@ router.get("/clinic", async (req, res) => {
       };
     }
 
-    // ---------- top cards ----------
+    // ---------- top cards (always use today's data, independent of range) ----------
     const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const todayDateStr = today.toISOString().slice(0, 10);
 
-    // today's revenue
-    const todayRevenue = invoiceByDate[todayStr] || 0;
+    // today's revenue from payments (same logic, but fetched within main range if today is in it)
+    const todayRevenue = revenueByDate[todayDateStr] || 0;
 
     // today's occupancy
-    const todayAvail = schedByDate[todayStr]?.availMins || 0;
-    const todayBooked = bookedByDate[todayStr] || 0;
+    const todayAvail = schedByDate[todayDateStr]?.availMins || 0;
+    const todayBooked = bookedByDate[todayDateStr] || 0;
     const todayOccupancyPct =
       todayAvail > 0 ? Math.round((todayBooked / todayAvail) * 100) : 0;
 
-    // monthly average: days 1..today for the current month that are within the requested range
+    // monthly average: days 1..today for the current month
     const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const monthStart = firstOfMonth > fromDate ? firstOfMonth : fromDate;
     const monthEnd = today < toDate ? today : toDate;
-    const monthDays = eachDay(monthStart, monthEnd);
-    const monthTotal = monthDays.reduce(
-      (sum, d) => sum + (invoiceByDate[d] || 0),
-      0
-    );
-    const monthlyAvgRevenue =
-      monthDays.length > 0 ? Math.round(monthTotal / monthDays.length) : 0;
+    let monthlyAvgRevenue = 0;
+    if (monthStart <= monthEnd) {
+      const monthDays = eachDay(monthStart, monthEnd);
+      const monthTotal = monthDays.reduce((sum, d) => sum + (revenueByDate[d] || 0), 0);
+      monthlyAvgRevenue = Math.round(monthTotal / monthDays.length);
+    }
 
     return res.json({
       topCards: {
@@ -1165,7 +1193,9 @@ router.get("/clinic", async (req, res) => {
         todayOccupancyPct,
         monthlyAvgRevenue,
       },
+      branches: targetBranches,
       dailyData,
+      branchDailyData,
       branchBreakdown,
       doctorBreakdown,
     });
