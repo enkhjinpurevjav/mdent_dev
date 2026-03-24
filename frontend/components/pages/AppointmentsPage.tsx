@@ -812,7 +812,7 @@ if (quickPatientForm.regNo.trim()) {
             setError("");
           }}
           required
-          disabled={!form.date || workingDoctors.length === 0} className="rounded border border-gray-300 py-1.5 px-2" style={{ background: (!form.date || workingDoctors.length === 0) ? "#f3f4f6" : undefined }}
+          disabled={!form.date || workingDoctors.length === 0} className="rounded border border-gray-300 py-1.5 px-2 disabled:bg-gray-100"
         >
           {!form.date ? (
             <option value="">Эхлээд огноо сонгоно уу.</option>
@@ -885,7 +885,7 @@ if (quickPatientForm.regNo.trim()) {
                   : prev.endTime,
               }));
               setError("");
-            }} className="rounded-full py-[4px] px-[14px] cursor-pointer text-[13px]" style={{ border: durationMinutes === mins ? "1px solid #2563eb" : "1px solid #d1d5db", background: durationMinutes === mins ? "#eff6ff" : "#fff", color: durationMinutes === mins ? "#2563eb" : "#374151", fontWeight: durationMinutes === mins ? 600 : 400 }}
+            }} className={`rounded-full py-[4px] px-[14px] cursor-pointer text-[13px] ${durationMinutes === mins ? 'border border-blue-500 bg-blue-50 text-blue-600 font-semibold' : 'border border-gray-300 bg-white text-gray-700 font-normal'}`}
           >
             {mins} мин
           </button>
@@ -1063,14 +1063,14 @@ if (quickPatientForm.regNo.trim()) {
                       setShowQuickPatientModal(false);
                       setQuickPatientError("");
                     }
-                  }} className="py-1.5 px-3 rounded border border-gray-300 bg-gray-50" style={{ cursor: quickPatientSaving ? "default" : "pointer" }}
+                  }} className={`py-1.5 px-3 rounded border border-gray-300 bg-gray-50 ${quickPatientSaving ? 'cursor-default' : 'cursor-pointer'}`}
                 >
                   Цуцлах
                 </button>
                 <button
                   type="button"
                   onClick={handleQuickPatientSave}
-                  disabled={quickPatientSaving} className="py-1.5 px-3 rounded border-0 bg-green-600 text-white" style={{ cursor: quickPatientSaving ? "default" : "pointer" }}
+                  disabled={quickPatientSaving} className="py-1.5 px-3 rounded border-0 bg-green-600 text-white disabled:cursor-default"
                 >
                   {quickPatientSaving ? "Хадгалж байна..." : "Хадгалах"}
                 </button>
@@ -2908,7 +2908,7 @@ const handleCancelDraft = (appointmentId: number) => {
                     { shallow: true }
                   );
                 }}
-                disabled={isLocked} className="rounded border border-gray-300 py-1.5 px-2 flex-1" style={{ background: isLocked ? "#f3f4f6" : "white", cursor: isLocked ? "not-allowed" : "pointer", opacity: isLocked ? 0.6 : 1 }}
+                disabled={isLocked} className="rounded border border-gray-300 py-1.5 px-2 flex-1 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <option value="">Бүх салбар</option>
                 {branches.map((b) => (
@@ -3110,14 +3110,14 @@ const handleCancelDraft = (appointmentId: number) => {
             <button
               type="button"
               onClick={() => handleSaveDraft(pendingSaveId)}
-              disabled={pendingSaving} className="py-[7px] px-[16px] rounded border-0 bg-blue-600 text-white text-[13px] font-semibold whitespace-nowrap" style={{ cursor: pendingSaving ? "default" : "pointer", opacity: pendingSaving ? 0.6 : 1 }}
+              disabled={pendingSaving} className="py-[7px] px-[16px] rounded border-0 bg-blue-600 text-white text-[13px] font-semibold whitespace-nowrap disabled:cursor-default disabled:opacity-60"
             >
               {pendingSaving ? "Хадгалж байна..." : "Хадгалах"}
             </button>
             <button
               type="button"
               onClick={() => handleCancelDraft(pendingSaveId)}
-              disabled={pendingSaving} className="py-[7px] px-[16px] rounded border border-gray-300 bg-white text-gray-700 text-[13px] font-semibold whitespace-nowrap" style={{ cursor: pendingSaving ? "default" : "pointer", opacity: pendingSaving ? 0.6 : 1 }}
+              disabled={pendingSaving} className="py-[7px] px-[16px] rounded border border-gray-300 bg-white text-gray-700 text-[13px] font-semibold whitespace-nowrap disabled:cursor-default disabled:opacity-60"
             >
               Цуцлах
             </button>
@@ -3188,14 +3188,14 @@ const handleCancelDraft = (appointmentId: number) => {
                         type="button"
                         onClick={() => moveDocInGrid(doc.id, "left")}
                         disabled={isLeftDisabled}
-                        title="Зүүн тийш зөөх" className="text-[11px] py-[1px] px-[5px]" style={{ cursor: isLeftDisabled ? "default" : "pointer", opacity: isLeftDisabled ? 0.3 : 1 }}
+                        title="Зүүн тийш зөөх" className="text-[11px] py-[1px] px-[5px] disabled:cursor-default disabled:opacity-30"
                       >◀</button>
                       <span>{formatDoctorName(doc)}</span>
                       <button
                         type="button"
                         onClick={() => moveDocInGrid(doc.id, "right")}
                         disabled={isRightDisabled}
-                        title="Баруун тийш зөөх" className="text-[11px] py-[1px] px-[5px]" style={{ cursor: isRightDisabled ? "default" : "pointer", opacity: isRightDisabled ? 0.3 : 1 }}
+                        title="Баруун тийш зөөх" className="text-[11px] py-[1px] px-[5px] disabled:cursor-default disabled:opacity-30"
                       >▶</button>
                     </div>
                     <div className="text-[11px] text-gray-500 mt-[2px]"
@@ -3780,7 +3780,7 @@ const handleCancelDraft = (appointmentId: number) => {
           <select
             value={exceptionalDoctorId}
             onChange={(e) => setExceptionalDoctorId(e.target.value)}
-            disabled={!exceptionalBranchId} className="rounded border border-gray-300 py-1.5 px-2" style={{ background: !exceptionalBranchId ? "#f3f4f6" : undefined }}
+            disabled={!exceptionalBranchId} className="rounded border border-gray-300 py-1.5 px-2 disabled:bg-gray-100"
           >
             <option value="">{exceptionalBranchId ? "Эмч сонгох" : "Эхлээд салбар сонгоно уу"}</option>
             {exceptionalBranchId && doctors
@@ -3811,7 +3811,7 @@ const handleCancelDraft = (appointmentId: number) => {
           <select
             value={exceptionalStartTime}
             onChange={(e) => setExceptionalStartTime(e.target.value)}
-            disabled={!exceptionalDate} className="rounded border border-gray-300 py-1.5 px-2" style={{ background: !exceptionalDate ? "#f3f4f6" : undefined }}
+            disabled={!exceptionalDate} className="rounded border border-gray-300 py-1.5 px-2 disabled:bg-gray-100"
           >
             <option value="">Цаг сонгох</option>
             {exceptionalDate &&
@@ -3851,14 +3851,14 @@ const handleCancelDraft = (appointmentId: number) => {
           <button
             type="button"
             onClick={() => setShowExceptional(false)}
-            disabled={exceptionalSaving} className="py-2 px-4 rounded border border-gray-300 bg-gray-50 text-[13px]" style={{ cursor: exceptionalSaving ? "default" : "pointer" }}
+            disabled={exceptionalSaving} className="py-2 px-4 rounded border border-gray-300 bg-gray-50 text-[13px] disabled:cursor-default"
           >
             Цуцлах
           </button>
           <button
             type="button"
             onClick={handleExceptionalSubmit}
-            disabled={exceptionalSaving} className="py-2 px-4 rounded border-0 bg-slate-800 text-white text-[13px] font-semibold" style={{ cursor: exceptionalSaving ? "default" : "pointer", opacity: exceptionalSaving ? 0.7 : 1 }}
+            disabled={exceptionalSaving} className="py-2 px-4 rounded border-0 bg-slate-800 text-white text-[13px] font-semibold disabled:cursor-default disabled:opacity-70"
           >
             {exceptionalSaving ? "Хадгалж байна..." : "Захиалах"}
           </button>
@@ -3959,14 +3959,14 @@ const handleCancelDraft = (appointmentId: number) => {
                 setFilterQuickPatientOpen(false);
                 setFilterQuickPatientError("");
               }
-            }} className="py-1.5 px-3 rounded border border-gray-300 bg-gray-50" style={{ cursor: filterQuickPatientSaving ? "default" : "pointer" }}
+            }} className={`py-1.5 px-3 rounded border border-gray-300 bg-gray-50 ${filterQuickPatientSaving ? 'cursor-default' : 'cursor-pointer'}`}
           >
             Цуцлах
           </button>
           <button
             type="button"
             onClick={handleFilterQuickPatientSave}
-            disabled={filterQuickPatientSaving} className="py-1.5 px-3 rounded border-0 bg-green-600 text-white" style={{ cursor: filterQuickPatientSaving ? "default" : "pointer" }}
+            disabled={filterQuickPatientSaving} className="py-1.5 px-3 rounded border-0 bg-green-600 text-white disabled:cursor-default"
           >
             {filterQuickPatientSaving ? "Хадгалж байна..." : "Хадгалах"}
           </button>
