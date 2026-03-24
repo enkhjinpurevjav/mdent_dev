@@ -2094,12 +2094,15 @@ function clientYToMinutesFromStart(clientY: number, columnTop: number) {
 }
 
 // Determine doctor column from mouse X.
-// You have 80px time column, then each doctor column = 180px
+// Measures time column (data-time-col) and first doctor column (data-doc-col) from DOM.
 function clientXToDoctorId(clientX: number, gridLeft: number) {
-  const TIME_COL_W = 80;
-  const DOC_COL_W = 180;
+  const timeColEl = gridRef.current?.querySelector<HTMLElement>('[data-time-col="true"]');
+  const docColEl = gridRef.current?.querySelector<HTMLElement>('[data-doc-col="true"]');
+  const TIME_COL_W = timeColEl ? timeColEl.getBoundingClientRect().width : 90;
+  const DOC_COL_W = docColEl ? docColEl.getBoundingClientRect().width : 160;
+  const scrollLeft = gridRef.current?.scrollLeft ?? 0;
 
-  const xWithin = clientX - gridLeft - TIME_COL_W;
+  const xWithin = clientX - gridLeft + scrollLeft - TIME_COL_W;
   const idx = Math.floor(xWithin / DOC_COL_W);
   if (idx < 0 || idx >= gridDoctors.length) return null;
   return gridDoctors[idx].id;
@@ -2398,6 +2401,28 @@ const getStatusColor = (status: string): string => {
   }
 };
 
+// Returns white for dark backgrounds, dark text for light backgrounds (WCAG contrast).
+const getStatusTextColor = (status: string): string => {
+  switch (status) {
+    case "confirmed":
+    case "online":
+    case "ongoing":
+    case "imaging":
+    case "no_show":
+    case "cancelled":
+      return "#ffffff";
+    case "completed":
+      return "#14532d"; // dark green on light-green bg
+    case "ready_to_pay":
+    case "partial_paid":
+      return "#78350f"; // dark amber on yellow bg
+    case "other":
+      return "#1e293b"; // dark slate on gray bg
+    default:
+      return "#1e3a5f"; // dark blue on light-blue bg
+  }
+};
+
 // ---- Drag/Resize handlers ----
 useEffect(() => {
   if (!activeDrag) return;
@@ -2411,8 +2436,11 @@ useEffect(() => {
     const gridLeft = gridRect.left;
     const gridTop = gridRect.top;
 
-    const TIME_COL_W = 80;
-    const DOC_COL_W = 180;
+    const timeColEl = gridRef.current.querySelector<HTMLElement>('[data-time-col="true"]');
+    const docColEl = gridRef.current.querySelector<HTMLElement>('[data-doc-col="true"]');
+    const TIME_COL_W = timeColEl ? timeColEl.getBoundingClientRect().width : 90;
+    const DOC_COL_W = docColEl ? docColEl.getBoundingClientRect().width : 160;
+    const scrollLeft = gridRef.current.scrollLeft;
 
     // Calculate distance moved from start
     const deltaX = Math.abs(e.clientX - activeDrag.startClientX);
@@ -2437,7 +2465,7 @@ useEffect(() => {
       const newEnd = new Date(firstSlot.getTime() + clampedEnd * 60000);
 
       // Check which doctor column
-      const xWithin = e.clientX - gridLeft - TIME_COL_W;
+      const xWithin = e.clientX - gridLeft + scrollLeft - TIME_COL_W;
       const docIdx = Math.floor(xWithin / DOC_COL_W);
       const newDoctorId = (docIdx >= 0 && docIdx < gridDoctors.length) 
         ? gridDoctors[docIdx].id 
@@ -3161,13 +3189,14 @@ const handleCancelDraft = (appointmentId: number) => {
     </div>
   ) : (
    <div
-  ref={gridRef} className="border border-[#ddd] rounded-lg text-xs overflow-x-auto overflow-y-visible relative" style={{ WebkitOverflowScrolling: "touch" }}
+  ref={gridRef} className="border border-[#ddd] rounded-lg text-xs overflow-x-auto overflow-y-visible relative [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full" style={{ WebkitOverflowScrolling: "touch" }}
 >
+  {/* Inner min-width wrapper so flex columns don't collapse when overflow-x-auto kicks in */}
+  <div className="min-w-max">
 
             {/* Header row */}
-                        <div className="grid bg-[#f5f5f5] border-b border-[#ddd] top-0 z-[20]" style={{ gridTemplateColumns: `80px repeat(${gridDoctors.length}, 180px)`, minWidth: 80 + gridDoctors.length * 180 }}
-            >
-              <div className="p-2 font-bold sticky left-0 bg-[#f5f5f5] z-[25] [transform:translateZ(0)]">Цаг</div>
+            <div className="flex bg-[#f5f5f5] border-b border-[#ddd] sticky top-0 z-[20]">
+              <div data-time-col="true" className="w-[90px] shrink-0 p-2 font-bold sticky left-0 bg-[#f5f5f5] z-[25] [transform:translateZ(0)]">Цаг</div>
               {gridDoctors.map((doc, idx) => {
                 // Count visible appointments: matching day + branch + not cancelled
                 const count = appointments.filter((a) => {
@@ -3181,7 +3210,7 @@ const handleCancelDraft = (appointmentId: number) => {
                 const isRightDisabled = reorderSaving || idx === gridDoctors.length - 1;
                 return (
                   <div
-                    key={doc.id} className="p-2 font-bold text-center border-l border-[#ddd]"
+                    key={doc.id} className="flex-1 min-w-[160px] p-2 font-bold text-center border-l border-[#ddd]"
                   >
                     <div className="flex items-center justify-center gap-1">
                       <button
@@ -3208,19 +3237,15 @@ const handleCancelDraft = (appointmentId: number) => {
             </div>
 
             {/* Body: time labels + doctor columns */}
-                       <div className="grid" style={{ gridTemplateColumns: `80px repeat(${gridDoctors.length}, 180px)` }}
-            >
+            <div className="flex relative">
               {/* CURRENT TIME LINE */}
               {nowPosition !== null && (
-                <div className="relative h-[0px] pointer-events-none" style={{ gridColumn: `1 / span ${gridDoctors.length + 1}` }}
-                >
-                  <div className="absolute left-0 right-0 z-[5]" style={{ top: nowPosition, borderTop: "2px dashed #ef4444" }}
-                  />
-                </div>
+                <div className="absolute left-0 right-0 z-[5] pointer-events-none" style={{ top: nowPosition, borderTop: "2px dashed #ef4444" }}
+                />
               )}
 
               {/* Time labels / background grid */}
-              <div className="border-r border-[#ddd] sticky left-0 z-[15] bg-[#fafafa] [transform:translateZ(0)]" style={{ height: columnHeightPx }}
+              <div data-time-col="true" className="w-[90px] shrink-0 border-r border-[#ddd] sticky left-0 z-[15] bg-[#fafafa] [transform:translateZ(0)] relative" style={{ height: columnHeightPx }}
               >
                 {timeSlots.map((slot, index) => {
                   const slotStartMin =
@@ -3230,7 +3255,7 @@ const handleCancelDraft = (appointmentId: number) => {
 
                   return (
                     <div
-                      key={index} className="absolute left-0 right-0 border-b border-[#f0f0f0] pl-[6px] flex items-center text-[11px]" style={{ top: (slotStartMin / totalMinutes) * columnHeightPx, height: slotHeight, backgroundColor: index % 2 === 0 ? "#fafafa" : "#ffffff" }}
+                      key={index} className="absolute left-0 right-0 border-b border-[#e9ecef] pl-[6px] flex items-center text-[11px] text-gray-500 font-medium" style={{ top: (slotStartMin / totalMinutes) * columnHeightPx, height: slotHeight, backgroundColor: index % 2 === 0 ? "#fafafa" : "#ffffff" }}
                     >
                       {slot.label}
                     </div>
@@ -3318,7 +3343,7 @@ const handleCancelDraft = (appointmentId: number) => {
 
                 return (
                   <div
-                    key={doc.id} className="border-l border-[#f0f0f0] relative bg-white" style={{ height: columnHeightPx }}
+                    key={doc.id} data-doc-col="true" className="flex-1 min-w-[160px] border-l border-[#e5e7eb] relative bg-white" style={{ height: columnHeightPx }}
                   >
                     {/* background stripes & click areas */}
                     {timeSlots.map((slot, index) => {
@@ -3360,12 +3385,12 @@ const handleCancelDraft = (appointmentId: number) => {
                             isNonWorking
                               ? undefined
                               : handleCellClick(slotStartMin, appsInThisSlot)
-                          } className="absolute left-0 right-0 border-b border-[#f0f0f0]" style={{ top: (slotStartMin / totalMinutes) *
+                          } className="absolute left-0 right-0 border-b border-[#e9ecef]" style={{ top: (slotStartMin / totalMinutes) *
                               columnHeightPx, height: slotHeight, backgroundColor: isNonWorking
-                              ? "#ffc26b"
+                              ? "#ffe8c8"
                               : index % 2 === 0
                               ? "#ffffff"
-                              : "#fafafa", cursor: isNonWorking
+                              : "#f8fafc", cursor: isNonWorking
                               ? "not-allowed"
                               : "pointer" }}
                         />
@@ -3490,16 +3515,13 @@ const handleCancelDraft = (appointmentId: number) => {
                         <div
                           key={a.id}
                           onMouseDown={canEdit ? (e) => handleMouseDown(e, "move") : undefined}
-                          onClick={handleBlockClick} className="absolute py-[1px] px-[3px] box-border rounded text-[11px] leading-tight flex items-center justify-center text-center overflow-hidden break-words select-none" style={{ left: `${leftPercent}%`, width: `${widthPercent}%`, backgroundColor: getStatusColor(a.status), border: isDragging 
-                              ? "2px solid #2563eb" 
-                              : hasPendingSave 
+                          onClick={handleBlockClick} className="absolute px-[5px] py-[2px] box-border rounded-md text-[11px] leading-snug flex flex-col justify-center overflow-hidden select-none" style={{ left: `${leftPercent}%`, width: `${widthPercent}%`, backgroundColor: getStatusColor(a.status), border: isDragging
+                              ? "2px solid #2563eb"
+                              : hasPendingSave
                                 ? "2px solid #f59e0b"
-                                : "1px solid rgba(0,0,0,0.08)", color: a.status === "completed" ||
-                              a.status === "cancelled"
-                                ? "#ffffff"
-                                : "#1F2937", boxShadow: isDragging 
-                              ? "0 4px 12px rgba(37,99,235,0.5)" 
-                              : "0 1px 3px rgba(0,0,0,0.25)", cursor: canEdit ? "move" : "pointer", opacity: isDragging ? 0.8 : 1, zIndex: isDragging || hasPendingSave ? 10 : 1, animation: a.status === "ready_to_pay" && !isDragging
+                                : "1.5px solid rgba(0,0,0,0.12)", color: getStatusTextColor(a.status), boxShadow: isDragging
+                              ? "0 4px 12px rgba(37,99,235,0.5)"
+                              : "0 1px 4px rgba(0,0,0,0.18)", cursor: canEdit ? "move" : "pointer", opacity: isDragging ? 0.8 : 1, zIndex: isDragging || hasPendingSave ? 10 : 1, animation: a.status === "ready_to_pay" && !isDragging
                               ? "readyToPayPulse 1.4s ease-in-out infinite, readyToPayBlink 1.4s ease-in-out infinite"
                               : undefined }}
                           title={`${formatPatientLabel(
@@ -3507,14 +3529,13 @@ const handleCancelDraft = (appointmentId: number) => {
                             a.patientId
                           )} (${formatStatus(a.status)})`}
                         >
-                          {`${formatGridShortLabel(a)} (${formatStatus(
-                            a.status
-                          )})`}
-                          
+                          <span className="font-semibold truncate">{formatGridShortLabel(a)}</span>
+                          <span className="opacity-80 truncate">{formatStatus(a.status)}</span>
+
                           {/* Resize handle at bottom */}
                           {canEdit && !isDragging && (
                             <div
-                              onMouseDown={(e) => handleMouseDown(e, "resize")} className="absolute bottom-0 left-0 right-0 h-[6px] cursor-[ns-resize] bg-black/10 rounded-bl rounded-br"
+                              onMouseDown={(e) => handleMouseDown(e, "resize")} className="absolute bottom-0 left-0 right-0 h-[6px] cursor-[ns-resize] bg-black/15 rounded-bl-md rounded-br-md"
                               title="Drag to resize"
                             />
                           )}
@@ -3526,6 +3547,7 @@ const handleCancelDraft = (appointmentId: number) => {
               })}
             </div>
           </div>
+        </div>
         )}
       </section>
 
