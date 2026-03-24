@@ -46,10 +46,12 @@ function canReceptionEditAppointment(status: string) {
   return ["booked", "confirmed", "online", "other"].includes(String(status || "").toLowerCase());
 }
 
-/** Returns true if the current user is allowed to edit the given appointment. */
+/** Returns true if the current user is allowed to drag/move/resize the given appointment. */
 function canEditAppointment(status: string, role: string | null | undefined): boolean {
-  if (String(status || "").toLowerCase() === "completed") {
-    return role === "super_admin";
+  const s = String(status || "").toLowerCase();
+  // Completed and ongoing appointments cannot be dragged or rescheduled
+  if (s === "completed" || s === "ongoing") {
+    return false;
   }
   return canReceptionEditAppointment(status);
 }
@@ -3746,31 +3748,20 @@ const handleCancelDraft = (appointmentId: number) => {
   ) : (
    <div
   ref={gridRef}
-  style={{
-    border: "1px solid #ddd",
-    borderRadius: 8,
-    fontSize: 12,
-    overflowX: "auto",
-    overflowY: "visible",
-    position: "relative",
-    WebkitOverflowScrolling: "touch",
-  }}
+  className="border border-[#ddd] rounded-lg text-xs overflow-x-auto overflow-y-visible relative"
+  style={{ WebkitOverflowScrolling: "touch" }}
 >
 
             {/* Header row */}
                         <div
+              className="sticky top-0 z-[20] bg-[#f5f5f5] border-b border-[#ddd]"
               style={{
                 display: "grid",
                 gridTemplateColumns: `80px repeat(${gridDoctors.length}, 180px)`,
-                backgroundColor: "#f5f5f5",
-                borderBottom: "1px solid #ddd",
-                minWidth: 80 + gridDoctors.length * 180, // ensure horizontal scroll
-                position: "sticky",
-                top: 0,
-                zIndex: 20,
+                minWidth: 80 + gridDoctors.length * 180,
               }}
             >
-              <div style={{ padding: 8, fontWeight: "bold", position: "sticky", left: 0, backgroundColor: "#f5f5f5", zIndex: 25, transform: "translateZ(0)" }}>Цаг</div>
+              <div className="p-2 font-bold sticky left-0 bg-[#f5f5f5] z-[25]" style={{ transform: "translateZ(0)" }}>Цаг</div>
               {gridDoctors.map((doc, idx) => {
                 // Count visible appointments: matching day + branch + not cancelled
                 const count = appointments.filter((a) => {
@@ -3785,22 +3776,16 @@ const handleCancelDraft = (appointmentId: number) => {
                 return (
                   <div
                     key={doc.id}
-                    style={{
-                      padding: 8,
-                      fontWeight: "bold",
-                      textAlign: "center",
-                      borderLeft: "1px solid #ddd",
-                    }}
+                    className="p-2 font-bold text-center border-l border-[#ddd]"
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                    <div className="flex items-center justify-center gap-[4px]">
                       <button
                         type="button"
                         onClick={() => moveDocInGrid(doc.id, "left")}
                         disabled={isLeftDisabled}
                         title="Зүүн тийш зөөх"
+                        className="text-[11px] px-[5px] py-px"
                         style={{
-                          fontSize: 11,
-                          padding: "1px 5px",
                           cursor: isLeftDisabled ? "default" : "pointer",
                           opacity: isLeftDisabled ? 0.3 : 1,
                         }}
@@ -3811,21 +3796,14 @@ const handleCancelDraft = (appointmentId: number) => {
                         onClick={() => moveDocInGrid(doc.id, "right")}
                         disabled={isRightDisabled}
                         title="Баруун тийш зөөх"
+                        className="text-[11px] px-[5px] py-px"
                         style={{
-                          fontSize: 11,
-                          padding: "1px 5px",
                           cursor: isRightDisabled ? "default" : "pointer",
                           opacity: isRightDisabled ? 0.3 : 1,
                         }}
                       >▶</button>
                     </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "#6b7280",
-                        marginTop: 2,
-                      }}
-                    >
+                    <div className="text-[11px] text-gray-500 mt-0.5">
                       {count} захиалга
                     </div>
                   </div>
@@ -3843,35 +3821,23 @@ const handleCancelDraft = (appointmentId: number) => {
               {/* CURRENT TIME LINE */}
               {nowPosition !== null && (
                 <div
+                  className="relative h-0 pointer-events-none"
                   style={{
                     gridColumn: `1 / span ${gridDoctors.length + 1}`,
-                    position: "relative",
-                    height: 0,
-                    pointerEvents: "none",
                   }}
                 >
                   <div
-                    style={{
-                      position: "absolute",
-                      left: 0,
-                      right: 0,
-                      top: nowPosition,
-                      borderTop: "2px dashed #ef4444",
-                      zIndex: 5,
-                    }}
+                    className="absolute left-0 right-0 border-t-2 border-dashed border-red-500 z-[5]"
+                    style={{ top: nowPosition }}
                   />
                 </div>
               )}
 
               {/* Time labels / background grid */}
               <div
+                className="sticky left-0 z-[15] bg-[#fafafa] border-r border-[#ddd]"
                 style={{
-                  borderRight: "1px solid #ddd",
-                  position: "sticky",
-                  left: 0,
-                  zIndex: 15,
                   height: columnHeightPx,
-                  backgroundColor: "#fafafa",
                   transform: "translateZ(0)",
                 }}
               >
@@ -3884,17 +3850,10 @@ const handleCancelDraft = (appointmentId: number) => {
                   return (
                     <div
                       key={index}
+                      className="absolute left-0 right-0 border-b border-[#f0f0f0] pl-1.5 flex items-center text-[11px]"
                       style={{
-                        position: "absolute",
-                        left: 0,
-                        right: 0,
                         top: (slotStartMin / totalMinutes) * columnHeightPx,
                         height: slotHeight,
-                        borderBottom: "1px solid #f0f0f0",
-                        paddingLeft: 6,
-                        display: "flex",
-                        alignItems: "center",
-                        fontSize: 11,
                         backgroundColor:
                           index % 2 === 0 ? "#fafafa" : "#ffffff",
                       }}
@@ -3986,11 +3945,9 @@ const handleCancelDraft = (appointmentId: number) => {
                 return (
                   <div
                     key={doc.id}
+                    className="relative border-l border-[#f0f0f0] bg-white"
                     style={{
-                      borderLeft: "1px solid #f0f0f0",
-                      position: "relative",
                       height: columnHeightPx,
-                      backgroundColor: "#ffffff",
                     }}
                   >
                     {/* background stripes & click areas */}
@@ -4034,15 +3991,12 @@ const handleCancelDraft = (appointmentId: number) => {
                               ? undefined
                               : handleCellClick(slotStartMin, appsInThisSlot)
                           }
+                          className="absolute left-0 right-0 border-b border-[#f0f0f0]"
                           style={{
-                            position: "absolute",
-                            left: 0,
-                            right: 0,
                             top:
                               (slotStartMin / totalMinutes) *
                               columnHeightPx,
                             height: slotHeight,
-                            borderBottom: "1px solid #f0f0f0",
                             backgroundColor: isNonWorking
                               ? "#ffc26b"
                               : index % 2 === 0
@@ -4175,41 +4129,29 @@ const handleCancelDraft = (appointmentId: number) => {
                           key={a.id}
                           onMouseDown={canEdit ? (e) => handleMouseDown(e, "move") : undefined}
                           onClick={handleBlockClick}
+                          className="absolute box-border rounded flex items-center justify-center text-center overflow-hidden break-words select-none text-[11px] leading-[1.2] px-[3px] py-px"
                           style={{
-                            position: "absolute",
                             left: `${leftPercent}%`,
                             width: `${widthPercent}%`,
                             top,
                             height: Math.max(height, 18),
-                            padding: "1px 3px",
-                            boxSizing: "border-box",
                             backgroundColor: getStatusColor(a.status),
-                            borderRadius: 4,
                             border: isDragging 
                               ? "2px solid #2563eb" 
                               : hasPendingSave 
                                 ? "2px solid #f59e0b"
                                 : "1px solid rgba(0,0,0,0.08)",
-                            fontSize: 11,
-                            lineHeight: 1.2,
                             color:
                               a.status === "completed" ||
                               a.status === "cancelled"
                                 ? "#ffffff"
                                 : "#1F2937",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            textAlign: "center",
-                            overflow: "hidden",
-                            wordBreak: "break-word",
                             boxShadow: isDragging 
                               ? "0 4px 12px rgba(37,99,235,0.5)" 
                               : "0 1px 3px rgba(0,0,0,0.25)",
                             cursor: canEdit ? "move" : "pointer",
                             opacity: isDragging ? 0.8 : 1,
                             zIndex: isDragging || hasPendingSave ? 10 : 1,
-                            userSelect: "none",
                             animation: a.status === "ready_to_pay" && !isDragging
                               ? "readyToPayPulse 1.4s ease-in-out infinite, readyToPayBlink 1.4s ease-in-out infinite"
                               : undefined,
@@ -4227,17 +4169,7 @@ const handleCancelDraft = (appointmentId: number) => {
                           {canEdit && !isDragging && (
                             <div
                               onMouseDown={(e) => handleMouseDown(e, "resize")}
-                              style={{
-                                position: "absolute",
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                height: 6,
-                                cursor: "ns-resize",
-                                backgroundColor: "rgba(0,0,0,0.1)",
-                                borderBottomLeftRadius: 4,
-                                borderBottomRightRadius: 4,
-                              }}
+                              className="absolute bottom-0 left-0 right-0 h-1.5 cursor-ns-resize bg-black/10 rounded-b"
                               title="Drag to resize"
                             />
                           )}
