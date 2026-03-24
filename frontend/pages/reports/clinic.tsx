@@ -7,7 +7,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   PieChart,
   Pie,
   Cell,
@@ -1194,10 +1193,45 @@ function MetricBlock({
   branchNames: string[];
 }) {
   const [tableOpen, setTableOpen] = useState(false);
+  const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
 
-  const chartData = isYearView
-    ? buildYearChartData(dailyData, branchDailyData, dataKey)
-    : buildDailyChartData(dailyData, branchDailyData, dataKey);
+  const chartData = useMemo(
+    () =>
+      isYearView
+        ? buildYearChartData(dailyData, branchDailyData, dataKey)
+        : buildDailyChartData(dailyData, branchDailyData, dataKey),
+    [dailyData, branchDailyData, isYearView, dataKey]
+  );
+
+  // Branch breakdown for legend – Нийт first, then branches sorted by value
+  const branchBreakdown = useMemo<{ name: string; value: number; color: string }[]>(() => {
+    let rows: { name: string; value: number }[];
+    if (hoveredLabel) {
+      const row = chartData.find((r) => r.label === hoveredLabel);
+      rows = branchNames.map((bName) => ({
+        name: bName,
+        value: row ? ((row as Record<string, unknown>)[bName] as number) || 0 : 0,
+      }));
+    } else {
+      rows = branchDailyData.map((b) => ({
+        name: b.branchName,
+        value: aggregatePeriodValue(b.daily, dataKey),
+      }));
+    }
+    const totalValue = hoveredLabel
+      ? chartData.find((r) => r.label === hoveredLabel)?.total || 0
+      : aggregatePeriodValue(dailyData, dataKey);
+    const sorted = [...rows].sort((a, b) => b.value - a.value);
+    return [
+      { name: "Нийт", value: totalValue, color: "#10b981" },
+      ...sorted.map((r, i) => ({
+        ...r,
+        color:
+          BRANCH_COLORS[branchNames.findIndex((n) => n === r.name) % BRANCH_COLORS.length] ||
+          BRANCH_COLORS[i % BRANCH_COLORS.length],
+      })),
+    ];
+  }, [hoveredLabel, chartData, branchNames, branchDailyData, dailyData, dataKey]);
 
   // Нийт column first, then branches
   const tableRows: Record<string, unknown>[] = chartData.map((r) => {
@@ -1259,18 +1293,19 @@ function MetricBlock({
         {/* ── Main chart ── */}
         <div className="flex-1 min-w-0 flex flex-col gap-3">
           <ResponsiveContainer width="100%" height={260}>
-            <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
+            <ComposedChart
+              data={chartData}
+              margin={{ top: 4, right: 8, left: 8, bottom: 4 }}
+              onMouseMove={(state) => {
+                if (state?.activeLabel) setHoveredLabel(state.activeLabel as string);
+              }}
+              onMouseLeave={() => setHoveredLabel(null)}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip
-                formatter={(v: number, name: string) => [
-                  v.toLocaleString("mn-MN") + (unit ? " " + unit : ""),
-                  name,
-                ]}
-              />
-              <Legend />
-              {/* Render "Нийт" (total line) FIRST so it always appears first in tooltip and legend */}
+              <Tooltip content={(props) => <ChartTooltip {...props} unit={unit} />} />
+              {/* Render "Нийт" (total line) FIRST so it always appears first in tooltip */}
               <Line
                 type="monotone"
                 dataKey="total"
@@ -1290,6 +1325,27 @@ function MetricBlock({
               ))}
             </ComposedChart>
           </ResponsiveContainer>
+
+          {/* ── Legend: Нийт first, then branches sorted by value ── */}
+          <div className="flex flex-wrap gap-x-5 gap-y-1.5 px-1">
+            {branchBreakdown.map((item) => (
+              <div key={item.name} className="flex items-center gap-1.5 text-sm">
+                <span
+                  className="inline-block w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className={item.name === "Нийт" ? "font-semibold text-gray-900" : "text-gray-700"}>
+                  {item.name}:
+                </span>
+                <span className={item.name === "Нийт" ? "font-bold text-gray-900" : "text-gray-800"}>
+                  {item.value.toLocaleString("mn-MN")}{unit ? ` ${unit}` : ""}
+                </span>
+              </div>
+            ))}
+            {hoveredLabel && (
+              <span className="text-xs text-gray-400 self-center">({hoveredLabel})</span>
+            )}
+          </div>
 
           {/* ── Collapsible table ── */}
           <div className="border border-gray-100 rounded-xl overflow-hidden">
@@ -1617,7 +1673,7 @@ export default function ClinicReportPage() {
           <SummaryCard
             title="Өнөөдрийн орлого"
             value={data ? formatMoney(data.topCards.todayRevenue) : "—"}
-            subtitle={`${todayStr()} · бүх салбар`}
+            subtitle={`${todayStr()} · ${branchId ? (branches.find((b) => String(b.id) === branchId)?.name ?? "бүх салбар") : "бүх салбар"}`}
             colorClass="bg-blue-50 text-blue-600"
             icon={
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

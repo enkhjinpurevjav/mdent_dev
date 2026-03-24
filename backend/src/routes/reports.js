@@ -3,6 +3,9 @@ import prisma from "../db.js";
 
 const router = Router();
 
+// Payment methods counted as income for the top-card calculations (Cards 1 and 3)
+const INCOME_PAYMENT_METHODS = ["CASH", "POS", "TRANSFER", "INSURANCE", "APPLICATION", "QPAY"];
+
 /**
  * GET /api/reports/summary
  * Query: from, to, branchId?, doctorId?, serviceId?, paymentMethod?
@@ -1254,33 +1257,124 @@ router.get("/clinic", async (req, res) => {
       };
     }
 
-    // ---------- top cards (always use today's data, independent of range) ----------
+    // ---------- top cards (always use today's data, independent of date range) ----------
     const today = new Date();
-    const todayDateStr = today.toISOString().slice(0, 10);
 
-    // today's revenue from payments (same logic, but fetched within main range if today is in it)
-    const todayRevenue = revenueByDate[todayDateStr] || 0;
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+    const todayEndOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
-    // today's occupancy (slot-based, average of branch percentages)
-    const todayBranchPcts = targetBranches
-      .map((b) => slotsByBranchDate[b.id]?.[todayDateStr])
-      .filter((s) => s?.possible > 0)
-      .map((s) => Math.round((s.filled / s.possible) * 100));
-    const todayOccupancyPct =
-      todayBranchPcts.length > 0
-        ? Math.round(todayBranchPcts.reduce((a, v) => a + v, 0) / todayBranchPcts.length)
-        : 0;
+    // Card 1: today's revenue from specific payment methods only (independent of date range)
+    const todayPaymentWhere = {
+      timestamp: { gte: todayStart, lte: todayEndOfDay },
+      method: { in: INCOME_PAYMENT_METHODS },
+    };
+    if (branchFilter) todayPaymentWhere.invoice = { branchId: branchFilter };
+    const todayPaymentsResult = await prisma.payment.findMany({
+      where: todayPaymentWhere,
+      select: { amount: true },
+    });
+    const todayRevenue = todayPaymentsResult.reduce((s, p) => s + Number(p.amount || 0), 0);
 
-    // monthly average: days 1..today for the current month
-    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const monthStart = firstOfMonth > fromDate ? firstOfMonth : fromDate;
-    const monthEnd = today < toDate ? today : toDate;
-    let monthlyAvgRevenue = 0;
-    if (monthStart <= monthEnd) {
-      const monthDays = eachDay(monthStart, monthEnd);
-      const monthTotal = monthDays.reduce((sum, d) => sum + (revenueByDate[d] || 0), 0);
-      monthlyAvgRevenue = Math.round(monthTotal / monthDays.length);
+    // Card 2: today's occupancy (any appointment, not just completed, independent of date range)
+    let todayOccupancyPct = 0;
+    {
+      const todayAppts = await prisma.appointment.findMany({
+        where: {
+          scheduledAt: { gte: todayStart, lte: todayEndOfDay },
+          branchId: { in: branchIds },
+        },
+        select: { branchId: true, doctorId: true, scheduledAt: true },
+      });
+      const todayScheds = await prisma.doctorSchedule.findMany({
+        where: {
+          date: { gte: todayStart, lte: todayEndOfDay },
+          branchId: { in: branchIds },
+        },
+        select: { doctorId: true, branchId: true, date: true, startTime: true, endTime: true },
+      });
+
+      // Group schedules by (doctorId, date)
+      const todaySchedGrouped = {};
+      for (const sch of todayScheds) {
+        const date =
+          sch.date instanceof Date
+            ? sch.date.toISOString().slice(0, 10)
+            : String(sch.date).slice(0, 10);
+        const startMins = hmToMin(sch.startTime);
+        const endMins = hmToMin(sch.endTime);
+        if (endMins <= startMins) continue;
+        if (!todaySchedGrouped[sch.doctorId]) todaySchedGrouped[sch.doctorId] = {};
+        if (!todaySchedGrouped[sch.doctorId][date])
+          todaySchedGrouped[sch.doctorId][date] = { branchId: sch.branchId, windows: [] };
+        todaySchedGrouped[sch.doctorId][date].windows.push({ startMins, endMins });
+      }
+
+      // Any appointment (regardless of status) fills a slot
+      const todayApptSlots = {};
+      for (const appt of todayAppts) {
+        if (!appt.doctorId) continue;
+        const date = appt.scheduledAt.toISOString().slice(0, 10);
+        const apptMins = appt.scheduledAt.getHours() * 60 + appt.scheduledAt.getMinutes();
+        const slotKey = Math.floor(apptMins / SLOT_MINS);
+        if (!todayApptSlots[appt.doctorId]) todayApptSlots[appt.doctorId] = {};
+        if (!todayApptSlots[appt.doctorId][date])
+          todayApptSlots[appt.doctorId][date] = new Set();
+        todayApptSlots[appt.doctorId][date].add(slotKey);
+      }
+
+      // Compute per-branch slot counts for today
+      const todaySlotsByBranch = {};
+      for (const [doctorIdStr, dateMap] of Object.entries(todaySchedGrouped)) {
+        const doctorId = Number(doctorIdStr);
+        for (const [date, { branchId: bId, windows }] of Object.entries(dateMap)) {
+          const possibleSlotSet = new Set();
+          for (const { startMins, endMins } of windows) {
+            const firstSlot = Math.ceil(startMins / SLOT_MINS);
+            const lastSlot = Math.floor(endMins / SLOT_MINS) - 1;
+            for (let s = firstSlot; s <= lastSlot; s++) possibleSlotSet.add(s);
+          }
+          const possible = possibleSlotSet.size;
+          if (possible === 0) continue;
+          const apptSlots = todayApptSlots[doctorId]?.[date] || new Set();
+          let filled = 0;
+          for (const slotKey of apptSlots) {
+            if (possibleSlotSet.has(slotKey)) filled++;
+          }
+          if (!todaySlotsByBranch[bId]) todaySlotsByBranch[bId] = { possible: 0, filled: 0 };
+          todaySlotsByBranch[bId].possible += possible;
+          todaySlotsByBranch[bId].filled += filled;
+        }
+      }
+
+      const todayBranchPcts = targetBranches
+        .map((b) => todaySlotsByBranch[b.id])
+        .filter((s) => s?.possible > 0)
+        .map((s) => Math.round((s.filled / s.possible) * 100));
+      todayOccupancyPct =
+        todayBranchPcts.length > 0
+          ? Math.round(todayBranchPcts.reduce((a, v) => a + v, 0) / todayBranchPcts.length)
+          : 0;
     }
+
+    // Card 3: current month daily average revenue (same payment methods, 1st→today, independent of date range)
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1, 0, 0, 0, 0);
+    const monthPaymentWhere = {
+      timestamp: { gte: firstOfMonth, lte: todayEndOfDay },
+      method: { in: INCOME_PAYMENT_METHODS },
+    };
+    if (branchFilter) monthPaymentWhere.invoice = { branchId: branchFilter };
+    const monthPaymentsResult = await prisma.payment.findMany({
+      where: monthPaymentWhere,
+      select: { amount: true, timestamp: true },
+    });
+    const monthRevenueByDate = {};
+    for (const p of monthPaymentsResult) {
+      const d = p.timestamp.toISOString().slice(0, 10);
+      monthRevenueByDate[d] = (monthRevenueByDate[d] || 0) + Number(p.amount || 0);
+    }
+    const monthDays = eachDay(firstOfMonth, today);
+    const monthTotal = monthDays.reduce((s, d) => s + (monthRevenueByDate[d] || 0), 0);
+    const monthlyAvgRevenue = monthDays.length > 0 ? Math.round(monthTotal / monthDays.length) : 0;
 
     return res.json({
       topCards: {
