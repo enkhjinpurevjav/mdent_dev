@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
-  BarChart,
+  ComposedChart,
   Bar,
-  LineChart,
   Line,
   XAxis,
   YAxis,
@@ -34,6 +33,12 @@ type DailyRow = {
   completedAppointments: number;
 };
 
+type BranchDailyEntry = {
+  branchId: number;
+  branchName: string;
+  daily: DailyRow[];
+};
+
 type BreakdownItem = {
   branchId?: number;
   branchName?: string;
@@ -51,7 +56,9 @@ type BreakdownGroup = {
 
 type ClinicReportData = {
   topCards: TopCards;
+  branches: Branch[];
   dailyData: DailyRow[];
+  branchDailyData: BranchDailyEntry[];
   branchBreakdown: BreakdownGroup;
   doctorBreakdown: BreakdownGroup | null;
 };
@@ -59,9 +66,8 @@ type ClinicReportData = {
 // ─────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────
-const COLORS = [
+const BRANCH_COLORS = [
   "#3b82f6",
-  "#10b981",
   "#f59e0b",
   "#ef4444",
   "#8b5cf6",
@@ -70,6 +76,7 @@ const COLORS = [
   "#84cc16",
   "#f97316",
   "#6366f1",
+  "#14b8a6",
 ];
 
 const MONTH_LABELS = [
@@ -98,34 +105,81 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function currentMonthRange() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  return { from: `${y}-${m}-01`, to: `${y}-${m}-${String(now.getDate()).padStart(2, "0")}` };
+function currentYearRange() {
+  const y = new Date().getFullYear();
+  return { from: `${y}-01-01`, to: `${y}-12-31` };
 }
 
+type MetricKey = "revenue" | "occupancyPct" | "doctorCount" | "completedAppointments";
+
 /** Aggregate daily rows into monthly buckets (for year view) */
-function aggregateMonthly(
-  rows: DailyRow[],
-  key: keyof Pick<DailyRow, "revenue" | "occupancyPct" | "doctorCount" | "completedAppointments">
-) {
+function aggregateMonthly(rows: DailyRow[], key: MetricKey) {
   const map: Record<string, { label: string; value: number; count: number }> = {};
   for (const r of rows) {
-    const m = Number(r.date.slice(5, 7)) - 1; // 0-indexed
-    const bucket = r.date.slice(0, 7); // "YYYY-MM"
+    const m = Number(r.date.slice(5, 7)) - 1;
+    const bucket = r.date.slice(0, 7);
     if (!map[bucket]) map[bucket] = { label: MONTH_LABELS[m], value: 0, count: 0 };
-    if (key === "occupancyPct") {
-      map[bucket].value += r[key];
-      map[bucket].count += 1;
-    } else {
-      map[bucket].value += r[key];
-      map[bucket].count += 1;
-    }
+    map[bucket].value += r[key];
+    map[bucket].count += 1;
   }
   return Object.values(map).map((v) => ({
     label: v.label,
     value: key === "occupancyPct" && v.count > 0 ? Math.round(v.value / v.count) : v.value,
+  }));
+}
+
+/** Build combined chart data for year view (per-branch bars + total line) */
+function buildYearChartData(
+  totalDailyData: DailyRow[],
+  branchDailyData: BranchDailyEntry[],
+  key: MetricKey
+) {
+  const totalByMonth = aggregateMonthly(totalDailyData, key);
+  // Build per-branch monthly sums: { "YYYY-MM": { branchName: value } }
+  const branchBuckets: Record<string, Record<string, { sum: number; cnt: number }>> = {};
+  for (const b of branchDailyData) {
+    for (const r of b.daily) {
+      const bucket = r.date.slice(0, 7);
+      if (!branchBuckets[bucket]) branchBuckets[bucket] = {};
+      if (!branchBuckets[bucket][b.branchName])
+        branchBuckets[bucket][b.branchName] = { sum: 0, cnt: 0 };
+      branchBuckets[bucket][b.branchName].sum += r[key];
+      branchBuckets[bucket][b.branchName].cnt += 1;
+    }
+  }
+
+  return totalByMonth.map((t) => {
+    // Find the bucket matching this label
+    const bucket = Object.keys(branchBuckets).find(
+      (b) => MONTH_LABELS[Number(b.slice(5, 7)) - 1] === t.label
+    );
+    const branchValues: Record<string, number> = {};
+    if (bucket) {
+      for (const [bName, { sum, cnt }] of Object.entries(branchBuckets[bucket])) {
+        branchValues[bName] = key === "occupancyPct" && cnt > 0 ? Math.round(sum / cnt) : sum;
+      }
+    }
+    return { label: t.label, total: t.value, ...branchValues };
+  });
+}
+
+/** Build combined chart data for daily range view */
+function buildDailyChartData(
+  totalDailyData: DailyRow[],
+  branchDailyData: BranchDailyEntry[],
+  key: MetricKey
+) {
+  const branchByDate: Record<string, Record<string, number>> = {};
+  for (const b of branchDailyData) {
+    for (const r of b.daily) {
+      if (!branchByDate[r.date]) branchByDate[r.date] = {};
+      branchByDate[r.date][b.branchName] = r[key];
+    }
+  }
+  return totalDailyData.map((r) => ({
+    label: r.date.slice(5),
+    total: r[key],
+    ...(branchByDate[r.date] || {}),
   }));
 }
 
@@ -162,59 +216,92 @@ function SummaryCard({
   title,
   value,
   subtitle,
-  color,
+  colorClass,
+  icon,
 }: {
   title: string;
   value: string;
   subtitle?: string;
-  color: string;
+  colorClass: string;
+  icon: React.ReactNode;
 }) {
   return (
-    <div className={`rounded-2xl p-5 shadow-sm border border-gray-100 bg-white flex flex-col gap-1 min-w-0`}>
-      <span className={`text-xs font-semibold uppercase tracking-wide ${color}`}>{title}</span>
-      <span className="text-2xl font-bold text-gray-900 truncate">{value}</span>
-      {subtitle && <span className="text-xs text-gray-500">{subtitle}</span>}
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-start gap-4 min-w-0">
+      <div className={`flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center ${colorClass}`}>
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</p>
+        <p className="text-2xl font-bold text-gray-900 truncate mt-0.5">{value}</p>
+        {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+      </div>
     </div>
   );
 }
 
-/** A single metric block: chart + pie + table + CSV */
+/** Collapse/expand icon button */
+function CollapseButton({ open, onClick }: { open: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="ml-auto flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+      title={open ? "Хураах" : "Дэлгэх"}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className={`w-5 h-5 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+      </svg>
+    </button>
+  );
+}
+
+/** A single metric block: chart + pie + collapsible table + CSV */
 function MetricBlock({
   title,
   dailyData,
+  branchDailyData,
   dataKey,
   unit,
   breakdownItems,
   breakdownLabel,
   isYearView,
+  branchNames,
 }: {
   title: string;
   dailyData: DailyRow[];
-  dataKey: keyof Pick<DailyRow, "revenue" | "occupancyPct" | "doctorCount" | "completedAppointments">;
+  branchDailyData: BranchDailyEntry[];
+  dataKey: MetricKey;
   unit: string;
   breakdownItems: BreakdownItem[];
   breakdownLabel: string;
   isYearView: boolean;
+  branchNames: string[];
 }) {
-  // Build chart data
-  const chartData = isYearView
-    ? aggregateMonthly(dailyData, dataKey)
-    : dailyData.map((r) => ({ label: r.date.slice(5), value: r[dataKey] }));
+  const [tableOpen, setTableOpen] = useState(false);
 
-  // Table rows
-  const tableRows: Record<string, unknown>[] = isYearView
-    ? chartData.map((r) => ({ Огноо: r.label, [title]: r.value + (unit ? ` ${unit}` : "") }))
-    : dailyData.map((r) => ({
-        Огноо: r.date,
-        [title]: r[dataKey] + (unit ? ` ${unit}` : ""),
-      }));
+  const chartData = isYearView
+    ? buildYearChartData(dailyData, branchDailyData, dataKey)
+    : buildDailyChartData(dailyData, branchDailyData, dataKey);
+
+  const tableRows: Record<string, unknown>[] = chartData.map((r) => {
+    const row: Record<string, unknown> = { Огноо: r.label };
+    for (const bName of branchNames) {
+      const v = (r as Record<string, unknown>)[bName];
+      row[bName] = v !== undefined ? String(v) + (unit ? ` ${unit}` : "") : "-";
+    }
+    row["Нийт"] = String(r.total) + (unit ? ` ${unit}` : "");
+    return row;
+  });
 
   const pieData = breakdownItems
     .filter((b) => b.value > 0)
-    .map((b) => ({
-      name: b.branchName || b.doctorName || "",
-      value: b.value,
-    }));
+    .map((b) => ({ name: b.branchName || b.doctorName || "", value: b.value }));
 
   const pieTableRows = breakdownItems.map((b) => ({
     [breakdownLabel]: b.branchName || b.doctorName || "",
@@ -222,92 +309,134 @@ function MetricBlock({
   }));
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-gray-800">{title}</h3>
-      </div>
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4">
+      <h3 className="text-lg font-bold text-gray-800">{title}</h3>
 
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Main chart */}
-        <div className="flex-1 min-w-0">
+        {/* ── Main chart ── */}
+        <div className="flex-1 min-w-0 flex flex-col gap-3">
           <ResponsiveContainer width="100%" height={260}>
-            {isYearView ? (
-              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => [v + (unit ? " " + unit : ""), title]} />
-                <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            ) : (
-              <LineChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => [v + (unit ? " " + unit : ""), title]} />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  dot={false}
+            <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip
+                formatter={(v: number, name: string) => [
+                  v.toLocaleString("mn-MN") + (unit ? " " + unit : ""),
+                  name === "total" ? "Нийт" : name,
+                ]}
+              />
+              <Legend formatter={(value) => (value === "total" ? "Нийт" : value)} />
+              {branchNames.map((bName, idx) => (
+                <Bar
+                  key={bName}
+                  dataKey={bName}
+                  stackId="branches"
+                  fill={BRANCH_COLORS[idx % BRANCH_COLORS.length]}
+                  radius={idx === branchNames.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
                 />
-              </LineChart>
-            )}
+              ))}
+              <Line
+                type="monotone"
+                dataKey="total"
+                stroke="#10b981"
+                strokeWidth={2.5}
+                dot={false}
+              />
+            </ComposedChart>
           </ResponsiveContainer>
-          {/* Main table */}
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-3 py-2 text-left font-semibold text-gray-600 whitespace-nowrap">Огноо</th>
-                  <th className="px-3 py-2 text-right font-semibold text-gray-600 whitespace-nowrap">{title}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {chartData.map((r, i) => (
-                  <tr key={i} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="px-3 py-1.5 text-gray-700">{r.label}</td>
-                    <td className="px-3 py-1.5 text-right text-gray-800 font-medium">
-                      {r.value.toLocaleString("mn-MN")}{unit ? ` ${unit}` : ""}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          {/* ── Collapsible table ── */}
+          <div className="border border-gray-100 rounded-xl overflow-hidden">
+            <div className="flex items-center px-4 py-2 bg-gray-50 border-b border-gray-100">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                Хүснэгт
+              </span>
+              <CollapseButton open={tableOpen} onClick={() => setTableOpen((v) => !v)} />
+            </div>
+            {tableOpen && (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="px-3 py-2 text-left font-semibold text-gray-600 whitespace-nowrap">
+                          Огноо
+                        </th>
+                        {branchNames.map((bName) => (
+                          <th
+                            key={bName}
+                            className="px-3 py-2 text-right font-semibold text-gray-600 whitespace-nowrap"
+                          >
+                            {bName}
+                          </th>
+                        ))}
+                        <th className="px-3 py-2 text-right font-semibold text-gray-600 whitespace-nowrap">
+                          Нийт
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {chartData.map((r, i) => (
+                        <tr key={i} className="border-t border-gray-100 hover:bg-gray-50">
+                          <td className="px-3 py-1.5 text-gray-700">{r.label}</td>
+                          {branchNames.map((bName) => (
+                            <td key={bName} className="px-3 py-1.5 text-right text-gray-700">
+                              {(
+                                ((r as Record<string, unknown>)[bName] as number | undefined) ?? 0
+                              ).toLocaleString("mn-MN")}
+                              {unit ? ` ${unit}` : ""}
+                            </td>
+                          ))}
+                          <td className="px-3 py-1.5 text-right text-gray-800 font-semibold">
+                            {r.total.toLocaleString("mn-MN")}
+                            {unit ? ` ${unit}` : ""}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="px-4 py-2 border-t border-gray-100">
+                  <button
+                    onClick={() =>
+                      downloadCSV(`${sanitizeFilename(title)}_chart.csv`, tableRows)
+                    }
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    CSV татах
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-          <button
-            onClick={() => downloadCSV(`${sanitizeFilename(title)}_chart.csv`, tableRows)}
-            className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
-          >
-            CSV татах (график өгөгдөл)
-          </button>
         </div>
 
-        {/* Pie chart */}
-        <div className="w-full lg:w-80 flex flex-col gap-4">
+        {/* ── Pie / Салбар summary ── */}
+        <div className="w-full lg:w-72 flex flex-col gap-3">
+          <p className="text-sm font-semibold text-gray-600">{breakdownLabel}</p>
           {pieData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie
                   data={pieData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={50}
-                  outerRadius={90}
+                  innerRadius={46}
+                  outerRadius={82}
                   paddingAngle={2}
                   dataKey="value"
-                  label={({ name, percent }) =>
-                    `${name}: ${(percent * 100).toFixed(0)}%`
-                  }
                   labelLine={false}
                 >
                   {pieData.map((_, index) => (
-                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={index} fill={BRANCH_COLORS[index % BRANCH_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(v: number) => [v.toLocaleString("mn-MN") + (unit ? " " + unit : ""), ""]}
+                  formatter={(v: number) => [
+                    v.toLocaleString("mn-MN") + (unit ? " " + unit : ""),
+                    "",
+                  ]}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -317,13 +446,16 @@ function MetricBlock({
             </div>
           )}
 
-          {/* Pie table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-gray-100">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="px-3 py-2 text-left font-semibold text-gray-600">{breakdownLabel}</th>
-                  <th className="px-3 py-2 text-right font-semibold text-gray-600">{title}</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-600">
+                    {breakdownLabel}
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold text-gray-600">
+                    {unit ? `${title} (${unit})` : title}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -332,12 +464,13 @@ function MetricBlock({
                     <td className="px-3 py-1.5 flex items-center gap-2">
                       <span
                         className="inline-block w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                        style={{ backgroundColor: BRANCH_COLORS[i % BRANCH_COLORS.length] }}
                       />
                       <span className="text-gray-700">{b.branchName || b.doctorName}</span>
                     </td>
                     <td className="px-3 py-1.5 text-right text-gray-800 font-medium">
-                      {b.value.toLocaleString("mn-MN")}{unit ? ` ${unit}` : ""}
+                      {b.value.toLocaleString("mn-MN")}
+                      {unit ? ` ${unit}` : ""}
                     </td>
                   </tr>
                 ))}
@@ -345,10 +478,12 @@ function MetricBlock({
             </table>
           </div>
           <button
-            onClick={() => downloadCSV(`${sanitizeFilename(title)}_pie.csv`, pieTableRows)}
+            onClick={() =>
+              downloadCSV(`${sanitizeFilename(title)}_салбар.csv`, pieTableRows)
+            }
             className="text-xs text-blue-600 hover:text-blue-800 underline"
           >
-            CSV татах (салбарын задаргаа)
+            CSV татах (задаргаа)
           </button>
         </div>
       </div>
@@ -360,12 +495,12 @@ function MetricBlock({
 // Main page component
 // ─────────────────────────────────────────────
 export default function ClinicReportPage() {
-  const defaultRange = currentMonthRange();
-
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchId, setBranchId] = useState<string>(""); // "" = all
-  const [from, setFrom] = useState(defaultRange.from);
-  const [to, setTo] = useState(defaultRange.to);
+
+  // Date fields start empty → year view is the default
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
 
   const [data, setData] = useState<ClinicReportData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -382,11 +517,14 @@ export default function ClinicReportPage() {
   }, []);
 
   const loadReport = useCallback(async () => {
-    if (!from || !to) return;
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams({ from, to });
+      // When dates are empty → use current full year
+      const range = !from && !to ? currentYearRange() : { from, to };
+      if (!range.from || !range.to) return;
+
+      const params = new URLSearchParams({ from: range.from, to: range.to });
       if (branchId) params.set("branchId", branchId);
       const res = await fetch(`/api/reports/clinic?${params}`, {
         credentials: "include",
@@ -404,42 +542,48 @@ export default function ClinicReportPage() {
     }
   }, [from, to, branchId]);
 
-  // Auto-load when filters change
+  // Auto-load on mount and whenever filters change
   useEffect(() => {
     loadReport();
   }, [loadReport]);
 
-  // Determine whether the selected range spans more than 1 month (use bar chart by month)
-  const isYearView =
-    data !== null &&
-    (() => {
-      const f = new Date(from);
-      const t = new Date(to);
-      const diffDays = (t.getTime() - f.getTime()) / MS_PER_DAY;
-      return diffDays > 31;
-    })();
+  // Year view when dates are empty, or range > 31 days
+  const isYearView = (() => {
+    if (!from && !to) return true;
+    if (!from || !to) return false;
+    const f = new Date(from);
+    const t = new Date(to);
+    return (t.getTime() - f.getTime()) / MS_PER_DAY > 31;
+  })();
+
+  const activeBranches: Branch[] = data?.branches ?? [];
+  const branchNamesForChart = activeBranches.map((b) => b.name);
 
   const bd = data?.branchBreakdown;
   const dd = data?.doctorBreakdown;
-  // Use doctor breakdown for pie when a single branch is selected
   const pieBreakdown = (key: keyof BreakdownGroup) =>
     branchId && dd ? dd[key] : bd ? bd[key] : [];
-
   const pieLabel = branchId ? "Эмч" : "Салбар";
+
+  const branchDailyData = data?.branchDailyData ?? [];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Page header */}
+      {/* ── Page header ── */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <h1 className="text-xl font-bold text-gray-900">Эмнэлгийн тайлан</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Нэгтгэсэн тайлан · Орлого · Цаг дүүргэлт · Эмч · Захиалга</p>
+        <p className="text-sm text-gray-500 mt-0.5">
+          Орлого · Цаг дүүргэлт · Ажилласан эмч · Захиалга
+        </p>
       </div>
 
       <div className="max-w-screen-xl mx-auto px-4 py-6 flex flex-col gap-6">
         {/* ── Shared filter ── */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-wrap gap-4 items-end">
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Эхлэх огноо</label>
+            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+              Эхлэх огноо
+            </label>
             <input
               type="date"
               value={from}
@@ -448,7 +592,9 @@ export default function ClinicReportPage() {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Дуусах огноо</label>
+            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+              Дуусах огноо
+            </label>
             <input
               type="date"
               value={to}
@@ -457,7 +603,9 @@ export default function ClinicReportPage() {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Салбар</label>
+            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+              Салбар
+            </label>
             <select
               value={branchId}
               onChange={(e) => setBranchId(e.target.value)}
@@ -465,10 +613,20 @@ export default function ClinicReportPage() {
             >
               <option value="">Бүх салбар</option>
               {branches.map((b) => (
-                <option key={b.id} value={String(b.id)}>{b.name}</option>
+                <option key={b.id} value={String(b.id)}>
+                  {b.name}
+                </option>
               ))}
             </select>
           </div>
+          {(from || to) && (
+            <button
+              onClick={() => { setFrom(""); setTo(""); }}
+              className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Цэвэрлэх
+            </button>
+          )}
           <button
             onClick={loadReport}
             disabled={loading}
@@ -491,19 +649,34 @@ export default function ClinicReportPage() {
             title="Өнөөдрийн орлого"
             value={data ? formatMoney(data.topCards.todayRevenue) : "—"}
             subtitle={`${todayStr()} · бүх салбар`}
-            color="text-blue-600"
+            colorClass="bg-blue-50 text-blue-600"
+            icon={
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
           />
           <SummaryCard
             title="Өнөөдрийн цаг дүүргэлт"
             value={data ? `${data.topCards.todayOccupancyPct}%` : "—"}
-            subtitle="Захиалагдсан цаг / нийт боломжит цаг"
-            color="text-emerald-600"
+            subtitle="Захиалгын / нийт боломжит цаг"
+            colorClass="bg-emerald-50 text-emerald-600"
+            icon={
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            }
           />
           <SummaryCard
             title="Өдрийн дундаж орлого"
             value={data ? formatMoney(data.topCards.monthlyAvgRevenue) : "—"}
             subtitle="Энэ сарын өнөөдрийг хүртэлх дундаж"
-            color="text-amber-600"
+            colorClass="bg-amber-50 text-amber-600"
+            icon={
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            }
           />
         </div>
 
@@ -519,48 +692,49 @@ export default function ClinicReportPage() {
         {/* ── Metric blocks ── */}
         {!loading && data && (
           <>
-            {/* 1. Revenue */}
             <MetricBlock
               title="Орлого"
               dailyData={data.dailyData}
+              branchDailyData={branchDailyData}
               dataKey="revenue"
               unit="₮"
               breakdownItems={pieBreakdown("revenue")}
               breakdownLabel={pieLabel}
               isYearView={isYearView}
+              branchNames={branchNamesForChart}
             />
-
-            {/* 2. Occupancy */}
             <MetricBlock
               title="Цаг дүүргэлт"
               dailyData={data.dailyData}
+              branchDailyData={branchDailyData}
               dataKey="occupancyPct"
               unit="%"
               breakdownItems={pieBreakdown("occupancy")}
               breakdownLabel={pieLabel}
               isYearView={isYearView}
+              branchNames={branchNamesForChart}
             />
-
-            {/* 3. Doctor count */}
             <MetricBlock
               title="Ажилласан эмчийн тоо"
               dailyData={data.dailyData}
+              branchDailyData={branchDailyData}
               dataKey="doctorCount"
               unit=""
               breakdownItems={pieBreakdown("doctorCount")}
               breakdownLabel={pieLabel}
               isYearView={isYearView}
+              branchNames={branchNamesForChart}
             />
-
-            {/* 4. Completed appointments */}
             <MetricBlock
               title="Захиалгын тоо (Дууссан)"
               dailyData={data.dailyData}
+              branchDailyData={branchDailyData}
               dataKey="completedAppointments"
               unit=""
               breakdownItems={pieBreakdown("completedAppointments")}
               breakdownLabel={pieLabel}
               isYearView={isYearView}
+              branchNames={branchNamesForChart}
             />
           </>
         )}
