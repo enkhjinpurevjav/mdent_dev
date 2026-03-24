@@ -46,10 +46,12 @@ function canReceptionEditAppointment(status: string) {
   return ["booked", "confirmed", "online", "other"].includes(String(status || "").toLowerCase());
 }
 
-/** Returns true if the current user is allowed to edit the given appointment. */
-function canEditAppointment(status: string, role: string | null | undefined): boolean {
-  if (String(status || "").toLowerCase() === "completed") {
-    return role === "super_admin";
+/** Returns true if the current user is allowed to drag/move the given appointment.
+ *  Completed and ongoing appointments are never draggable, regardless of role. */
+function canEditAppointment(status: string, _role: string | null | undefined): boolean {
+  const s = String(status || "").toLowerCase();
+  if (s === "completed" || s === "ongoing") {
+    return false;
   }
   return canReceptionEditAppointment(status);
 }
@@ -723,27 +725,13 @@ if (quickPatientForm.regNo.trim()) {
 
   return (
     <form
-      onSubmit={handleSubmit}
-      style={{
-        marginBottom: 24,
-        display: "grid",
-        gap: 12,
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-        fontSize: 13,
-      }}
+      onSubmit={handleSubmit} className="mb-6 grid gap-3 grid-cols-[repeat(auto-fit,_minmax(180px,_1fr))] text-[13px]"
     >
       {/* Branch + Patient — same row */}
-      <div
-        style={{
-          gridColumn: "1 / -1",
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 8,
-          alignItems: "flex-end",
-        }}
+      <div className="col-span-full flex flex-wrap gap-2 items-end"
       >
         {/* Branch */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div className="flex flex-col gap-1">
           <label>Салбар</label>
           <select
             name="branchId"
@@ -753,12 +741,7 @@ if (quickPatientForm.regNo.trim()) {
               setError("");
               onBranchChange(e.target.value);
             }}
-            required
-            style={{
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              padding: "6px 8px",
-            }}
+            required className="rounded border border-gray-300 py-1.5 px-2"
           >
             <option value="">Салбар сонгох</option>
             {branches.map((b) => (
@@ -779,38 +762,24 @@ if (quickPatientForm.regNo.trim()) {
               ...prev,
               branchId: prev.branchId || form.branchId || selectedBranchId,
             }));
-          }}
-          style={{
-            padding: "6px 10px",
-            borderRadius: 6,
-            border: "1px solid #16a34a",
-            background: "#dcfce7",
-            color: "#166534",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          }} className="py-[6px] px-[10px] rounded border border-green-600 bg-green-100 text-green-800 font-semibold cursor-pointer"
           title="Шинэ үйлчлүүлэгчийн бүртгэл"
         >
           +
         </button>
 
         {/* Patient search */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 200 }}>
+        <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
           <label>Үйлчлүүлэгч</label>
           <input
             name="patientQuery"
             placeholder="РД, овог, нэр утсаар хайх"
             value={form.patientQuery}
             onChange={handleChange}
-            autoComplete="off"
-            style={{
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              padding: "6px 8px",
-            }}
+            autoComplete="off" className="rounded border border-gray-300 py-1.5 px-2"
           />
           {patientSearchLoading && (
-            <span style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+            <span className="text-[11px] text-gray-500 mt-[2px]">
               Үйлчлүүлэгч хайж байна...
             </span>
           )}
@@ -818,32 +787,13 @@ if (quickPatientForm.regNo.trim()) {
       </div>
 
       {patientResults.length > 0 && (
-        <div
-          style={{
-            gridColumn: "1 / -1",
-            borderRadius: 6,
-            border: "1px solid #e5e7eb",
-            background: "#ffffff",
-            maxHeight: 220,
-            overflowY: "auto",
-          }}
+        <div className="col-span-full rounded border border-gray-200 bg-white max-h-[220px] overflow-y-auto"
         >
           {patientResults.map((p) => (
             <button
               key={p.id}
               type="button"
-              onClick={() => handleSelectPatient(p)}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: "6px 8px",
-                border: "none",
-                borderBottom: "1px solid #f3f4f6",
-                background: "white",
-                cursor: "pointer",
-                fontSize: 12,
-              }}
+              onClick={() => handleSelectPatient(p)} className="block w-full text-left py-1.5 px-2 border-0 border-b border-gray-100 bg-white cursor-pointer text-xs"
             >
               {formatPatientSearchLabel(p)}
             </button>
@@ -852,7 +802,7 @@ if (quickPatientForm.regNo.trim()) {
       )}
 
       {/* Doctor */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div className="flex flex-col gap-1">
         <label>Эмч</label>
         <select
           name="doctorId"
@@ -862,13 +812,7 @@ if (quickPatientForm.regNo.trim()) {
             setError("");
           }}
           required
-          disabled={!form.date || workingDoctors.length === 0}
-          style={{
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            padding: "6px 8px",
-            background: (!form.date || workingDoctors.length === 0) ? "#f3f4f6" : undefined,
-          }}
+          disabled={!form.date || workingDoctors.length === 0} className="rounded border border-gray-300 py-1.5 px-2 disabled:bg-gray-100"
         >
           {!form.date ? (
             <option value="">Эхлээд огноо сонгоно уу.</option>
@@ -888,7 +832,7 @@ if (quickPatientForm.regNo.trim()) {
       </div>
 
       {/* Date */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div className="flex flex-col gap-1">
         <label>Огноо</label>
         <input
           type="date"
@@ -898,17 +842,12 @@ if (quickPatientForm.regNo.trim()) {
             handleChange(e);
             setError("");
           }}
-          required
-          style={{
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            padding: "6px 8px",
-          }}
+          required className="rounded border border-gray-300 py-1.5 px-2"
         />
       </div>
 
       {/* Start time */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div className="flex flex-col gap-1">
         <label>Эхлэх цаг</label>
         <select
           name="startTime"
@@ -917,12 +856,7 @@ if (quickPatientForm.regNo.trim()) {
             handleChange(e);
             setError("");
           }}
-          required
-          style={{
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            padding: "6px 8px",
-          }}
+          required className="rounded border border-gray-300 py-1.5 px-2"
         >
           <option value="">Эхлэх цаг</option>
           {dayStartSlots.map((slot) => (
@@ -934,7 +868,7 @@ if (quickPatientForm.regNo.trim()) {
       </div>
 
       {/* Duration pill buttons */}
-      <div role="group" aria-label="Үргэлжлэх хугацаа" style={{ display: "flex", gap: 8 }}>
+      <div role="group" aria-label="Үргэлжлэх хугацаа" className="flex gap-2">
         {([60, 90] as const).map((mins) => (
           <button
             key={mins}
@@ -951,17 +885,7 @@ if (quickPatientForm.regNo.trim()) {
                   : prev.endTime,
               }));
               setError("");
-            }}
-            style={{
-              borderRadius: 999,
-              border: durationMinutes === mins ? "1px solid #2563eb" : "1px solid #d1d5db",
-              background: durationMinutes === mins ? "#eff6ff" : "#fff",
-              color: durationMinutes === mins ? "#2563eb" : "#374151",
-              padding: "4px 14px",
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: durationMinutes === mins ? 600 : 400,
-            }}
+            }} className={`rounded-full py-[4px] px-[14px] cursor-pointer text-[13px] ${durationMinutes === mins ? 'border border-blue-500 bg-blue-50 text-blue-600 font-semibold' : 'border border-gray-300 bg-white text-gray-700 font-normal'}`}
           >
             {mins} мин
           </button>
@@ -969,7 +893,7 @@ if (quickPatientForm.regNo.trim()) {
       </div>
 
       {/* End time */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div className="flex flex-col gap-1">
         <label>Дуусах цаг</label>
         <select
           name="endTime"
@@ -978,12 +902,7 @@ if (quickPatientForm.regNo.trim()) {
             handleChange(e);
             setError("");
           }}
-          required
-          style={{
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            padding: "6px 8px",
-          }}
+          required className="rounded border border-gray-300 py-1.5 px-2"
         >
           <option value="">Дуусах цаг</option>
           {dayEndSlots.map((slot) => (
@@ -995,17 +914,12 @@ if (quickPatientForm.regNo.trim()) {
       </div>
 
       {/* Status */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div className="flex flex-col gap-1">
         <label>Төлөв</label>
         <select
           name="status"
           value={form.status}
-          onChange={handleChange}
-          style={{
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            padding: "6px 8px",
-          }}
+          onChange={handleChange} className="rounded border border-gray-300 py-1.5 px-2"
         >
          <option value="booked">Захиалсан</option>
 <option value="confirmed">Баталгаажсан</option>
@@ -1021,46 +935,26 @@ if (quickPatientForm.regNo.trim()) {
       </div>
 
       {/* Notes */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-          gridColumn: "1 / -1",
-        }}
+      <div className="flex flex-col gap-1 col-span-full"
       >
         <label>Тэмдэглэл</label>
         <input
           name="notes"
           placeholder="Захиалгын товч тэмдэглэл"
           value={form.notes}
-          onChange={handleChange}
-          style={{
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            padding: "6px 8px",
-          }}
+          onChange={handleChange} className="rounded border border-gray-300 py-1.5 px-2"
         />
       </div>
 
       {/* Submit + error */}
-      <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
+      <div className="col-span-full flex gap-2">
         <button
-          type="submit"
-          style={{
-            padding: "8px 16px",
-            borderRadius: 6,
-            border: "none",
-            background: "#2563eb",
-            color: "white",
-            fontSize: 14,
-            cursor: "pointer",
-          }}
+          type="submit" className="py-2 px-4 rounded border-0 bg-blue-600 text-white text-sm cursor-pointer"
         >
           Цаг захиалах
         </button>
         {error && (
-          <div style={{ color: "#b91c1c", fontSize: 12, alignSelf: "center" }}>
+          <div className="text-red-700 text-xs self-center">
             {error}
           </div>
         )}
@@ -1069,154 +963,77 @@ if (quickPatientForm.regNo.trim()) {
       {/* Quick new patient modal */}
       {showQuickPatientModal && (
         /* ... keep your existing quick patient modal as-is ... */
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.3)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-          }}
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
         >
           
-          <div
-            style={{
-              background: "white",
-              borderRadius: 8,
-              padding: 16,
-              width: 340,
-              boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
-              fontSize: 13,
-            }}
+          <div className="bg-white rounded-lg p-4 w-[340px] shadow-[0_10px_25px_rgba(0,0,0,0.15)] text-[13px]"
           >
-            <h3 style={{ marginTop: 0, marginBottom: 8, fontSize: 15 }}>
+            <h3 className="mt-0 mb-2 text-[15px]">
               Шинэ үйлчлүүлэгчийн бүртгэл
             </h3>
-            <p
-              style={{
-                marginTop: 0,
-                marginBottom: 12,
-                color: "#6b7280",
-              }}
+            <p className="mt-0 mb-3 text-gray-500"
             >
               Доорхи мэдээллийг заавал бөглөнө үү
               
             </p>
-            <div
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-  }}
+            <div className="flex flex-col gap-2"
 >
   {/* Овог (optional) */}
-  <label
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: 4,
-    }}
+  <label className="flex flex-col gap-1"
   >
     Овог
     <input
       name="ovog"
       value={quickPatientForm.ovog}
       onChange={handleQuickPatientChange}
-      placeholder="Овог оруулна уу"
-      style={{
-        borderRadius: 6,
-        border: "1px solid #d1d5db",
-        padding: "6px 8px",
-      }}
+      placeholder="Овог оруулна уу" className="rounded border border-gray-300 py-1.5 px-2"
     />
   </label>
 
   {/* Нэр (required) */}
-  <label
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: 4,
-    }}
+  <label className="flex flex-col gap-1"
   >
     Нэр
     <input
       name="name"
       value={quickPatientForm.name}
       onChange={handleQuickPatientChange}
-      placeholder="Нэр оруулна уу"
-      style={{
-        borderRadius: 6,
-        border: "1px solid #d1d5db",
-        padding: "6px 8px",
-      }}
+      placeholder="Нэр оруулна уу" className="rounded border border-gray-300 py-1.5 px-2"
     />
   </label>
 
   {/* Утас (required) */}
-  <label
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: 4,
-    }}
+  <label className="flex flex-col gap-1"
   >
     Утас
     <input
       name="phone"
       value={quickPatientForm.phone}
       onChange={handleQuickPatientChange}
-      placeholder="Утас оруулна уу"
-      style={{
-        borderRadius: 6,
-        border: "1px solid #d1d5db",
-        padding: "6px 8px",
-      }}
+      placeholder="Утас оруулна уу" className="rounded border border-gray-300 py-1.5 px-2"
     />
   </label>
 
   {/* РД (optional) */}
-  <label
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: 4,
-    }}
+  <label className="flex flex-col gap-1"
   >
     РД
     <input
       name="regNo"
       value={quickPatientForm.regNo}
       onChange={handleQuickPatientChange}
-      placeholder="РД оруулна уу"
-      style={{
-        borderRadius: 6,
-        border: "1px solid #d1d5db",
-        padding: "6px 8px",
-      }}
+      placeholder="РД оруулна уу" className="rounded border border-gray-300 py-1.5 px-2"
     />
   </label>
 
   {/* Салбар (required – already enforced in logic) */}
-  <label
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: 4,
-    }}
+  <label className="flex flex-col gap-1"
   >
     Салбар
     <select
       name="branchId"
       value={quickPatientForm.branchId}
-      onChange={handleQuickPatientChange}
-      style={{
-        borderRadius: 6,
-        border: "1px solid #d1d5db",
-        padding: "6px 8px",
-      }}
+      onChange={handleQuickPatientChange} className="rounded border border-gray-300 py-1.5 px-2"
     >
       <option value="">Сонгох</option>
       {branches.map((b) => (
@@ -1230,24 +1047,14 @@ if (quickPatientForm.regNo.trim()) {
   
 
   {quickPatientError && (
-    <div
-      style={{
-        color: "#b91c1c",
-        fontSize: 12,
-      }}
+    <div className="text-red-700 text-xs"
     >
       {quickPatientError}
     </div>
   )}
 
        
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 8,
-                  marginTop: 8,
-                }}
+              <div className="flex justify-end gap-2 mt-2"
               >
                 <button
                   type="button"
@@ -1256,29 +1063,14 @@ if (quickPatientForm.regNo.trim()) {
                       setShowQuickPatientModal(false);
                       setQuickPatientError("");
                     }
-                  }}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: 6,
-                    border: "1px solid #d1d5db",
-                    background: "#f9fafb",
-                    cursor: quickPatientSaving ? "default" : "pointer",
-                  }}
+                  }} className={`py-1.5 px-3 rounded border border-gray-300 bg-gray-50 ${quickPatientSaving ? 'cursor-default' : 'cursor-pointer'}`}
                 >
                   Цуцлах
                 </button>
                 <button
                   type="button"
                   onClick={handleQuickPatientSave}
-                  disabled={quickPatientSaving}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: 6,
-                    border: "none",
-                    background: "#16a34a",
-                    color: "white",
-                    cursor: quickPatientSaving ? "default" : "pointer",
-                  }}
+                  disabled={quickPatientSaving} className="py-1.5 px-3 rounded border-0 bg-green-600 text-white disabled:cursor-default"
                 >
                   {quickPatientSaving ? "Хадгалж байна..." : "Хадгалах"}
                 </button>
@@ -2834,12 +2626,7 @@ const handleCancelDraft = (appointmentId: number) => {
 };
 
  return (
-  <main
-    style={{
-      margin: "16px 0",
-      padding: 24,
-      fontFamily: "sans-serif",
-    }}
+  <main className="my-4 mx-0 p-6 font-sans"
   >
 {/* ready_to_pay blink/pulse animation */}
 <style jsx global>{`
@@ -2855,40 +2642,29 @@ const handleCancelDraft = (appointmentId: number) => {
 `}</style>
 {/* Calendar view with doctor-columns time grid (all screen sizes) */}
 <div>
-<h1 style={{ fontSize: 20, margin: "4px 0 8px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+<h1 className="text-xl mt-[4px] mx-0 mb-[8px] flex items-center gap-[10px] flex-wrap">
   Цаг захиалга
-  <span style={{
-    display: "inline-flex", alignItems: "center", gap: 5,
-    fontSize: 12, fontWeight: 500, borderRadius: 20,
-    padding: "2px 10px",
-    background: sseStatus === "connected" ? "#dcfce7" : sseStatus === "disconnected" ? "#fee2e2" : "#fef9c3",
-    color: sseStatus === "connected" ? "#15803d" : sseStatus === "disconnected" ? "#b91c1c" : "#854d0e",
-    border: `1px solid ${sseStatus === "connected" ? "#86efac" : sseStatus === "disconnected" ? "#fca5a5" : "#fde68a"}`,
-  }}>
-    <span style={{
-      width: 7, height: 7, borderRadius: "50%",
-      background: sseStatus === "connected" ? "#22c55e" : sseStatus === "disconnected" ? "#ef4444" : "#eab308",
-      display: "inline-block",
-    }} />
+  <span className="inline-flex items-center gap-[5px] text-xs font-medium rounded-[20px] py-[2px] px-[10px]" style={{ background: sseStatus === "connected" ? "#dcfce7" : sseStatus === "disconnected" ? "#fee2e2" : "#fef9c3", color: sseStatus === "connected" ? "#15803d" : sseStatus === "disconnected" ? "#b91c1c" : "#854d0e", border: `1px solid ${sseStatus === "connected" ? "#86efac" : sseStatus === "disconnected" ? "#fca5a5" : "#fde68a"}` }}>
+    <span className="w-[7px] h-[7px] rounded-full inline-block" style={{ background: sseStatus === "connected" ? "#22c55e" : sseStatus === "disconnected" ? "#ef4444" : "#eab308" }} />
     {sseStatus === "connected" ? "Live: Connected" : sseStatus === "disconnected" ? "Live: Disconnected" : "Reconnecting…"}
     {sseStatus === "connected" && lastSseEventAt && (
-      <span style={{ opacity: 0.75 }}>
+      <span className="opacity-75">
         · Last update: {lastSseEventAt.toLocaleTimeString("mn-MN", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}
       </span>
     )}
   </span>
 </h1>
 {!isReceptionRoute && (
-<p style={{ color: "#6b7280", fontSize: 13, marginBottom: 12 }}>
+<p className="text-gray-500 text-[13px] mb-3">
   Эмч, үйлчлүүлэгч, салбарын цаг захиалгыг харах болон удирдах хэсэг
 </p>
 )}
 
 {/* Small branch switcher — only for receptionist, no "Бүх салбар" option */}
 {currentUserRole === "receptionist" && branches.length > 0 && (
-  <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <span style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>Салбар:</span>
+  <div className="flex items-center gap-4 flex-wrap mb-3">
+    <div className="flex items-center gap-2">
+      <span className="text-[13px] text-gray-700 font-medium">Салбар:</span>
       <select
         value={selectedBranchId}
         onChange={(e) => {
@@ -2901,15 +2677,7 @@ const handleCancelDraft = (appointmentId: number) => {
             undefined,
             { shallow: true }
           );
-        }}
-        style={{
-          borderRadius: 6,
-          border: "1px solid #d1d5db",
-          padding: "5px 10px",
-          fontSize: 13,
-          background: "white",
-          cursor: "pointer",
-        }}
+        }} className="rounded border border-gray-300 py-[5px] px-[10px] text-[13px] bg-white cursor-pointer"
       >
         {branches.map((b) => (
           <option key={b.id} value={b.id}>
@@ -2925,26 +2693,12 @@ const handleCancelDraft = (appointmentId: number) => {
 {/* NEW: Daily stats cards (colored) */}
 {/* Checked-in patient queue */}
 {checkedInQueue.length > 0 && (
-  <section style={{ marginBottom: 16 }}>
-    <div
-      style={{
-        fontSize: 13,
-        fontWeight: 700,
-        color: "#1d4ed8",
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-        marginBottom: 8,
-      }}
+  <section className="mb-4">
+    <div className="text-[13px] font-bold text-blue-700 uppercase tracking-[0.5px] mb-2"
     >
       🚪 Ирсэн үйлчлүүлэгчид ({checkedInQueue.length})
     </div>
-    <div
-      style={{
-        display: "flex",
-        gap: 10,
-        overflowX: "auto",
-        paddingBottom: 4,
-      }}
+    <div className="flex gap-[10px] overflow-x-auto pb-[4px]"
     >
       {checkedInQueue.map((a) => {
         const patientDisplay = [a.patientOvog ? a.patientOvog.charAt(0) + "." : null, a.patientName]
@@ -2972,52 +2726,24 @@ const handleCancelDraft = (appointmentId: number) => {
           : null;
         return (
           <div
-            key={a.id}
-            style={{
-              flexShrink: 0,
-              minWidth: 160,
-              maxWidth: 200,
-              background: "linear-gradient(135deg,#eff6ff,#fff)",
-              border: "1px solid #bfdbfe",
-              borderRadius: 12,
-              padding: "10px 14px",
-              boxShadow: "0 2px 8px rgba(30,58,138,0.07)",
-            }}
+            key={a.id} className="shrink-0 min-w-[160px] max-w-[200px] border border-blue-200 rounded-xl py-[10px] px-[14px] shadow-[0_2px_8px_rgba(30,58,138,0.07)]" style={{ background: "linear-gradient(135deg,#eff6ff,#fff)" }}
           >
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                color: "#1e3a8a",
-                marginBottom: 4,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
+            <div className="text-sm font-bold text-blue-900 mb-1 whitespace-nowrap overflow-hidden text-ellipsis"
             >
               {patientDisplay || "—"}
             </div>
             {doctorDisplay && (
-              <div style={{ fontSize: 12, color: "#475569", marginBottom: 2 }}>
+              <div className="text-xs text-slate-600 mb-[2px]">
                 👨‍⚕️ {doctorDisplay}
               </div>
             )}
             {timeStr && (
-              <div style={{ fontSize: 12, color: "#475569", marginBottom: 2 }}>
+              <div className="text-xs text-slate-600 mb-[2px]">
                 🕐 {timeStr}
               </div>
             )}
             {a.branch?.name && !effectiveBranchId && (
-              <div
-                style={{
-                  display: "inline-block",
-                  fontSize: 10,
-                  background: "#dbeafe",
-                  color: "#1d4ed8",
-                  borderRadius: 6,
-                  padding: "1px 6px",
-                  marginTop: 2,
-                }}
+              <div className="inline-block text-[10px] bg-blue-100 text-blue-700 rounded py-[1px] px-[6px] mt-[2px]"
               >
                 {a.branch.name}
               </div>
@@ -3029,69 +2755,29 @@ const handleCancelDraft = (appointmentId: number) => {
   </section>
 )}
 
-<section
-  style={{
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
-    gap: 12,
-    marginBottom: 16,
-  }}
+<section className="grid grid-cols-[repeat(auto-fit,_minmax(210px,_1fr))] gap-3 mb-4"
 >
   {/* Нийт цаг дүүргэлт, Хуваарьт эмчийн тоо, Үйлчлүүлэгчдийн тоо — hidden for receptionist role */}
   {currentUserRole !== "receptionist" && (
   <>
   {/* Нийт цаг захиалга */}
-  <div
-    style={{
-      background: "linear-gradient(90deg,#eff6ff,#ffffff)",
-      borderRadius: 12,
-      border: "1px solid #dbeafe",
-      boxShadow: "0 8px 16px rgba(15,23,42,0.06)",
-      padding: 12,
-      display: "flex",
-      flexDirection: "column",
-      gap: 8,
-    }}
+  <div className="rounded-xl border border-blue-100 shadow-[0_8px_16px_rgba(15,23,42,0.06)] p-3 flex flex-col gap-2" style={{ background: "linear-gradient(90deg,#eff6ff,#ffffff)" }}
   >
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}
+    <div className="flex items-center justify-between"
     >
-      <div
-        style={{
-          fontSize: 11,
-          textTransform: "uppercase",
-          color: "#1d4ed8",
-          fontWeight: 700,
-          letterSpacing: 0.5,
-        }}
+      <div className="text-[11px] uppercase text-blue-700 font-bold tracking-[0.5px]"
       >
         Нийт цаг дүүргэлт
       </div>
-      <div
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: "999px",
-          background:
-            "radial-gradient(circle at 30% 30%,#bfdbfe,#1d4ed8)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "white",
-          fontSize: 16,
-        }}
+      <div className="w-[30px] h-[30px] rounded-[999px] flex items-center justify-center text-white text-base" style={{ background: "radial-gradient(circle at 30% 30%,#bfdbfe,#1d4ed8)" }}
       >
         📅
       </div>
     </div>
-    <div style={{ fontSize: 26, fontWeight: 700, color: "#111827" }}>
+    <div className="text-[26px] font-bold text-gray-900">
       {apiOccupancy != null ? apiOccupancy.occupancyRate : fillingStats.percent}%
     </div>
-    <div style={{ fontSize: 11, color: "#6b7280" }}>
+    <div className="text-[11px] text-gray-500">
       {apiOccupancy != null
         ? `${apiOccupancy.bookedSlots}/${apiOccupancy.totalSlots} цаг захиалагдсан`
         : `${formatDateYmdDash(selectedDay)} өдрийн нийт цаг дүүргэлт`}
@@ -3099,113 +2785,45 @@ const handleCancelDraft = (appointmentId: number) => {
   </div>
 
   {/* Хуваарьт эмчийн тоо */}
-  <div
-    style={{
-      background: "linear-gradient(90deg,#fef9c3,#ffffff)",
-      borderRadius: 12,
-      border: "1px solid #facc15",
-      boxShadow: "0 8px 16px rgba(15,23,42,0.06)",
-      padding: 12,
-      display: "flex",
-      flexDirection: "column",
-      gap: 8,
-    }}
+  <div className="rounded-xl border border-yellow-400 shadow-[0_8px_16px_rgba(15,23,42,0.06)] p-3 flex flex-col gap-2" style={{ background: "linear-gradient(90deg,#fef9c3,#ffffff)" }}
   >
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}
+    <div className="flex items-center justify-between"
     >
-      <div
-        style={{
-          fontSize: 11,
-          textTransform: "uppercase",
-          color: "#b45309",
-          fontWeight: 700,
-          letterSpacing: 0.5,
-        }}
+      <div className="text-[11px] uppercase text-amber-700 font-bold tracking-[0.5px]"
       >
         Хуваарьт эмчийн тоо
       </div>
-      <div
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: "999px",
-          background:
-            "radial-gradient(circle at 30% 30%,#fde68a,#f59e0b)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "white",
-          fontSize: 16,
-        }}
+      <div className="w-[30px] h-[30px] rounded-[999px] flex items-center justify-center text-white text-base" style={{ background: "radial-gradient(circle at 30% 30%,#fde68a,#f59e0b)" }}
       >
         🩺
       </div>
     </div>
-    <div style={{ fontSize: 26, fontWeight: 700, color: "#111827" }}>
+    <div className="text-[26px] font-bold text-gray-900">
       {totalScheduledDoctorsForDay}
     </div>
-    <div style={{ fontSize: 11, color: "#6b7280" }}>
+    <div className="text-[11px] text-gray-500">
       Сонгосон өдөрт ажиллаж буй эмч
     </div>
   </div>
 
   {/* Үйлчлүүлэгчдийн тоо (completed) */}
-  <div
-    style={{
-      background: "linear-gradient(90deg,#fee2e2,#ffffff)",
-      borderRadius: 12,
-      border: "1px solid #fecaca",
-      boxShadow: "0 8px 16px rgba(15,23,42,0.06)",
-      padding: 12,
-      display: "flex",
-      flexDirection: "column",
-      gap: 8,
-    }}
+  <div className="rounded-xl border border-red-200 shadow-[0_8px_16px_rgba(15,23,42,0.06)] p-3 flex flex-col gap-2" style={{ background: "linear-gradient(90deg,#fee2e2,#ffffff)" }}
   >
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}
+    <div className="flex items-center justify-between"
     >
-      <div
-        style={{
-          fontSize: 11,
-          textTransform: "uppercase",
-          color: "#b91c1c",
-          fontWeight: 700,
-          letterSpacing: 0.5,
-        }}
+      <div className="text-[11px] uppercase text-red-700 font-bold tracking-[0.5px]"
       >
         Үйлчлүүлэгчдийн тоо
       </div>
-      <div
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: "999px",
-          background:
-            "radial-gradient(circle at 30% 30%,#fecaca,#ef4444)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "white",
-          fontSize: 16,
-        }}
+      <div className="w-[30px] h-[30px] rounded-[999px] flex items-center justify-center text-white text-base" style={{ background: "radial-gradient(circle at 30% 30%,#fecaca,#ef4444)" }}
       >
         🧍
       </div>
     </div>
-    <div style={{ fontSize: 26, fontWeight: 700, color: "#111827" }}>
+    <div className="text-[26px] font-bold text-gray-900">
       {totalCompletedPatientsForDay}
     </div>
-    <div style={{ fontSize: 11, color: "#6b7280" }}>
+    <div className="text-[11px] text-gray-500">
       {formatDateYmdDash(selectedDay)} өдөр &quot;Дууссан&quot; төлөвтэй
       үйлчлүүлэгч
     </div>
@@ -3215,59 +2833,25 @@ const handleCancelDraft = (appointmentId: number) => {
 
   {/* Борлуулалтын орлого — hidden for receptionist role */}
   {currentUserRole !== "receptionist" && (
-  <div
-    style={{
-      background: "linear-gradient(90deg,#dcfce7,#ffffff)",
-      borderRadius: 12,
-      border: "1px solid #bbf7d0",
-      boxShadow: "0 8px 16px rgba(15,23,42,0.06)",
-      padding: 12,
-      display: "flex",
-      flexDirection: "column",
-      gap: 8,
-    }}
+  <div className="rounded-xl border border-green-200 shadow-[0_8px_16px_rgba(15,23,42,0.06)] p-3 flex flex-col gap-2" style={{ background: "linear-gradient(90deg,#dcfce7,#ffffff)" }}
   >
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}
+    <div className="flex items-center justify-between"
     >
-      <div
-        style={{
-          fontSize: 11,
-          textTransform: "uppercase",
-          color: "#15803d",
-          fontWeight: 700,
-          letterSpacing: 0.5,
-        }}
+      <div className="text-[11px] uppercase text-green-700 font-bold tracking-[0.5px]"
       >
         Борлуулалтын орлого
       </div>
-      <div
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: "999px",
-          background:
-            "radial-gradient(circle at 30% 30%,#bbf7d0,#22c55e)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "white",
-          fontSize: 16,
-        }}
+      <div className="w-[30px] h-[30px] rounded-[999px] flex items-center justify-center text-white text-base" style={{ background: "radial-gradient(circle at 30% 30%,#bbf7d0,#22c55e)" }}
       >
         💰
       </div>
     </div>
-    <div style={{ fontSize: 26, fontWeight: 700, color: "#111827" }}>
+    <div className="text-[26px] font-bold text-gray-900">
       {dailyRevenue == null
         ? "—"
         : dailyRevenue.toLocaleString("mn-MN") + " ₮"}
     </div>
-    <div style={{ fontSize: 11, color: "#6b7280" }}>
+    <div className="text-[11px] text-gray-500">
       Сонгосон өдрийн нийт борлуулалтын орлого
     </div>
   </div>
@@ -3277,58 +2861,36 @@ const handleCancelDraft = (appointmentId: number) => {
 
       {/* Filters card — hidden entirely when receptionist is viewing another branch */}
       {!isOtherBranchReceptionView && (
-      <section
-        style={{
-          marginBottom: 16,
-          padding: 12,
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-          background: "#f9fafb",
-          fontSize: 13,
-          maxWidth: 1200,
-          width: "100%",
-        }}
+      <section className="mb-4 p-3 rounded-lg border border-gray-200 bg-gray-50 text-[13px] max-w-[1200px] w-full"
       >
         {!isReceptionRoute && (
-          <h2 style={{ marginTop: 0, marginBottom: 8, fontSize: 16 }}>
+          <h2 className="mt-0 mb-2 text-base">
             Шүүлт
           </h2>
         )}
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 12,
-            alignItems: "flex-start",
-          }}
+        <div className="flex flex-wrap gap-3 items-start"
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div className="flex flex-col gap-1">
             <label>Огноо</label>
             <input
               type="date"
               value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              style={{
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                padding: "6px 8px",
-                width: 190,
-              }}
+              onChange={(e) => setFilterDate(e.target.value)} className="rounded border border-gray-300 py-1.5 px-2 w-[190px]"
             />
           </div>
 
           {/* Branch selector — hidden for receptionist (they use the top switcher) */}
           {currentUserRole !== "receptionist" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div className="flex flex-col gap-1">
             <label>
               Салбар{" "}
               {isLocked && (
-                <span style={{ color: "#dc2626" }}>
+                <span className="text-red-600">
                   (<span role="img" aria-label="Түгжээтэй">🔒</span> Түгжээтэй)
                 </span>
               )}
             </label>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div className="flex gap-2 items-center">
               <select
                 value={effectiveBranchId || filterBranchId}
                 onChange={(e) => {
@@ -3346,16 +2908,7 @@ const handleCancelDraft = (appointmentId: number) => {
                     { shallow: true }
                   );
                 }}
-                disabled={isLocked}
-                style={{
-                  borderRadius: 6,
-                  border: "1px solid #d1d5db",
-                  padding: "6px 8px",
-                  flex: 1,
-                  background: isLocked ? "#f3f4f6" : "white",
-                  cursor: isLocked ? "not-allowed" : "pointer",
-                  opacity: isLocked ? 0.6 : 1,
-                }}
+                disabled={isLocked} className="rounded border border-gray-300 py-1.5 px-2 flex-1 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <option value="">Бүх салбар</option>
                 {branches.map((b) => (
@@ -3367,17 +2920,7 @@ const handleCancelDraft = (appointmentId: number) => {
               {isLocked && (
                 <button
                   type="button"
-                  onClick={unlock}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: 6,
-                    border: "1px solid #dc2626",
-                    background: "#fef2f2",
-                    color: "#dc2626",
-                    fontSize: 12,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}
+                  onClick={unlock} className="py-1.5 px-3 rounded border border-red-600 bg-red-50 text-red-600 text-xs cursor-pointer whitespace-nowrap"
                   title="Салбарын түгжээг суллах"
                 >
                   🔓 Суллах
@@ -3388,9 +2931,9 @@ const handleCancelDraft = (appointmentId: number) => {
           )}
 
         {/* Patient quick search (Хайх) */}
-        <div style={{ flex: 1, minWidth: 220, maxWidth: 460 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Хайх</div>
-          <div style={{ position: "relative" }}>
+        <div className="flex-1 min-w-[220px] max-w-[460px]">
+          <div className="text-xs font-semibold text-gray-700 mb-[6px]">Хайх</div>
+          <div className="relative">
             <input
               type="text"
               placeholder="Үйлчлүүлэгч хайх (нэр, РД, утас)"
@@ -3406,18 +2949,10 @@ const handleCancelDraft = (appointmentId: number) => {
                   triggerFilterPatientSearch(v);
                 }
               }}
-              autoComplete="off"
-              style={{
-                width: "100%",
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                padding: "6px 8px",
-                fontSize: 13,
-                boxSizing: "border-box",
-              }}
+              autoComplete="off" className="w-full rounded border border-gray-300 py-1.5 px-2 text-[13px] box-border"
             />
             {filterPatientSearchLoading && (
-              <span style={{ fontSize: 11, color: "#6b7280", display: "block", marginTop: 2 }}>
+              <span className="text-[11px] text-gray-500 block mt-[2px]">
                 Хайж байна...
               </span>
             )}
@@ -3425,7 +2960,7 @@ const handleCancelDraft = (appointmentId: number) => {
 
           {/* Search dropdown */}
           {filterPatientResults.length > 0 && !selectedFilterPatient && (
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 6, background: "#fff", maxHeight: 180, overflowY: "auto", marginTop: 2 }}>
+            <div className="border border-gray-200 rounded bg-white max-h-[180px] overflow-y-auto mt-[2px]">
               {filterPatientResults.map((p) => {
                 const label = [
                   p.ovog && p.name ? `${p.ovog} ${p.name}` : (p.name || p.ovog || ""),
@@ -3437,18 +2972,7 @@ const handleCancelDraft = (appointmentId: number) => {
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => handleSelectFilterPatient(p)}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "6px 8px",
-                      border: "none",
-                      borderBottom: "1px solid #f3f4f6",
-                      background: "white",
-                      cursor: "pointer",
-                      fontSize: 12,
-                    }}
+                    onClick={() => handleSelectFilterPatient(p)} className="block w-full text-left py-1.5 px-2 border-0 border-b border-gray-100 bg-white cursor-pointer text-xs"
                   >
                     {label}
                   </button>
@@ -3462,19 +2986,7 @@ const handleCancelDraft = (appointmentId: number) => {
             !filterPatientSearchLoading &&
             filterPatientResults.length === 0 &&
             selectedFilterPatient === null && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginTop: 4,
-                  padding: "5px 8px",
-                  borderRadius: 6,
-                  border: "1px solid #e5e7eb",
-                  background: "#f9fafb",
-                  fontSize: 12,
-                  color: "#6b7280",
-                }}
+              <div className="flex items-center gap-2 mt-1 py-[5px] px-[8px] rounded border border-gray-200 bg-gray-50 text-xs text-gray-500"
               >
                 <button
                   type="button"
@@ -3488,22 +3000,7 @@ const handleCancelDraft = (appointmentId: number) => {
                     });
                     setFilterQuickPatientError("");
                     setFilterQuickPatientOpen(true);
-                  }}
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: "50%",
-                    border: "none",
-                    background: "#16a34a",
-                    color: "white",
-                    fontSize: 16,
-                    lineHeight: "22px",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
+                  }} className="w-[22px] h-[22px] rounded-full border-0 bg-green-600 text-white text-base leading-[22px] cursor-pointer flex items-center justify-center shrink-0"
                   title="Шинэ үйлчлүүлэгч бүртгэх"
                 >
                   +
@@ -3514,17 +3011,9 @@ const handleCancelDraft = (appointmentId: number) => {
 
           {/* Patient mini-card */}
           {selectedFilterPatient && (
-            <div
-              style={{
-                marginTop: 8,
-                padding: 10,
-                borderRadius: 8,
-                border: "1px solid #dbeafe",
-                background: "#eff6ff",
-                fontSize: 12,
-              }}
+            <div className="mt-2 p-[10px] rounded-lg border border-blue-100 bg-blue-50 text-xs"
             >
-              <div style={{ fontWeight: 600, marginBottom: 4, color: "#1d4ed8" }}>
+              <div className="font-semibold mb-1 text-blue-700">
                 {[
                   selectedFilterPatient.ovog && selectedFilterPatient.name
                     ? `${selectedFilterPatient.ovog} ${selectedFilterPatient.name}`
@@ -3536,22 +3025,22 @@ const handleCancelDraft = (appointmentId: number) => {
               </div>
 
               {/* Last 3 completed visits */}
-              <div style={{ marginBottom: 6 }}>
-                <div style={{ color: "#6b7280", marginBottom: 3, fontSize: 11 }}>Сүүлийн үзлэгүүд:</div>
+              <div className="mb-[6px]">
+                <div className="text-gray-500 mb-[3px] text-[11px]">Сүүлийн үзлэгүүд:</div>
                 {filterPatientHistoryLoading ? (
-                  <div style={{ color: "#9ca3af", fontSize: 11 }}>Уншиж байна...</div>
+                  <div className="text-gray-400 text-[11px]">Уншиж байна...</div>
                 ) : filterPatientHistory.length === 0 ? (
-                  <div style={{ color: "#9ca3af", fontSize: 11 }}>Өмнөх үзлэг байхгүй</div>
+                  <div className="text-gray-400 text-[11px]">Өмнөх үзлэг байхгүй</div>
                 ) : (
                   filterPatientHistory.map((h) => (
-                    <div key={h.id} style={{ color: "#374151", fontSize: 11, padding: "1px 0" }}>
+                    <div key={h.id} className="text-gray-700 text-[11px] py-px px-0">
                       {formatHistoryDate(h.scheduledAt)} — Эмч: {h.doctor ? formatDoctorName(historyDoctorToDoctor(h.doctor)) : "-"}
                     </div>
                   ))
                 )}
               </div>
 
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <div className="flex gap-[6px] items-center">
                 <button
                   type="button"
                   onClick={() => {
@@ -3560,15 +3049,7 @@ const handleCancelDraft = (appointmentId: number) => {
                     setFilterPatientQuery("");
                     setFilterPatientResults([]);
                     setBookingIntent(null);
-                  }}
-                  style={{
-                    padding: "5px 10px",
-                    borderRadius: 6,
-                    border: "1px solid #d1d5db",
-                    background: "#f9fafb",
-                    fontSize: 12,
-                    cursor: "pointer",
-                  }}
+                  }} className="py-[5px] px-[10px] rounded border border-gray-300 bg-gray-50 text-xs cursor-pointer"
                 >
                   Цэвэрлэх
                 </button>
@@ -3582,30 +3063,18 @@ const handleCancelDraft = (appointmentId: number) => {
 
       {/* Booking intent banner */}
       {bookingIntent && (
-        <div
-          style={{
-            marginBottom: 12,
-            padding: "8px 12px",
-            borderRadius: 8,
-            background: "#eff6ff",
-            border: "1px solid #bfdbfe",
-            fontSize: 12,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}
+        <div className="mb-3 py-[8px] px-[12px] rounded-lg bg-blue-50 border border-blue-200 text-xs flex items-center gap-[10px]"
         >
           <span>📌 <strong>Цаг захиалах горим:</strong> {bookingIntent.patientLabel}</span>
           {bookingIntent.doctorId && (
-            <span style={{ color: "#2563eb" }}>
+            <span className="text-blue-600">
               — Эмч: {formatDoctorName(doctors.find((d) => d.id === bookingIntent.doctorId))}
             </span>
           )}
-          <span style={{ color: "#6b7280" }}>→ Цаг сонгохын тулд хүснэгт дэх нүдийг дарна уу</span>
+          <span className="text-gray-500">→ Цаг сонгохын тулд хүснэгт дэх нүдийг дарна уу</span>
           <button
             type="button"
-            onClick={() => setBookingIntent(null)}
-            style={{ marginLeft: "auto", border: "none", background: "transparent", cursor: "pointer", color: "#6b7280", fontSize: 12 }}
+            onClick={() => setBookingIntent(null)} className="ml-auto border-0 bg-transparent cursor-pointer text-gray-500 text-xs"
           >
             ✕ Цуцлах
           </button>
@@ -3614,88 +3083,41 @@ const handleCancelDraft = (appointmentId: number) => {
 
       {/* Pending drag/drop save confirmation — shown inline above the calendar */}
       {pendingSaveError && pendingSaveId === null && (
-        <div
-          style={{
-            marginBottom: 12,
-            background: "#fef2f2",
-            borderRadius: 8,
-            border: "1px solid #fca5a5",
-            padding: "10px 16px",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            maxWidth: 400,
-          }}
+        <div className="mb-3 bg-red-50 rounded-lg border border-red-300 py-2.5 px-4 inline-flex items-center gap-[10px] max-w-[400px]"
         >
-          <span style={{ fontSize: 13, color: "#b91c1c" }}>{pendingSaveError}</span>
+          <span className="text-[13px] text-red-700">{pendingSaveError}</span>
           <button
             type="button"
-            onClick={() => setPendingSaveError(null)}
-            style={{ fontSize: 12, color: "#6b7280", background: "none", border: "none", cursor: "pointer" }}
+            onClick={() => setPendingSaveError(null)} className="text-xs text-gray-500 bg-none border-0 cursor-pointer"
           >✕</button>
         </div>
       )}
       {pendingSaveId !== null && (
-        <div
-          style={{
-            marginBottom: 12,
-            background: "#eff6ff",
-            borderRadius: 8,
-            border: "1px solid #bfdbfe",
-            padding: "12px 16px",
-            display: "inline-flex",
-            flexDirection: "column",
-            gap: 10,
-            maxWidth: 400,
-          }}
+        <div className="mb-3 bg-blue-50 rounded-lg border border-blue-200 py-3 px-4 inline-flex flex-col gap-[10px] max-w-[400px]"
         >
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#1d4ed8" }}>
+          <div className="text-sm font-semibold text-blue-700">
             Цаг захиалга өөрчлөгдлөө
           </div>
-          <div style={{ fontSize: 12, color: "#3b82f6" }}>
+          <div className="text-xs text-blue-500">
             Та өөрчлөлтийг хадгалах уу эсвэл цуцлах уу?
           </div>
           {pendingSaveError && (
-            <div style={{ fontSize: 12, color: "#b91c1c" }}>
+            <div className="text-xs text-red-700">
               {pendingSaveError}
             </div>
           )}
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             <button
               type="button"
               onClick={() => handleSaveDraft(pendingSaveId)}
-              disabled={pendingSaving}
-              style={{
-                padding: "7px 16px",
-                borderRadius: 6,
-                border: "none",
-                background: "#2563eb",
-                color: "white",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: pendingSaving ? "default" : "pointer",
-                opacity: pendingSaving ? 0.6 : 1,
-                whiteSpace: "nowrap",
-              }}
+              disabled={pendingSaving} className="py-[7px] px-[16px] rounded border-0 bg-blue-600 text-white text-[13px] font-semibold whitespace-nowrap disabled:cursor-default disabled:opacity-60"
             >
               {pendingSaving ? "Хадгалж байна..." : "Хадгалах"}
             </button>
             <button
               type="button"
               onClick={() => handleCancelDraft(pendingSaveId)}
-              disabled={pendingSaving}
-              style={{
-                padding: "7px 16px",
-                borderRadius: 6,
-                border: "1px solid #d1d5db",
-                background: "#ffffff",
-                color: "#374151",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: pendingSaving ? "default" : "pointer",
-                opacity: pendingSaving ? 0.6 : 1,
-                whiteSpace: "nowrap",
-              }}
+              disabled={pendingSaving} className="py-[7px] px-[16px] rounded border border-gray-300 bg-white text-gray-700 text-[13px] font-semibold whitespace-nowrap disabled:cursor-default disabled:opacity-60"
             >
               Цуцлах
             </button>
@@ -3704,73 +3126,48 @@ const handleCancelDraft = (appointmentId: number) => {
       )}
 
 
-     <section style={{ marginBottom: 24 }}>
+     <section className="mb-6">
   {!isReceptionRoute && (
-    <h2 style={{ fontSize: 16, marginBottom: 4 }}>
+    <h2 className="text-base mb-1">
       Өдрийн цагийн хүснэгт
     </h2>
   )}
-  <div style={{ color: "#6b7280", fontSize: 12, marginBottom: 8 }}>
+  <div className="text-gray-500 text-xs mb-2">
     {formatDateYmdDash(selectedDay)}
   </div>
   {/* Compact date selector for other-branch reception view (Шүүлт is hidden) */}
   {isOtherBranchReceptionView && (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-      <label style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>Огноо:</label>
+    <div className="flex items-center gap-2 mb-[10px]">
+      <label className="text-[13px] text-gray-700 font-medium">Огноо:</label>
       <input
         type="date"
         value={filterDate}
-        onChange={(e) => setFilterDate(e.target.value)}
-        style={{
-          borderRadius: 6,
-          border: "1px solid #d1d5db",
-          padding: "5px 8px",
-          fontSize: 13,
-        }}
+        onChange={(e) => setFilterDate(e.target.value)} className="rounded border border-gray-300 py-[5px] px-[8px] text-[13px]"
       />
     </div>
   )}
 
   {!hasMounted ? (
-    <div style={{ color: "#6b7280", fontSize: 13 }}>
+    <div className="text-gray-500 text-[13px]">
       Цагийн хүснэгтийг ачаалж байна...
     </div>
   ) : timeSlots.length === 0 ? (
-    <div style={{ color: "#6b7280", fontSize: 13 }}>
+    <div className="text-gray-500 text-[13px]">
       Энэ өдөрт цагийн интервал тодорхойлогдоогүй байна.
     </div>
   ) : gridDoctors.length === 0 ? (
-    <div style={{ color: "#6b7280", fontSize: 13 }}>
+    <div className="text-gray-500 text-[13px]">
       Энэ өдөр ажиллах эмчийн хуваарь алга.
     </div>
   ) : (
    <div
-  ref={gridRef}
-  style={{
-    border: "1px solid #ddd",
-    borderRadius: 8,
-    fontSize: 12,
-    overflowX: "auto",
-    overflowY: "visible",
-    position: "relative",
-    WebkitOverflowScrolling: "touch",
-  }}
+  ref={gridRef} className="border border-[#ddd] rounded-lg text-xs overflow-x-auto overflow-y-visible relative" style={{ WebkitOverflowScrolling: "touch" }}
 >
 
             {/* Header row */}
-                        <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: `80px repeat(${gridDoctors.length}, 180px)`,
-                backgroundColor: "#f5f5f5",
-                borderBottom: "1px solid #ddd",
-                minWidth: 80 + gridDoctors.length * 180, // ensure horizontal scroll
-                position: "sticky",
-                top: 0,
-                zIndex: 20,
-              }}
+                        <div className="grid bg-[#f5f5f5] border-b border-[#ddd] top-0 z-[20]" style={{ gridTemplateColumns: `80px repeat(${gridDoctors.length}, 180px)`, minWidth: 80 + gridDoctors.length * 180 }}
             >
-              <div style={{ padding: 8, fontWeight: "bold", position: "sticky", left: 0, backgroundColor: "#f5f5f5", zIndex: 25, transform: "translateZ(0)" }}>Цаг</div>
+              <div className="p-2 font-bold sticky left-0 bg-[#f5f5f5] z-[25] [transform:translateZ(0)]">Цаг</div>
               {gridDoctors.map((doc, idx) => {
                 // Count visible appointments: matching day + branch + not cancelled
                 const count = appointments.filter((a) => {
@@ -3784,47 +3181,24 @@ const handleCancelDraft = (appointmentId: number) => {
                 const isRightDisabled = reorderSaving || idx === gridDoctors.length - 1;
                 return (
                   <div
-                    key={doc.id}
-                    style={{
-                      padding: 8,
-                      fontWeight: "bold",
-                      textAlign: "center",
-                      borderLeft: "1px solid #ddd",
-                    }}
+                    key={doc.id} className="p-2 font-bold text-center border-l border-[#ddd]"
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                    <div className="flex items-center justify-center gap-1">
                       <button
                         type="button"
                         onClick={() => moveDocInGrid(doc.id, "left")}
                         disabled={isLeftDisabled}
-                        title="Зүүн тийш зөөх"
-                        style={{
-                          fontSize: 11,
-                          padding: "1px 5px",
-                          cursor: isLeftDisabled ? "default" : "pointer",
-                          opacity: isLeftDisabled ? 0.3 : 1,
-                        }}
+                        title="Зүүн тийш зөөх" className="text-[11px] py-[1px] px-[5px] disabled:cursor-default disabled:opacity-30"
                       >◀</button>
                       <span>{formatDoctorName(doc)}</span>
                       <button
                         type="button"
                         onClick={() => moveDocInGrid(doc.id, "right")}
                         disabled={isRightDisabled}
-                        title="Баруун тийш зөөх"
-                        style={{
-                          fontSize: 11,
-                          padding: "1px 5px",
-                          cursor: isRightDisabled ? "default" : "pointer",
-                          opacity: isRightDisabled ? 0.3 : 1,
-                        }}
+                        title="Баруун тийш зөөх" className="text-[11px] py-[1px] px-[5px] disabled:cursor-default disabled:opacity-30"
                       >▶</button>
                     </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "#6b7280",
-                        marginTop: 2,
-                      }}
+                    <div className="text-[11px] text-gray-500 mt-[2px]"
                     >
                       {count} захиалга
                     </div>
@@ -3834,46 +3208,19 @@ const handleCancelDraft = (appointmentId: number) => {
             </div>
 
             {/* Body: time labels + doctor columns */}
-                       <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: `80px repeat(${gridDoctors.length}, 180px)`,
-              }}
+                       <div className="grid" style={{ gridTemplateColumns: `80px repeat(${gridDoctors.length}, 180px)` }}
             >
               {/* CURRENT TIME LINE */}
               {nowPosition !== null && (
-                <div
-                  style={{
-                    gridColumn: `1 / span ${gridDoctors.length + 1}`,
-                    position: "relative",
-                    height: 0,
-                    pointerEvents: "none",
-                  }}
+                <div className="relative h-[0px] pointer-events-none" style={{ gridColumn: `1 / span ${gridDoctors.length + 1}` }}
                 >
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: 0,
-                      right: 0,
-                      top: nowPosition,
-                      borderTop: "2px dashed #ef4444",
-                      zIndex: 5,
-                    }}
+                  <div className="absolute left-0 right-0 z-[5]" style={{ top: nowPosition, borderTop: "2px dashed #ef4444" }}
                   />
                 </div>
               )}
 
               {/* Time labels / background grid */}
-              <div
-                style={{
-                  borderRight: "1px solid #ddd",
-                  position: "sticky",
-                  left: 0,
-                  zIndex: 15,
-                  height: columnHeightPx,
-                  backgroundColor: "#fafafa",
-                  transform: "translateZ(0)",
-                }}
+              <div className="border-r border-[#ddd] sticky left-0 z-[15] bg-[#fafafa] [transform:translateZ(0)]" style={{ height: columnHeightPx }}
               >
                 {timeSlots.map((slot, index) => {
                   const slotStartMin =
@@ -3883,21 +3230,7 @@ const handleCancelDraft = (appointmentId: number) => {
 
                   return (
                     <div
-                      key={index}
-                      style={{
-                        position: "absolute",
-                        left: 0,
-                        right: 0,
-                        top: (slotStartMin / totalMinutes) * columnHeightPx,
-                        height: slotHeight,
-                        borderBottom: "1px solid #f0f0f0",
-                        paddingLeft: 6,
-                        display: "flex",
-                        alignItems: "center",
-                        fontSize: 11,
-                        backgroundColor:
-                          index % 2 === 0 ? "#fafafa" : "#ffffff",
-                      }}
+                      key={index} className="absolute left-0 right-0 border-b border-[#f0f0f0] pl-[6px] flex items-center text-[11px]" style={{ top: (slotStartMin / totalMinutes) * columnHeightPx, height: slotHeight, backgroundColor: index % 2 === 0 ? "#fafafa" : "#ffffff" }}
                     >
                       {slot.label}
                     </div>
@@ -3985,13 +3318,7 @@ const handleCancelDraft = (appointmentId: number) => {
 
                 return (
                   <div
-                    key={doc.id}
-                    style={{
-                      borderLeft: "1px solid #f0f0f0",
-                      position: "relative",
-                      height: columnHeightPx,
-                      backgroundColor: "#ffffff",
-                    }}
+                    key={doc.id} className="border-l border-[#f0f0f0] relative bg-white" style={{ height: columnHeightPx }}
                   >
                     {/* background stripes & click areas */}
                     {timeSlots.map((slot, index) => {
@@ -4033,25 +3360,14 @@ const handleCancelDraft = (appointmentId: number) => {
                             isNonWorking
                               ? undefined
                               : handleCellClick(slotStartMin, appsInThisSlot)
-                          }
-                          style={{
-                            position: "absolute",
-                            left: 0,
-                            right: 0,
-                            top:
-                              (slotStartMin / totalMinutes) *
-                              columnHeightPx,
-                            height: slotHeight,
-                            borderBottom: "1px solid #f0f0f0",
-                            backgroundColor: isNonWorking
+                          } className="absolute left-0 right-0 border-b border-[#f0f0f0]" style={{ top: (slotStartMin / totalMinutes) *
+                              columnHeightPx, height: slotHeight, backgroundColor: isNonWorking
                               ? "#ffc26b"
                               : index % 2 === 0
                               ? "#ffffff"
-                              : "#fafafa",
-                            cursor: isNonWorking
+                              : "#fafafa", cursor: isNonWorking
                               ? "not-allowed"
-                              : "pointer",
-                          }}
+                              : "pointer" }}
                         />
                       );
                     })}
@@ -4174,46 +3490,18 @@ const handleCancelDraft = (appointmentId: number) => {
                         <div
                           key={a.id}
                           onMouseDown={canEdit ? (e) => handleMouseDown(e, "move") : undefined}
-                          onClick={handleBlockClick}
-                          style={{
-                            position: "absolute",
-                            left: `${leftPercent}%`,
-                            width: `${widthPercent}%`,
-                            top,
-                            height: Math.max(height, 18),
-                            padding: "1px 3px",
-                            boxSizing: "border-box",
-                            backgroundColor: getStatusColor(a.status),
-                            borderRadius: 4,
-                            border: isDragging 
+                          onClick={handleBlockClick} className="absolute py-[1px] px-[3px] box-border rounded text-[11px] leading-tight flex items-center justify-center text-center overflow-hidden break-words select-none" style={{ left: `${leftPercent}%`, width: `${widthPercent}%`, backgroundColor: getStatusColor(a.status), border: isDragging 
                               ? "2px solid #2563eb" 
                               : hasPendingSave 
                                 ? "2px solid #f59e0b"
-                                : "1px solid rgba(0,0,0,0.08)",
-                            fontSize: 11,
-                            lineHeight: 1.2,
-                            color:
-                              a.status === "completed" ||
+                                : "1px solid rgba(0,0,0,0.08)", color: a.status === "completed" ||
                               a.status === "cancelled"
                                 ? "#ffffff"
-                                : "#1F2937",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            textAlign: "center",
-                            overflow: "hidden",
-                            wordBreak: "break-word",
-                            boxShadow: isDragging 
+                                : "#1F2937", boxShadow: isDragging 
                               ? "0 4px 12px rgba(37,99,235,0.5)" 
-                              : "0 1px 3px rgba(0,0,0,0.25)",
-                            cursor: canEdit ? "move" : "pointer",
-                            opacity: isDragging ? 0.8 : 1,
-                            zIndex: isDragging || hasPendingSave ? 10 : 1,
-                            userSelect: "none",
-                            animation: a.status === "ready_to_pay" && !isDragging
+                              : "0 1px 3px rgba(0,0,0,0.25)", cursor: canEdit ? "move" : "pointer", opacity: isDragging ? 0.8 : 1, zIndex: isDragging || hasPendingSave ? 10 : 1, animation: a.status === "ready_to_pay" && !isDragging
                               ? "readyToPayPulse 1.4s ease-in-out infinite, readyToPayBlink 1.4s ease-in-out infinite"
-                              : undefined,
-                          }}
+                              : undefined }}
                           title={`${formatPatientLabel(
                             a.patient,
                             a.patientId
@@ -4226,18 +3514,7 @@ const handleCancelDraft = (appointmentId: number) => {
                           {/* Resize handle at bottom */}
                           {canEdit && !isDragging && (
                             <div
-                              onMouseDown={(e) => handleMouseDown(e, "resize")}
-                              style={{
-                                position: "absolute",
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                height: 6,
-                                cursor: "ns-resize",
-                                backgroundColor: "rgba(0,0,0,0.1)",
-                                borderBottomLeftRadius: 4,
-                                borderBottomRightRadius: 4,
-                              }}
+                              onMouseDown={(e) => handleMouseDown(e, "resize")} className="absolute bottom-0 left-0 right-0 h-[6px] cursor-[ns-resize] bg-black/10 rounded-bl rounded-br"
                               title="Drag to resize"
                             />
                           )}
@@ -4255,32 +3532,13 @@ const handleCancelDraft = (appointmentId: number) => {
      {/* Create form card — hidden when receptionist is viewing another branch */}
       {!isOtherBranchReceptionView && (
       <section
-        ref={formSectionRef as any}
-        style={{
-          marginBottom: 24,
-          padding: 16,
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-          background: "white",
-          maxWidth: 1200,
-          width: "100%",
-        }}
+        ref={formSectionRef as any} className="mb-6 p-4 rounded-lg border border-gray-200 bg-white max-w-[1200px] w-full"
       >
-        <h2 style={{ marginTop: 0, marginBottom: 8, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <h2 className="mt-0 mb-2 text-base flex items-center justify-between">
           <span>Шинэ цаг захиалах</span>
           <button
             type="button"
-            onClick={() => setShowExceptional(true)}
-            style={{
-              padding: "6px 14px",
-              borderRadius: 6,
-              border: "none",
-              background: "#1e293b",
-              color: "white",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
+            onClick={() => setShowExceptional(true)} className="py-[6px] px-[14px] rounded border-0 bg-slate-800 text-white text-[13px] font-semibold cursor-pointer"
           >
             Онцгой захиалга
           </button>
@@ -4312,7 +3570,7 @@ const handleCancelDraft = (appointmentId: number) => {
       )}
 
       {error && (
-        <div style={{ color: "#b91c1c", fontSize: 13, marginBottom: 12 }}>
+        <div className="text-red-700 text-[13px] mb-3">
           {error}
         </div>
       )}
@@ -4433,47 +3691,26 @@ const handleCancelDraft = (appointmentId: number) => {
 
 {/* Exceptional appointment modal */}
 {showExceptional && (
-  <div
-    style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,0.4)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 200,
-    }}
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[200]"
     onClick={(e) => { if (e.target === e.currentTarget) setShowExceptional(false); }}
   >
-    <div
-      style={{
-        background: "white",
-        borderRadius: 10,
-        padding: 24,
-        width: 480,
-        maxWidth: "95vw",
-        maxHeight: "90vh",
-        overflowY: "auto",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-        fontSize: 13,
-      }}
+    <div className="bg-white rounded-[10px] p-6 w-[480px] max-w-[95vw] max-h-[90vh] overflow-y-auto shadow-[0_20px_60px_rgba(0,0,0,0.3)] text-[13px]"
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1e293b" }}>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="m-0 text-base font-bold text-slate-800">
           Онцгой захиалга
         </h3>
         <button
           type="button"
-          onClick={() => setShowExceptional(false)}
-          style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#6b7280", lineHeight: 1 }}
+          onClick={() => setShowExceptional(false)} className="bg-none border-0 text-xl cursor-pointer text-gray-500 leading-none"
         >
           ×
         </button>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="flex flex-col gap-3">
         {/* Patient search */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontWeight: 600 }}>Үйлчлүүлэгч</label>
+        <div className="flex flex-col gap-1">
+          <label className="font-semibold">Үйлчлүүлэгч</label>
           <input
             type="text"
             placeholder="РД, овог, нэр, утсаар хайх"
@@ -4488,14 +3725,13 @@ const handleCancelDraft = (appointmentId: number) => {
                 triggerExceptionalPatientSearch(v);
               }
             }}
-            autoComplete="off"
-            style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px" }}
+            autoComplete="off" className="rounded border border-gray-300 py-1.5 px-2"
           />
           {exceptionalPatientLoading && (
-            <span style={{ fontSize: 11, color: "#6b7280" }}>Хайж байна...</span>
+            <span className="text-[11px] text-gray-500">Хайж байна...</span>
           )}
           {exceptionalPatientResults.length > 0 && exceptionalPatientId === null && (
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 6, background: "#fff", maxHeight: 180, overflowY: "auto" }}>
+            <div className="border border-gray-200 rounded bg-white max-h-[180px] overflow-y-auto">
               {exceptionalPatientResults.map((p) => (
                 <button
                   key={p.id}
@@ -4504,12 +3740,7 @@ const handleCancelDraft = (appointmentId: number) => {
                     setExceptionalPatientId(p.id);
                     setExceptionalPatientQuery(formatPatientSearchLabel(p));
                     setExceptionalPatientResults([]);
-                  }}
-                  style={{
-                    display: "block", width: "100%", textAlign: "left",
-                    padding: "6px 8px", border: "none", borderBottom: "1px solid #f3f4f6",
-                    background: "white", cursor: "pointer", fontSize: 12,
-                  }}
+                  }} className="block w-full text-left py-1.5 px-2 border-0 border-b border-gray-100 bg-white cursor-pointer text-xs"
                 >
                   {formatPatientSearchLabel(p)}
                 </button>
@@ -4517,12 +3748,11 @@ const handleCancelDraft = (appointmentId: number) => {
             </div>
           )}
           {exceptionalPatientId !== null && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>✓ Сонгогдсон</span>
+            <div className="flex items-center gap-[6px]">
+              <span className="text-xs text-green-600 font-semibold">✓ Сонгогдсон</span>
               <button
                 type="button"
-                onClick={() => { setExceptionalPatientId(null); setExceptionalPatientQuery(""); setExceptionalPatientResults([]); }}
-                style={{ fontSize: 11, color: "#6b7280", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
+                onClick={() => { setExceptionalPatientId(null); setExceptionalPatientQuery(""); setExceptionalPatientResults([]); }} className="text-[11px] text-gray-500 bg-none border-0 cursor-pointer underline"
               >
                 Өөрчлөх
               </button>
@@ -4531,12 +3761,11 @@ const handleCancelDraft = (appointmentId: number) => {
         </div>
 
         {/* Branch */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontWeight: 600 }}>Салбар</label>
+        <div className="flex flex-col gap-1">
+          <label className="font-semibold">Салбар</label>
           <select
             value={exceptionalBranchId}
-            onChange={(e) => { setExceptionalBranchId(e.target.value); setExceptionalDoctorId(""); }}
-            style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px" }}
+            onChange={(e) => { setExceptionalBranchId(e.target.value); setExceptionalDoctorId(""); }} className="rounded border border-gray-300 py-1.5 px-2"
           >
             <option value="">Салбар сонгох</option>
             {branches.map((b) => (
@@ -4546,18 +3775,12 @@ const handleCancelDraft = (appointmentId: number) => {
         </div>
 
         {/* Doctor (filtered by selected branch) */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontWeight: 600 }}>Эмч</label>
+        <div className="flex flex-col gap-1">
+          <label className="font-semibold">Эмч</label>
           <select
             value={exceptionalDoctorId}
             onChange={(e) => setExceptionalDoctorId(e.target.value)}
-            disabled={!exceptionalBranchId}
-            style={{
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              padding: "6px 8px",
-              background: !exceptionalBranchId ? "#f3f4f6" : undefined,
-            }}
+            disabled={!exceptionalBranchId} className="rounded border border-gray-300 py-1.5 px-2 disabled:bg-gray-100"
           >
             <option value="">{exceptionalBranchId ? "Эмч сонгох" : "Эхлээд салбар сонгоно уу"}</option>
             {exceptionalBranchId && doctors
@@ -4573,27 +3796,22 @@ const handleCancelDraft = (appointmentId: number) => {
         </div>
 
         {/* Date */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontWeight: 600 }}>Огноо</label>
+        <div className="flex flex-col gap-1">
+          <label className="font-semibold">Огноо</label>
           <input
             type="date"
             value={exceptionalDate}
-            onChange={(e) => { setExceptionalDate(e.target.value); setExceptionalStartTime(""); }}
-            style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px" }}
+            onChange={(e) => { setExceptionalDate(e.target.value); setExceptionalStartTime(""); }} className="rounded border border-gray-300 py-1.5 px-2"
           />
         </div>
 
         {/* Start time */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontWeight: 600 }}>Эхлэх цаг</label>
+        <div className="flex flex-col gap-1">
+          <label className="font-semibold">Эхлэх цаг</label>
           <select
             value={exceptionalStartTime}
             onChange={(e) => setExceptionalStartTime(e.target.value)}
-            disabled={!exceptionalDate}
-            style={{
-              borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px",
-              background: !exceptionalDate ? "#f3f4f6" : undefined,
-            }}
+            disabled={!exceptionalDate} className="rounded border border-gray-300 py-1.5 px-2 disabled:bg-gray-100"
           >
             <option value="">Цаг сонгох</option>
             {exceptionalDate &&
@@ -4607,7 +3825,7 @@ const handleCancelDraft = (appointmentId: number) => {
         </div>
 
         {/* Duration info */}
-        <div style={{ fontSize: 12, color: "#6b7280" }}>
+        <div className="text-xs text-gray-500">
           Үргэлжлэх хугацаа: <strong>1 цаг</strong> (автоматаар)
           {exceptionalStartTime && (
             <> — Дуусах цаг: <strong>{addMinutesToTimeString(exceptionalStartTime, 60)}</strong></>
@@ -4615,43 +3833,32 @@ const handleCancelDraft = (appointmentId: number) => {
         </div>
 
         {/* Notes */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontWeight: 600 }}>Тэмдэглэл</label>
+        <div className="flex flex-col gap-1">
+          <label className="font-semibold">Тэмдэглэл</label>
           <input
             type="text"
             placeholder="Захиалгын тэмдэглэл"
             value={exceptionalNotes}
-            onChange={(e) => setExceptionalNotes(e.target.value)}
-            style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px" }}
+            onChange={(e) => setExceptionalNotes(e.target.value)} className="rounded border border-gray-300 py-1.5 px-2"
           />
         </div>
 
         {exceptionalError && (
-          <div style={{ color: "#b91c1c", fontSize: 12 }}>{exceptionalError}</div>
+          <div className="text-red-700 text-xs">{exceptionalError}</div>
         )}
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
+        <div className="flex justify-end gap-2 mt-1">
           <button
             type="button"
             onClick={() => setShowExceptional(false)}
-            disabled={exceptionalSaving}
-            style={{
-              padding: "8px 16px", borderRadius: 6, border: "1px solid #d1d5db",
-              background: "#f9fafb", cursor: exceptionalSaving ? "default" : "pointer", fontSize: 13,
-            }}
+            disabled={exceptionalSaving} className="py-2 px-4 rounded border border-gray-300 bg-gray-50 text-[13px] disabled:cursor-default"
           >
             Цуцлах
           </button>
           <button
             type="button"
             onClick={handleExceptionalSubmit}
-            disabled={exceptionalSaving}
-            style={{
-              padding: "8px 16px", borderRadius: 6, border: "none",
-              background: "#1e293b", color: "white",
-              cursor: exceptionalSaving ? "default" : "pointer",
-              fontSize: 13, fontWeight: 600, opacity: exceptionalSaving ? 0.7 : 1,
-            }}
+            disabled={exceptionalSaving} className="py-2 px-4 rounded border-0 bg-slate-800 text-white text-[13px] font-semibold disabled:cursor-default disabled:opacity-70"
           >
             {exceptionalSaving ? "Хадгалж байна..." : "Захиалах"}
           </button>
@@ -4663,16 +3870,7 @@ const handleCancelDraft = (appointmentId: number) => {
 
 {/* Filter section – quick patient registration modal */}
 {filterQuickPatientOpen && (
-  <div
-    style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,0.3)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 50,
-    }}
+  <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
     onClick={(e) => {
       if (e.target === e.currentTarget && !filterQuickPatientSaving) {
         setFilterQuickPatientOpen(false);
@@ -4680,24 +3878,16 @@ const handleCancelDraft = (appointmentId: number) => {
       }
     }}
   >
-    <div
-      style={{
-        background: "white",
-        borderRadius: 8,
-        padding: 16,
-        width: 340,
-        boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
-        fontSize: 13,
-      }}
+    <div className="bg-white rounded-lg p-4 w-[340px] shadow-[0_10px_25px_rgba(0,0,0,0.15)] text-[13px]"
     >
-      <h3 style={{ marginTop: 0, marginBottom: 8, fontSize: 15 }}>
+      <h3 className="mt-0 mb-2 text-[15px]">
         Шинэ үйлчлүүлэгчийн бүртгэл
       </h3>
-      <p style={{ marginTop: 0, marginBottom: 12, color: "#6b7280" }}>
+      <p className="mt-0 mb-3 text-gray-500">
         Доорхи мэдээллийг заавал бөглөнө үү
       </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div className="flex flex-col gap-2">
+        <label className="flex flex-col gap-1">
           Овог
           <input
             name="ovog"
@@ -4705,11 +3895,10 @@ const handleCancelDraft = (appointmentId: number) => {
             onChange={(e) =>
               setFilterQuickPatientForm((f) => ({ ...f, ovog: e.target.value }))
             }
-            placeholder="Овог оруулна уу"
-            style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px" }}
+            placeholder="Овог оруулна уу" className="rounded border border-gray-300 py-1.5 px-2"
           />
         </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <label className="flex flex-col gap-1">
           Нэр
           <input
             name="name"
@@ -4717,11 +3906,10 @@ const handleCancelDraft = (appointmentId: number) => {
             onChange={(e) =>
               setFilterQuickPatientForm((f) => ({ ...f, name: e.target.value }))
             }
-            placeholder="Нэр оруулна уу"
-            style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px" }}
+            placeholder="Нэр оруулна уу" className="rounded border border-gray-300 py-1.5 px-2"
           />
         </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <label className="flex flex-col gap-1">
           Утас
           <input
             name="phone"
@@ -4729,11 +3917,10 @@ const handleCancelDraft = (appointmentId: number) => {
             onChange={(e) =>
               setFilterQuickPatientForm((f) => ({ ...f, phone: e.target.value }))
             }
-            placeholder="Утас оруулна уу"
-            style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px" }}
+            placeholder="Утас оруулна уу" className="rounded border border-gray-300 py-1.5 px-2"
           />
         </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <label className="flex flex-col gap-1">
           РД
           <input
             name="regNo"
@@ -4741,19 +3928,17 @@ const handleCancelDraft = (appointmentId: number) => {
             onChange={(e) =>
               setFilterQuickPatientForm((f) => ({ ...f, regNo: e.target.value }))
             }
-            placeholder="РД оруулна уу"
-            style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px" }}
+            placeholder="РД оруулна уу" className="rounded border border-gray-300 py-1.5 px-2"
           />
         </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <label className="flex flex-col gap-1">
           Салбар
           <select
             name="branchId"
             value={filterQuickPatientForm.branchId}
             onChange={(e) =>
               setFilterQuickPatientForm((f) => ({ ...f, branchId: e.target.value }))
-            }
-            style={{ borderRadius: 6, border: "1px solid #d1d5db", padding: "6px 8px" }}
+            } className="rounded border border-gray-300 py-1.5 px-2"
           >
             <option value="">Сонгох</option>
             {branches.map((b) => (
@@ -4764,9 +3949,9 @@ const handleCancelDraft = (appointmentId: number) => {
           </select>
         </label>
         {filterQuickPatientError && (
-          <div style={{ color: "#b91c1c", fontSize: 12 }}>{filterQuickPatientError}</div>
+          <div className="text-red-700 text-xs">{filterQuickPatientError}</div>
         )}
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+        <div className="flex justify-end gap-2 mt-2">
           <button
             type="button"
             onClick={() => {
@@ -4774,29 +3959,14 @@ const handleCancelDraft = (appointmentId: number) => {
                 setFilterQuickPatientOpen(false);
                 setFilterQuickPatientError("");
               }
-            }}
-            style={{
-              padding: "6px 12px",
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              background: "#f9fafb",
-              cursor: filterQuickPatientSaving ? "default" : "pointer",
-            }}
+            }} className={`py-1.5 px-3 rounded border border-gray-300 bg-gray-50 ${filterQuickPatientSaving ? 'cursor-default' : 'cursor-pointer'}`}
           >
             Цуцлах
           </button>
           <button
             type="button"
             onClick={handleFilterQuickPatientSave}
-            disabled={filterQuickPatientSaving}
-            style={{
-              padding: "6px 12px",
-              borderRadius: 6,
-              border: "none",
-              background: "#16a34a",
-              color: "white",
-              cursor: filterQuickPatientSaving ? "default" : "pointer",
-            }}
+            disabled={filterQuickPatientSaving} className="py-1.5 px-3 rounded border-0 bg-green-600 text-white disabled:cursor-default"
           >
             {filterQuickPatientSaving ? "Хадгалж байна..." : "Хадгалах"}
           </button>
