@@ -290,6 +290,61 @@ function CollapseButton({ open, onClick }: { open: boolean; onClick: () => void 
 }
 
 // ─────────────────────────────────────────────
+// Shared custom tooltip: always renders "Нийт" first, then others
+// ─────────────────────────────────────────────
+function ChartTooltip({
+  active,
+  label,
+  payload,
+  unit,
+}: {
+  active?: boolean;
+  label?: string | number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload?: ReadonlyArray<any>;
+  unit?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const items = payload as ReadonlyArray<{ name: string | number; value: number; color?: string; fill?: string }>;
+  const total = items.find((p) => p.name === "Нийт");
+  const others = items.filter((p) => p.name !== "Нийт");
+  const sorted = [...(total ? [total] : []), ...others];
+  return (
+    <div className="bg-white rounded shadow-md p-2 text-sm border border-gray-100 min-w-[140px]">
+      {label && <div className="mb-1 font-medium text-gray-700">{label}</div>}
+      {sorted.map((item) => (
+        <div key={item.name} className="flex items-center gap-2 py-0.5">
+          <span
+            style={{
+              display: "inline-block",
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: item.color || item.fill || "#ccc",
+            }}
+          />
+          <span
+            className={
+              item.name === "Нийт" ? "font-semibold text-gray-900" : "text-gray-700"
+            }
+          >
+            {item.name}:
+          </span>
+          <span
+            className={
+              item.name === "Нийт" ? "font-bold text-gray-900 ml-auto" : "ml-auto text-gray-800"
+            }
+          >
+            {item.value.toLocaleString("mn-MN")}
+            {unit ? ` ${unit}` : ""}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // Revenue (Орлого) Block – specialized component with payment type filters
 // ─────────────────────────────────────────────
 function buildFilteredDailyData(
@@ -545,12 +600,7 @@ function RevenueBlock({
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip
-                formatter={(v: number, name: string) => [
-                  v.toLocaleString("mn-MN") + " ₮",
-                  name,
-                ]}
-              />
+              <Tooltip content={(props) => <ChartTooltip {...props} unit="₮" />} />
               <Line
                 type="monotone"
                 dataKey="total"
@@ -783,6 +833,333 @@ function RevenueBlock({
                 })),
               ];
               downloadCSV("Орлого_задаргаа.csv", rows);
+            }}
+            className="text-xs text-blue-600 hover:text-blue-800 underline"
+          >
+            CSV татах (задаргаа)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Occupancy (Цаг дүүргэлт %) Block
+// Slot-based: each 30-min slot filled by ≥1 completed appt counts as 1
+// "Нийт" line = average of branch daily percentages
+// ─────────────────────────────────────────────
+function OccupancyBlock({
+  dailyData,
+  branchDailyData,
+  isYearView,
+  branchNames,
+}: {
+  dailyData: DailyRow[];
+  branchDailyData: BranchDailyEntry[];
+  isYearView: boolean;
+  branchNames: string[];
+}) {
+  const [tableOpen, setTableOpen] = useState(false);
+  const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
+
+  const chartData = useMemo(
+    () =>
+      isYearView
+        ? buildYearChartData(dailyData, branchDailyData, "occupancyPct")
+        : buildDailyChartData(dailyData, branchDailyData, "occupancyPct"),
+    [dailyData, branchDailyData, isYearView]
+  );
+
+  // Branch breakdown for legend – for hovered period or full period
+  const branchBreakdown = useMemo<{ name: string; value: number; color: string }[]>(() => {
+    let rows: { name: string; value: number }[];
+    if (hoveredLabel) {
+      const row = chartData.find((r) => r.label === hoveredLabel);
+      rows = branchNames.map((bName) => ({
+        name: bName,
+        value: row ? ((row as Record<string, unknown>)[bName] as number) || 0 : 0,
+      }));
+    } else {
+      rows = branchDailyData.map((b) => ({
+        name: b.branchName,
+        value: aggregatePeriodValue(b.daily, "occupancyPct"),
+      }));
+    }
+    const totalValue = hoveredLabel
+      ? chartData.find((r) => r.label === hoveredLabel)?.total || 0
+      : aggregatePeriodValue(dailyData, "occupancyPct");
+
+    const sorted = [...rows].sort((a, b) => b.value - a.value);
+    return [
+      { name: "Нийт", value: totalValue, color: "#10b981" },
+      ...sorted.map((r, i) => ({
+        ...r,
+        color:
+          BRANCH_COLORS[branchNames.findIndex((n) => n === r.name) % BRANCH_COLORS.length] ||
+          BRANCH_COLORS[i % BRANCH_COLORS.length],
+      })),
+    ];
+  }, [hoveredLabel, chartData, branchNames, branchDailyData, dailyData]);
+
+  // Pie: average percentage per branch (not slots)
+  const pieData = useMemo(
+    () =>
+      branchDailyData
+        .map((b, i) => ({
+          name: b.branchName,
+          value: aggregatePeriodValue(b.daily, "occupancyPct"),
+          color: BRANCH_COLORS[i % BRANCH_COLORS.length],
+        }))
+        .filter((b) => b.value > 0),
+    [branchDailyData]
+  );
+
+  // Branch sort order by average occupancy (highest first) – for table + CSV
+  const sortedBranchNames = useMemo(
+    () =>
+      [...branchNames].sort((a, b) => {
+        const aBranch = branchDailyData.find((bd) => bd.branchName === a);
+        const bBranch = branchDailyData.find((bd) => bd.branchName === b);
+        return (
+          aggregatePeriodValue(bBranch?.daily || [], "occupancyPct") -
+          aggregatePeriodValue(aBranch?.daily || [], "occupancyPct")
+        );
+      }),
+    [branchNames, branchDailyData]
+  );
+
+  const tableRows: Record<string, unknown>[] = chartData.map((r) => {
+    const row: Record<string, unknown> = { Огноо: r.label, Нийт: r.total };
+    for (const bName of sortedBranchNames) {
+      row[bName] = (r as Record<string, unknown>)[bName] ?? 0;
+    }
+    return row;
+  });
+
+  const csvRows = tableRows.map((r) => {
+    const row: Record<string, unknown> = {
+      Огноо: r["Огноо"],
+      "Нийт (%)": r["Нийт"],
+    };
+    for (const bName of sortedBranchNames) {
+      row[`${bName} (%)`] = r[bName] ?? 0;
+    }
+    return row;
+  });
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4">
+      <h3 className="text-lg font-bold text-gray-800">Цаг дүүргэлт (%)</h3>
+
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* ── Main chart ── */}
+        <div className="flex-1 min-w-0 flex flex-col gap-3">
+          <ResponsiveContainer width="100%" height={260}>
+            <ComposedChart
+              data={chartData}
+              margin={{ top: 4, right: 8, left: 8, bottom: 4 }}
+              onMouseMove={(state) => {
+                if (state?.activeLabel) setHoveredLabel(state.activeLabel as string);
+              }}
+              onMouseLeave={() => setHoveredLabel(null)}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} unit="%" />
+              <Tooltip content={(props) => <ChartTooltip {...props} unit="%" />} />
+              <Line
+                type="monotone"
+                dataKey="total"
+                name="Нийт"
+                stroke="#10b981"
+                strokeWidth={2.5}
+                dot={false}
+              />
+              {branchNames.map((bName, idx) => (
+                <Bar
+                  key={bName}
+                  dataKey={bName}
+                  stackId="branches"
+                  fill={BRANCH_COLORS[idx % BRANCH_COLORS.length]}
+                  radius={idx === branchNames.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                />
+              ))}
+            </ComposedChart>
+          </ResponsiveContainer>
+
+          {/* ── Legend: Нийт first, then branches sorted by value ── */}
+          <div className="flex flex-wrap gap-x-5 gap-y-1.5 px-1">
+            {branchBreakdown.map((item) => (
+              <div key={item.name} className="flex items-center gap-1.5 text-sm">
+                <span
+                  className="inline-block w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span
+                  className={
+                    item.name === "Нийт" ? "font-semibold text-gray-900" : "text-gray-700"
+                  }
+                >
+                  {item.name}:
+                </span>
+                <span
+                  className={
+                    item.name === "Нийт" ? "font-bold text-gray-900" : "text-gray-800"
+                  }
+                >
+                  {item.value.toLocaleString("mn-MN")} %
+                </span>
+              </div>
+            ))}
+            {hoveredLabel && (
+              <span className="text-xs text-gray-400 self-center">({hoveredLabel})</span>
+            )}
+          </div>
+
+          {/* ── Collapsible table ── */}
+          <div className="border border-gray-100 rounded-xl overflow-hidden">
+            <div className="flex items-center px-4 py-2 bg-gray-50 border-b border-gray-100">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                Хүснэгт
+              </span>
+              <CollapseButton open={tableOpen} onClick={() => setTableOpen((v) => !v)} />
+            </div>
+            {tableOpen && (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="px-3 py-2 text-left font-semibold text-gray-600 whitespace-nowrap">
+                          {isYearView ? "Сар" : "Огноо"}
+                        </th>
+                        <th className="px-3 py-2 text-right font-semibold text-gray-600 whitespace-nowrap">
+                          Нийт
+                        </th>
+                        {sortedBranchNames.map((bName) => (
+                          <th
+                            key={bName}
+                            className="px-3 py-2 text-right font-semibold text-gray-600 whitespace-nowrap"
+                          >
+                            {bName}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {chartData.map((r, i) => (
+                        <tr key={i} className="border-t border-gray-100 hover:bg-gray-50">
+                          <td className="px-3 py-1.5 text-gray-700">{r.label}</td>
+                          <td className="px-3 py-1.5 text-right text-gray-800 font-semibold">
+                            {r.total.toLocaleString("mn-MN")} %
+                          </td>
+                          {sortedBranchNames.map((bName) => (
+                            <td key={bName} className="px-3 py-1.5 text-right text-gray-700">
+                              {(
+                                ((r as Record<string, unknown>)[bName] as number | undefined) ?? 0
+                              ).toLocaleString("mn-MN")}{" "}
+                              %
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="px-4 py-2 border-t border-gray-100">
+                  <button
+                    onClick={() => downloadCSV("Цаг_дүүргэлт_chart.csv", csvRows)}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    CSV татах
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ── Right: Pie (avg % per branch) + breakdown table ── */}
+        <div className="w-full lg:w-72 flex flex-col gap-3">
+          <p className="text-sm font-semibold text-gray-600">
+            Салбарын дундаж дүүргэлт
+            {hoveredLabel && (
+              <span className="text-gray-400 font-normal ml-1">({hoveredLabel})</span>
+            )}
+          </p>
+          {pieData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={46}
+                  outerRadius={82}
+                  paddingAngle={2}
+                  dataKey="value"
+                  labelLine={false}
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={entry.name} fill={BRANCH_COLORS[index % BRANCH_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(v: number) => [v.toLocaleString("mn-MN") + " %", ""]} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
+              Өгөгдөл байхгүй
+            </div>
+          )}
+
+          {/* Branch breakdown: Нийт first, then branches sorted by value */}
+          <div className="overflow-x-auto rounded-xl border border-gray-100">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-3 py-2 text-left font-semibold text-gray-600">Салбар</th>
+                  <th className="px-3 py-2 text-right font-semibold text-gray-600">
+                    Цаг дүүргэлт (%)
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {branchBreakdown.map((item) => (
+                  <tr key={item.name} className="border-t border-gray-100 hover:bg-gray-50">
+                    <td className="px-3 py-1.5 flex items-center gap-2">
+                      <span
+                        className="inline-block w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span
+                        className={
+                          item.name === "Нийт" ? "font-semibold text-gray-900" : "text-gray-700"
+                        }
+                      >
+                        {item.name}
+                      </span>
+                    </td>
+                    <td
+                      className={`px-3 py-1.5 text-right ${
+                        item.name === "Нийт" ? "font-bold text-gray-900" : "font-medium text-gray-800"
+                      }`}
+                    >
+                      {item.value.toLocaleString("mn-MN")} %
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button
+            onClick={() => {
+              const rows = branchBreakdown.map((b) => ({
+                Салбар: b.name,
+                "Цаг дүүргэлт (%)": b.value,
+              }));
+              downloadCSV("Цаг_дүүргэлт_салбар.csv", rows);
             }}
             className="text-xs text-blue-600 hover:text-blue-800 underline"
           >
@@ -1292,14 +1669,9 @@ export default function ClinicReportPage() {
               isYearView={isYearView}
               branchNames={branchNamesForChart}
             />
-            <MetricBlock
-              title="Цаг дүүргэлт"
+            <OccupancyBlock
               dailyData={data.dailyData}
               branchDailyData={branchDailyData}
-              dataKey="occupancyPct"
-              unit="%"
-              breakdownItems={pieBreakdown("occupancy")}
-              breakdownLabel={pieLabel}
               isYearView={isYearView}
               branchNames={branchNamesForChart}
             />
