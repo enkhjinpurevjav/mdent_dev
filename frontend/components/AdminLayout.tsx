@@ -181,6 +181,7 @@ const navItems: NavItem[] = [
       { label: "Үндсэн тайлан", href: "/reports", icon: "📊" },
       { label: "Эмнэлэг", href: "/reports/clinic", icon: "🏥" },
       { label: "Цаг захиалга", href: "/reports/appointments", icon: "📅" },
+      { label: "Эмч", href: "/reports/appointments/doctors", icon: "👨‍⚕️" },
     ],
   },
 ];
