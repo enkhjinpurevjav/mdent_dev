@@ -384,7 +384,20 @@ export default function DoctorAppointmentsPage() {
           ? apptJson.appointments
           : [];
 
-      const visible = apptsRaw.filter((a) => a?.status !== "cancelled");
+            const includePast = from < today; // user explicitly chose a past range
+
+      const visible = apptsRaw
+        .filter((a) => a?.status !== "cancelled")
+        .filter((a) => {
+          const ymd = naiveTimestampToYmd(a?.scheduledAt ?? "");
+          if (!ymd) return false;
+
+          // Default: hide past days
+          if (!includePast && ymd < today) return false;
+
+          return true;
+        });
+
       setAppointments(visible);
     } catch (e: any) {
       setError(e?.message || "Алдаа гарлаа");
@@ -994,7 +1007,7 @@ export default function DoctorAppointmentsPage() {
         {grouped.map(({ date, items }) => (
           <div key={date} style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 800, margin: "8px 0" }}>
-              {date.replaceAll("-", "/")} {formatDateLabel(date) === "Өнөөдөр" ? "" : ""}
+              {date} {formatDateLabel(date) === "Өнөөдөр" ? "" : ""}
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
