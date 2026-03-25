@@ -218,9 +218,10 @@ export default function AdminLayout({ children, wide }: Props) {
     return roleMap[r] ?? r;
   })();
 
+const { logoutAndRedirect } = useAuth();
+
   const handleLogout = async () => {
-    await logout();
-    router.replace("/login");
+    await logoutAndRedirect();
   };
 
   // Handler for branch selection in appointments submenu
