@@ -1,8 +1,8 @@
 /**
  * GET /api/admin/reports/appointments/doctors-income
  *
- * Doctor income performance report for the new admin "Эмч" report page.
- * Uses the same income calculation logic as the existing Эмчийн Орлогын Тайлан.
+ * Doctor income performance report for the admin "Эмч" report page.
+ * Uses the same income calculation logic as Санхүү → Эмчийн Орлогын Тайлан.
  *
  * Query params:
  *   year       (optional; default current year) — used in monthly mode
@@ -15,12 +15,14 @@
  *   {
  *     mode: "monthly" | "daily",
  *     year, startDate, endDate,
+ *     scope: { branchId, doctorId },
  *     series: [{ key: "YYYY-MM" | "YYYY-MM-DD", incomeMnt }],
  *     totalIncomeMnt,
  *     breakdown: { type: "branches"|"doctors"|"categories", rows: [{id,label,incomeMnt,pct}] },
  *     filters: { branches: [...], doctors: [...] }
  *   }
  */
+
 import express from "express";
 import prisma from "../../db.js";
 import {
@@ -31,12 +33,20 @@ import {
 
 const router = express.Router();
 
-// ── Constants (must match income.js exactly) ──────────────────────────────────
+// ── Constants (keep consistent with backend/src/routes/admin/income.js) ───────
 const INCLUDED_METHODS = new Set([
-  "CASH", "POS", "TRANSFER", "QPAY", "WALLET", "VOUCHER", "OTHER",
+  "CASH",
+  "POS",
+  "TRANSFER",
+  "QPAY",
+  "WALLET",
+  "VOUCHER",
+  "OTHER",
 ]);
+
 const EXCLUDED_METHODS = new Set(["EMPLOYEE_BENEFIT"]);
 const OVERRIDE_METHODS = new Set(["INSURANCE", "APPLICATION"]);
+
 const HOME_BLEACHING_SERVICE_CODE = 151;
 const BARTER_THRESHOLD_MNT = 800_000;
 
@@ -49,9 +59,9 @@ const CATEGORY_LABELS = {
   BARTER_EXCESS: "Бартер (800,000₮-с дээш)",
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function inRange(ts, start, end) {
-  return ts >= start && ts < end;
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function inRange(ts, start, endExclusive) {
+  return ts >= start && ts < endExclusive;
 }
 
 function bucketKeyForService(service) {
@@ -63,13 +73,10 @@ function bucketKeyForService(service) {
   return "GENERAL";
 }
 
-/**
- * Add YYYY-MM-DD strings between start and end inclusive.
- */
-function enumerateDays(start, end) {
+function enumerateDaysInclusive(startYmd, endYmd) {
   const days = [];
-  const cur = new Date(start);
-  const last = new Date(end);
+  const cur = new Date(`${startYmd}T00:00:00.000Z`);
+  const last = new Date(`${endYmd}T00:00:00.000Z`);
   while (cur <= last) {
     days.push(cur.toISOString().slice(0, 10));
     cur.setUTCDate(cur.getUTCDate() + 1);
@@ -77,20 +84,23 @@ function enumerateDays(start, end) {
   return days;
 }
 
-/** Compute percentage contribution rounded to 2 decimal places. */
 function calcPct(part, total) {
-  if (total <= 0) return 0;
+  if (!total || total <= 0) return 0;
   return Math.round((part / total) * 10000) / 100;
 }
 
 /**
- * Compute doctor income (incomeMnt) and category breakdown from a list of invoices.
- * Returns { incomeMnt, byCategory: Map<categoryKey, incomeMnt> }.
- *
- * This logic mirrors income.js exactly (same payment filters, barter rule, imaging rule, etc.)
+ * Compute income for a list of invoices in [rangeStart, rangeEndExclusive)
+ * Mirrors the algorithm from admin/income.js.
  */
-function computeIncomeFromInvoices(invoices, rangeStart, rangeEnd, homeBleachingDeductAmountMnt) {
+function computeIncomeFromInvoices(
+  invoices,
+  rangeStart,
+  rangeEndExclusive,
+  homeBleachingDeductAmountMnt
+) {
   let totalIncomeMnt = 0;
+
   const byCategory = new Map([
     ["IMAGING", 0],
     ["ORTHODONTIC_TREATMENT", 0],
@@ -106,9 +116,12 @@ function computeIncomeFromInvoices(invoices, rangeStart, rangeEnd, homeBleaching
 
     const cfg = doctor.commissionConfig;
     const payments = inv.payments || [];
-    const hasOverride = payments.some((p) => OVERRIDE_METHODS.has(String(p.method).toUpperCase()));
+    const hasOverride = payments.some((p) =>
+      OVERRIDE_METHODS.has(String(p.method).toUpperCase())
+    );
 
     const discountPct = discountPercentEnumToNumber(inv.discountPercent);
+
     const serviceItems = (inv.items || []).filter(
       (it) => it.itemType === "SERVICE" && it.service?.category !== "PREVIOUS"
     );
@@ -119,20 +132,29 @@ function computeIncomeFromInvoices(invoices, rangeStart, rangeEnd, homeBleaching
     const nonImagingServiceItems = serviceItems.filter(
       (it) => it.service?.category !== "IMAGING"
     );
+
     const totalAllServiceNet = serviceItems.reduce(
-      (sum, it) => sum + (lineNets.get(it.id) || 0), 0
+      (sum, it) => sum + (lineNets.get(it.id) || 0),
+      0
     );
     const totalNonImagingNet = nonImagingServiceItems.reduce(
-      (sum, it) => sum + (lineNets.get(it.id) || 0), 0
+      (sum, it) => sum + (lineNets.get(it.id) || 0),
+      0
     );
-    const nonImagingRatio = totalAllServiceNet > 0 ? totalNonImagingNet / totalAllServiceNet : 0;
+
+    const nonImagingRatio =
+      totalAllServiceNet > 0 ? totalNonImagingNet / totalAllServiceNet : 0;
 
     const itemById = new Map(serviceItems.map((it) => [it.id, it]));
     const serviceLineIds = serviceItems.map((it) => it.id);
-    const remainingDue = new Map(serviceItems.map((it) => [it.id, lineNets.get(it.id) || 0]));
+
+    const remainingDue = new Map(
+      serviceItems.map((it) => [it.id, lineNets.get(it.id) || 0])
+    );
     const itemAllocationBase = new Map(serviceItems.map((it) => [it.id, 0]));
 
     let barterSum = 0;
+
     const sortedPayments = [...payments].sort(
       (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
     );
@@ -140,7 +162,8 @@ function computeIncomeFromInvoices(invoices, rangeStart, rangeEnd, homeBleaching
     for (const p of sortedPayments) {
       const method = String(p.method || "").toUpperCase();
       const ts = new Date(p.timestamp);
-      if (!inRange(ts, rangeStart, rangeEnd)) continue;
+
+      if (!inRange(ts, rangeStart, rangeEndExclusive)) continue;
       if (EXCLUDED_METHODS.has(method)) continue;
 
       if (method === "BARTER") {
@@ -157,12 +180,23 @@ function computeIncomeFromInvoices(invoices, rangeStart, rangeEnd, homeBleaching
         for (const alloc of payAllocs) {
           const item = itemById.get(alloc.invoiceItemId);
           if (!item) continue;
+
           const allocAmt = Number(alloc.amount || 0);
-          itemAllocationBase.set(item.id, (itemAllocationBase.get(item.id) || 0) + allocAmt);
-          remainingDue.set(item.id, Math.max(0, (remainingDue.get(item.id) || 0) - allocAmt));
+          itemAllocationBase.set(
+            item.id,
+            (itemAllocationBase.get(item.id) || 0) + allocAmt
+          );
+          remainingDue.set(
+            item.id,
+            Math.max(0, (remainingDue.get(item.id) || 0) - allocAmt)
+          );
         }
       } else {
-        const allocs = allocatePaymentProportionalByRemaining(payAmt, serviceLineIds, remainingDue);
+        const allocs = allocatePaymentProportionalByRemaining(
+          payAmt,
+          serviceLineIds,
+          remainingDue
+        );
         for (const [id, amt] of allocs) {
           itemAllocationBase.set(id, (itemAllocationBase.get(id) || 0) + amt);
         }
@@ -176,59 +210,60 @@ function computeIncomeFromInvoices(invoices, rangeStart, rangeEnd, homeBleaching
       if (barterExcess > 0) {
         const allocatedBarterExcess = barterExcess * nonImagingRatio;
         const barterIncome = allocatedBarterExcess * (generalPct / 100);
-        byCategory.set("BARTER_EXCESS", (byCategory.get("BARTER_EXCESS") || 0) + barterIncome);
+        byCategory.set(
+          "BARTER_EXCESS",
+          (byCategory.get("BARTER_EXCESS") || 0) + barterIncome
+        );
         totalIncomeMnt += barterIncome;
       }
     }
 
     // Income per service line
-    {
-      const orthoPct = Number(cfg?.orthoPct || 0);
-      const defectPct = Number(cfg?.defectPct || 0);
-      const surgeryPct = Number(cfg?.surgeryPct || 0);
-      const generalPct = Number(cfg?.generalPct || 0);
-      const imagingPct = Number(cfg?.imagingPct || 0);
-      const feeMultiplier = hasOverride ? 0.9 : 1;
+    const orthoPct = Number(cfg?.orthoPct || 0);
+    const defectPct = Number(cfg?.defectPct || 0);
+    const surgeryPct = Number(cfg?.surgeryPct || 0);
+    const generalPct = Number(cfg?.generalPct || 0);
+    const imagingPct = Number(cfg?.imagingPct || 0);
+    const feeMultiplier = hasOverride ? 0.9 : 1;
 
-      for (const it of serviceItems) {
-        const service = it.service;
-        const lineNet = (itemAllocationBase.get(it.id) || 0) * feeMultiplier;
-        if (lineNet <= 0) continue;
+    for (const it of serviceItems) {
+      const service = it.service;
+      const lineNet = (itemAllocationBase.get(it.id) || 0) * feeMultiplier;
+      if (lineNet <= 0) continue;
 
-        if (service?.category === "IMAGING") {
-          if (it.meta?.assignedTo === "DOCTOR") {
-            const income = lineNet * (imagingPct / 100);
-            byCategory.set("IMAGING", (byCategory.get("IMAGING") || 0) + income);
-            totalIncomeMnt += income;
-          }
-          continue;
-        }
-
-        if (Number(it.service?.code) === HOME_BLEACHING_SERVICE_CODE) {
-          const base = Math.max(0, lineNet - homeBleachingDeductAmountMnt);
-          const income = base * (generalPct / 100);
-          byCategory.set("GENERAL", (byCategory.get("GENERAL") || 0) + income);
+      if (service?.category === "IMAGING") {
+        if (it.meta?.assignedTo === "DOCTOR") {
+          const income = lineNet * (imagingPct / 100);
+          byCategory.set("IMAGING", (byCategory.get("IMAGING") || 0) + income);
           totalIncomeMnt += income;
-          continue;
         }
-
-        const k = bucketKeyForService(service);
-        let pct = generalPct;
-        if (k === "ORTHODONTIC_TREATMENT") pct = orthoPct;
-        else if (k === "DEFECT_CORRECTION") pct = defectPct;
-        else if (k === "SURGERY") pct = surgeryPct;
-
-        const income = lineNet * (pct / 100);
-        byCategory.set(k, (byCategory.get(k) || 0) + income);
-        totalIncomeMnt += income;
+        continue;
       }
+
+      if (Number(service?.code) === HOME_BLEACHING_SERVICE_CODE) {
+        const base = Math.max(0, lineNet - homeBleachingDeductAmountMnt);
+        const income = base * (generalPct / 100);
+        byCategory.set("GENERAL", (byCategory.get("GENERAL") || 0) + income);
+        totalIncomeMnt += income;
+        continue;
+      }
+
+      const k = bucketKeyForService(service);
+      let pct = generalPct;
+      if (k === "ORTHODONTIC_TREATMENT") pct = orthoPct;
+      else if (k === "DEFECT_CORRECTION") pct = defectPct;
+      else if (k === "SURGERY") pct = surgeryPct;
+
+      const income = lineNet * (pct / 100);
+      byCategory.set(k, (byCategory.get(k) || 0) + income);
+      totalIncomeMnt += income;
     }
   }
 
   return { incomeMnt: totalIncomeMnt, byCategory };
 }
 
-// ── Main endpoint ─────────────────────────────────────────────────────────────
+// ── Endpoint ────────────────────────────────────────────────────────────────
 router.get("/reports/appointments/doctors-income", async (req, res) => {
   try {
     const {
@@ -240,42 +275,54 @@ router.get("/reports/appointments/doctors-income", async (req, res) => {
     } = req.query;
 
     const currentYear = new Date().getFullYear();
-    const year = yearParam ? Number(yearParam) : currentYear;
+    const yearRaw = yearParam ? Number(yearParam) : currentYear;
+    const year = Number.isFinite(yearRaw) ? yearRaw : currentYear;
 
-    // Determine mode
+    const branchIdRaw = branchIdParam ? Number(branchIdParam) : null;
+    const branchId = Number.isFinite(branchIdRaw) ? branchIdRaw : null;
+
+    const doctorIdRaw = doctorIdParam ? Number(doctorIdParam) : null;
+    const doctorId = Number.isFinite(doctorIdRaw) ? doctorIdRaw : null;
+
     const isDateRange = Boolean(startDateParam && endDateParam);
     const mode = isDateRange ? "daily" : "monthly";
 
-    let rangeStart, rangeEnd; // Date objects
-    let startDateStr, endDateStr; // YYYY-MM-DD strings
+    let startDateStr;
+    let endDateStr;
+    let rangeStart;
+    let rangeEndExclusive;
 
     if (isDateRange) {
       startDateStr = String(startDateParam);
       endDateStr = String(endDateParam);
+
       rangeStart = new Date(`${startDateStr}T00:00:00.000Z`);
-      rangeEnd = new Date(`${endDateStr}T00:00:00.000Z`);
-      rangeEnd.setUTCDate(rangeEnd.getUTCDate() + 1); // exclusive end
+      rangeEndExclusive = new Date(`${endDateStr}T00:00:00.000Z`);
+      rangeEndExclusive.setUTCDate(rangeEndExclusive.getUTCDate() + 1); // inclusive endDate
     } else {
       startDateStr = `${year}-01-01`;
       endDateStr = `${year}-12-31`;
+
       rangeStart = new Date(`${startDateStr}T00:00:00.000Z`);
-      rangeEnd = new Date(`${year + 1}-01-01T00:00:00.000Z`);
+      rangeEndExclusive = new Date(`${year + 1}-01-01T00:00:00.000Z`);
     }
 
-    const branchId = branchIdParam ? Number(branchIdParam) : null;
-    const doctorId = doctorIdParam ? Number(doctorIdParam) : null;
-
-    // ── Settings ──────────────────────────────────────────────────────────────
+    // Settings: home bleaching deduction amount
     const homeBleachingDeductSetting = await prisma.settings.findUnique({
       where: { key: "finance.homeBleachingDeductAmountMnt" },
     });
-    const homeBleachingDeductAmountMnt = Number(homeBleachingDeductSetting?.value || 0) || 0;
+    const homeBleachingDeductAmountMnt =
+      Number(homeBleachingDeductSetting?.value || 0) || 0;
 
-    // ── Fetch filter lists ────────────────────────────────────────────────────
-    const [allBranches, allDoctors] = await Promise.all([
-      prisma.branch.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    // Filter lists
+    const [branches, doctors] = await Promise.all([
+      prisma.branch.findMany({
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
       prisma.user.findMany({
         where: {
+          // TODO: verify role enum value in your DB. If it's DOCTOR, change this.
           role: "doctor",
           ...(branchId ? { branchId } : {}),
         },
@@ -284,90 +331,83 @@ router.get("/reports/appointments/doctors-income", async (req, res) => {
       }),
     ]);
 
-    // ── Fetch invoices ────────────────────────────────────────────────────────
-    // Build the encounter filter to scope by doctor (branch scope is on Invoice.branchId)
+    // Scope by doctor via encounter.doctorId (branch is invoice.branchId)
     const encounterFilter = {};
-    if (doctorId) {
-      encounterFilter.doctorId = doctorId;
-    }
+    if (doctorId) encounterFilter.doctorId = doctorId;
 
     const invoiceWhere = {
-  OR: [
-    { createdAt: { gte: rangeStart, lt: rangeEnd } },
-    { payments: { some: { timestamp: { gte: rangeStart, lt: rangeEnd } } } },
-  ],
-  encounter: encounterFilter,
-  ...(branchId ? { branchId } : {}), // ✅ branch-at-time
-};
+      OR: [
+        { createdAt: { gte: rangeStart, lt: rangeEndExclusive } },
+        { payments: { some: { timestamp: { gte: rangeStart, lt: rangeEndExclusive } } } },
+      ],
+      encounter: encounterFilter,
+      ...(branchId ? { branchId } : {}), // ✅ branch-at-time
+    };
 
     const invoices = await prisma.invoice.findMany({
-  where: invoiceWhere,
-  include: {
-    branch: { select: { id: true, name: true } }, // ✅ invoice branch (branch-at-time)
-    encounter: {
+      where: invoiceWhere,
       include: {
-        doctor: {
+        branch: { select: { id: true, name: true } },
+        encounter: {
           include: {
-            branch: { select: { id: true, name: true } }, // optional; ok to keep
-            commissionConfig: true,
+            doctor: {
+              include: {
+                commissionConfig: true,
+              },
+            },
+          },
+        },
+        items: { include: { service: true } },
+        payments: {
+          include: {
+            allocations: { select: { invoiceItemId: true, amount: true } },
           },
         },
       },
-    },
-    items: { include: { service: true } },
-    payments: {
-      include: {
-        allocations: { select: { invoiceItemId: true, amount: true } },
-      },
-    },
-  },
-});
+    });
 
-    // ── Build time-series ─────────────────────────────────────────────────────
-    // Group invoices by bucket key (YYYY-MM or YYYY-MM-DD).
-    // We use the payment timestamps to determine which bucket an invoice falls into.
-    // If an invoice has no in-range payment but was created in range, we bucket by createdAt.
-
-    const bucketMap = new Map(); // key → incomeMnt
-
-    // Pre-populate buckets with zero for all expected keys
+    // Pre-populate series buckets with zeros
+    const bucketMap = new Map();
     if (mode === "monthly") {
       for (let m = 1; m <= 12; m++) {
-        const key = `${year}-${String(m).padStart(2, "0")}`;
-        bucketMap.set(key, 0);
+        bucketMap.set(`${year}-${String(m).padStart(2, "0")}`, 0);
       }
     } else {
-      for (const day of enumerateDays(startDateStr, endDateStr)) {
-        bucketMap.set(day, 0);
+      for (const d of enumerateDaysInclusive(startDateStr, endDateStr)) {
+        bucketMap.set(d, 0);
       }
     }
 
-    // For time-series bucketing: each invoice contributes to the bucket of its
-    // earliest in-range payment timestamp. If no payment found, use createdAt.
+    // Determine time-series bucket for an invoice: earliest in-range payment (non-excluded),
+    // else createdAt if it falls in range.
     function getBucketKey(inv) {
       const sortedPayments = [...(inv.payments || [])].sort(
         (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
       );
+
       for (const p of sortedPayments) {
         const method = String(p.method || "").toUpperCase();
         if (EXCLUDED_METHODS.has(method)) continue;
+
         const ts = new Date(p.timestamp);
-        if (!inRange(ts, rangeStart, rangeEnd)) continue;
-        const iso = ts.toISOString().slice(0, 10); // YYYY-MM-DD
+        if (!inRange(ts, rangeStart, rangeEndExclusive)) continue;
+
+        const iso = ts.toISOString().slice(0, 10);
         return mode === "monthly" ? iso.slice(0, 7) : iso;
       }
-      // Fall back to createdAt
+
       const created = new Date(inv.createdAt);
-      if (inRange(created, rangeStart, rangeEnd)) {
+      if (inRange(created, rangeStart, rangeEndExclusive)) {
         const iso = created.toISOString().slice(0, 10);
         return mode === "monthly" ? iso.slice(0, 7) : iso;
       }
+
       return null;
     }
 
-    // Breakdown maps
-    const breakdownByBranch = new Map(); // branchId → { label, incomeMnt }
-    const breakdownByDoctor = new Map(); // doctorId → { label, incomeMnt }
+    // Breakdown accumulators
+    const breakdownByBranch = new Map(); // branchId -> {id,label,incomeMnt}
+    const breakdownByDoctor = new Map(); // doctorId -> {id,label,incomeMnt}
     const breakdownByCategory = new Map([
       ["IMAGING", 0],
       ["ORTHODONTIC_TREATMENT", 0],
@@ -379,7 +419,6 @@ router.get("/reports/appointments/doctors-income", async (req, res) => {
 
     let totalIncomeMnt = 0;
 
-    // We process invoices one at a time; for time-series we compute income per invoice.
     for (const inv of invoices) {
       const doctor = inv.encounter?.doctor;
       if (!doctor) continue;
@@ -387,61 +426,59 @@ router.get("/reports/appointments/doctors-income", async (req, res) => {
       const { incomeMnt, byCategory } = computeIncomeFromInvoices(
         [inv],
         rangeStart,
-        rangeEnd,
+        rangeEndExclusive,
         homeBleachingDeductAmountMnt
       );
 
       if (incomeMnt <= 0) continue;
 
-      // Time-series bucket
+      // series
       const key = getBucketKey(inv);
       if (key && bucketMap.has(key)) {
-        bucketMap.set(key, bucketMap.get(key) + incomeMnt);
+        bucketMap.set(key, (bucketMap.get(key) || 0) + incomeMnt);
       }
 
       totalIncomeMnt += incomeMnt;
 
-      // Breakdown: branch (use doctor's branch at time of encounter)
-      const branch = inv.branch; // ✅ branch-at-time comes from Invoice
-      if (branch) {
-        if (!breakdownByBranch.has(branch.id)) {
-          breakdownByBranch.set(branch.id, { id: branch.id, label: branch.name, incomeMnt: 0 });
+      // breakdown: branch-at-time from invoice
+      const b = inv.branch;
+      if (b) {
+        if (!breakdownByBranch.has(b.id)) {
+          breakdownByBranch.set(b.id, { id: b.id, label: b.name, incomeMnt: 0 });
         }
-        breakdownByBranch.get(branch.id).incomeMnt += incomeMnt;
+        breakdownByBranch.get(b.id).incomeMnt += incomeMnt;
       }
 
-      // Breakdown: doctor
+      // breakdown: doctor
       const dLabel =
-        ((doctor.ovog ? doctor.ovog.charAt(0) + ". " : "") + (doctor.name || "")).trim() ||
-        `Doctor ${doctor.id}`;
+        ((doctor.ovog ? doctor.ovog.charAt(0) + ". " : "") + (doctor.name || ""))
+          .trim() || `Doctor ${doctor.id}`;
       if (!breakdownByDoctor.has(doctor.id)) {
         breakdownByDoctor.set(doctor.id, { id: doctor.id, label: dLabel, incomeMnt: 0 });
       }
       breakdownByDoctor.get(doctor.id).incomeMnt += incomeMnt;
 
-      // Breakdown: category
-      for (const [cat, amt] of byCategory) {
+      // breakdown: category (only used when doctor selected)
+      for (const [cat, amt] of byCategory.entries()) {
         breakdownByCategory.set(cat, (breakdownByCategory.get(cat) || 0) + amt);
       }
     }
 
-    // ── Build breakdown rows ──────────────────────────────────────────────────
+    // choose breakdown type + rows
     let breakdownType;
     let breakdownRows;
 
     if (doctorId) {
-      // Category breakdown for selected doctor
       breakdownType = "categories";
       breakdownRows = Array.from(breakdownByCategory.entries())
-        .map(([key, incomeMnt]) => ({
+        .map(([key, amt]) => ({
           id: key,
           label: CATEGORY_LABELS[key] || key,
-          incomeMnt: Math.round(incomeMnt),
-          pct: calcPct(incomeMnt, totalIncomeMnt),
+          incomeMnt: Math.round(amt),
+          pct: calcPct(amt, totalIncomeMnt),
         }))
         .filter((r) => r.incomeMnt > 0);
     } else if (branchId) {
-      // Doctor breakdown within selected branch
       breakdownType = "doctors";
       breakdownRows = Array.from(breakdownByDoctor.values())
         .map((r) => ({
@@ -451,7 +488,6 @@ router.get("/reports/appointments/doctors-income", async (req, res) => {
         }))
         .sort((a, b) => b.incomeMnt - a.incomeMnt);
     } else {
-      // Branch breakdown (default)
       breakdownType = "branches";
       breakdownRows = Array.from(breakdownByBranch.values())
         .map((r) => ({
@@ -462,10 +498,9 @@ router.get("/reports/appointments/doctors-income", async (req, res) => {
         .sort((a, b) => b.incomeMnt - a.incomeMnt);
     }
 
-    // ── Build series ──────────────────────────────────────────────────────────
     const series = Array.from(bucketMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, incomeMnt]) => ({ key, incomeMnt: Math.round(incomeMnt) }));
+      .map(([key, amt]) => ({ key, incomeMnt: Math.round(amt) }));
 
     return res.json({
       mode,
@@ -477,8 +512,8 @@ router.get("/reports/appointments/doctors-income", async (req, res) => {
       totalIncomeMnt: Math.round(totalIncomeMnt),
       breakdown: { type: breakdownType, rows: breakdownRows },
       filters: {
-        branches: allBranches,
-        doctors: allDoctors.map((d) => ({
+        branches,
+        doctors: doctors.map((d) => ({
           id: d.id,
           name: d.name,
           ovog: d.ovog,
