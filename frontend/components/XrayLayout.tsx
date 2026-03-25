@@ -15,9 +15,10 @@ export default function XrayLayout({ children }: Props) {
   const router = useRouter();
   const { me } = useAuth();
 
+const { logoutAndRedirect } = useAuth();
+
   const handleLogout = async () => {
-    await logout();
-    router.replace("/login");
+    await logoutAndRedirect();
   };
 
   /** Format: Овгийн эхний үсэг.Нэр (e.g. О.Нэр). Falls back to name or "Рентген". */
