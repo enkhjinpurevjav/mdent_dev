@@ -54,6 +54,7 @@ import doctorPortalRouter from "./routes/doctor.js";
 import nursePortalRouter from "./routes/nurse.js";
 import attendanceReportRouter from "./routes/admin/attendanceReport.js";
 import adminPasswordResetRouter from "./routes/admin/passwordReset.js";
+import doctorIncomeReportRouter from "./routes/admin/doctorIncomeReport.js";
 import checkInRouter from "./routes/check-in.js";
 import { authenticateJWT, requireRole } from "./middleware/auth.js";
 import rateLimit from "express-rate-limit";
@@ -261,6 +262,9 @@ app.use("/api/nurse", nursePortalRouter);
 
 // Admin attendance report
 app.use("/api/admin", attendanceReportRouter);
+
+// Doctor income performance report (new Эмч page under Үндсэн тайлан → Цаг захиалга)
+app.use("/api/admin", doctorIncomeReportRouter);
 
 // Admin password reset (send reset link to user by id)
 app.use("/api/admin/users", adminPasswordResetRouter);
