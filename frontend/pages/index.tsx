@@ -9,6 +9,7 @@ const ROLE_HOME: Record<string, string> = {
   receptionist: "/reception/appointments",
   doctor: "/doctor/appointments",
   nurse: "/nurse/schedule",
+  xray: "/xray",
 };
 
 export default function IndexPage() {

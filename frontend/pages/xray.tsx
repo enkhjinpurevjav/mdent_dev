@@ -4,6 +4,7 @@ import { StatusBadge } from "../components/xray/StatusBadge";
 import { AppointmentListItem } from "../components/xray/AppointmentListItem";
 import type { AppointmentRow } from "../types/appointments";
 import type { EncounterMedia, Service, Nurse } from "../types/encounter-admin";
+import { useAuth } from "../contexts/AuthContext";
 
 type XrayAppointment = AppointmentRow & {
   branchId?: number;
@@ -29,6 +30,7 @@ const inputCls =
 
 export default function XrayPage() {
   const today = new Date().toISOString().slice(0, 10);
+  const { me } = useAuth();
 
   const [dateFrom, setDateFrom] = useState(today);
   const [dateTo, setDateTo] = useState(today);
@@ -84,6 +86,10 @@ export default function XrayPage() {
       const params = new URLSearchParams();
       params.set("dateFrom", dateFrom);
       params.set("dateTo", dateTo);
+      // Always scope to the xray user's own branch — branch switching is not allowed.
+      if (me?.branchId) {
+        params.set("branchId", String(me.branchId));
+      }
       const res = await fetch(`/api/appointments?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch appointments");
       const data = await res.json();
@@ -99,7 +105,7 @@ export default function XrayPage() {
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, me?.branchId]);
 
   useEffect(() => {
     if (selectedAppt !== null) return;
