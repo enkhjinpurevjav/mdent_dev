@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { logout } from "../../utils/auth";
-import { useRouter } from "next/router";
+import { useAuth } from "../../contexts/AuthContext";
 
 type NurseDetails = {
   id: number;
@@ -43,7 +42,7 @@ export default function NurseProfileSummaryView({
   showLogout = false,
   roleLabel,
 }: Props) {
-  const router = useRouter();
+  const { logoutAndRedirect } = useAuth();
 
   const [nurse, setNurse] = useState<NurseDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,8 +85,7 @@ export default function NurseProfileSummaryView({
   }, [meUrl]);
 
   const handleLogout = async () => {
-    await logout();
-    router.replace("/login");
+    await logoutAndRedirect();
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {

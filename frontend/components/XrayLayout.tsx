@@ -1,7 +1,5 @@
 import React from "react";
 import Link from "next/link";
-import { useRouter } from "next/router";
-import { logout } from "../utils/auth";
 import { useAuth } from "../contexts/AuthContext";
 import { LogOut } from "lucide-react";
 
@@ -12,10 +10,7 @@ type Props = {
 const NAVY = "#131a29";
 
 export default function XrayLayout({ children }: Props) {
-  const router = useRouter();
-  const { me } = useAuth();
-
-const { logoutAndRedirect } = useAuth();
+  const { me, logoutAndRedirect } = useAuth();
 
   const handleLogout = async () => {
     await logoutAndRedirect();

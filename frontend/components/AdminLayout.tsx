@@ -3,7 +3,6 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { setBranchLock, clearBranchLock } from "./appointments/storage";
 import { Drawer } from "./ui/Drawer";
-import { logout } from "../utils/auth";
 import { useAuth } from "../contexts/AuthContext";
 
 type Props = {
@@ -189,7 +188,7 @@ const navItems: NavItem[] = [
 export default function AdminLayout({ children, wide }: Props) {
   const router = useRouter();
   const currentPath = router.pathname;
-  const { me } = useAuth();
+  const { me, logoutAndRedirect } = useAuth();
 
   // which main menu label is open (for dropdown)
   const [openGroup, setOpenGroup] = useState<string | null>(null);
@@ -217,8 +216,6 @@ export default function AdminLayout({ children, wide }: Props) {
     };
     return roleMap[r] ?? r;
   })();
-
-const { logoutAndRedirect } = useAuth();
 
   const handleLogout = async () => {
     await logoutAndRedirect();
