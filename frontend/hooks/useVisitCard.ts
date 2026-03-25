@@ -18,6 +18,7 @@ export function useVisitCard({ bookNumber, activeTab, patientBookId }: UseVisitC
   const [visitCardTypeDraft, setVisitCardTypeDraft] = useState<VisitCardType | null>("ADULT");
   const [visitCardAnswers, setVisitCardAnswers] = useState<VisitCardAnswers>({});
   const [visitCardSaving, setVisitCardSaving] = useState(false);
+  const [visitCardSavedAt, setVisitCardSavedAt] = useState(0);
   const [signatureSaving, setSignatureSaving] = useState(false);
   
   // Shared signature state
@@ -238,6 +239,7 @@ export function useVisitCard({ bookNumber, activeTab, patientBookId }: UseVisitC
       setVisitCard(card);
       setVisitCardTypeDraft(card.type);
       setVisitCardAnswers(card.answers || {});
+      setVisitCardSavedAt(Date.now());
     } catch (err: any) {
       console.error("save visit card failed", err);
       setVisitCardError(
@@ -355,6 +357,7 @@ export function useVisitCard({ bookNumber, activeTab, patientBookId }: UseVisitC
     visitCardTypeDraft,
     visitCardAnswers,
     visitCardSaving,
+    visitCardSavedAt,
     signatureSaving,
     sharedSignature,
     sharedSignatureLoading,

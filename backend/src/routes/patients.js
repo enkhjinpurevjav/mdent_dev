@@ -5,6 +5,7 @@ import multer from "multer";
 import path from "path";
 import { parseRegNo } from "../utils/regno.js";
 import { getPatientBalance } from "./reports-patient-balances.js";
+import { sseBroadcastAll } from "../utils/sseStore.js";
 
 const router = express.Router();
 const uploadDir = process.env.MEDIA_UPLOAD_DIR || "/data/media";
@@ -798,7 +799,7 @@ router.put("/visit-card/:patientBookId", async (req, res) => {
     // Ensure patientBook exists
     const pb = await prisma.patientBook.findUnique({
       where: { id: patientBookId },
-      select: { id: true },
+      select: { id: true, patientId: true },
     });
     if (!pb) {
       return res.status(404).json({ error: "PatientBook not found" });
@@ -832,6 +833,16 @@ router.put("/visit-card/:patientBookId", async (req, res) => {
         updatedById: req.user?.id ?? null,
       },
     });
+
+    // Broadcast SSE so Appointments page reflects visit card completion immediately
+    try {
+      sseBroadcastAll("patient_visit_card_updated", {
+        patientBookId,
+        patientId: pb.patientId ?? null,
+      });
+    } catch {
+      // non-fatal — proceed with the response even if SSE broadcast fails
+    }
 
     return res.json({ visitCard });
   } catch (err) {

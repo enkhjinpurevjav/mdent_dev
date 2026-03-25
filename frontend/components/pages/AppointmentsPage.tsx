@@ -1787,6 +1787,12 @@ const workingDoctorsForFilter = scheduledDoctors.length
         } catch { /* ignore parse errors */ }
       });
 
+      es.addEventListener("patient_visit_card_updated", () => {
+        markEvent();
+        // Refresh appointments so "карт бөглөгдсөн" indicator updates immediately
+        loadAppointments();
+      });
+
       es.onerror = () => {
         if (closed) return;
         es?.close();
@@ -1804,7 +1810,7 @@ const workingDoctorsForFilter = scheduledDoctors.length
       if (retryTimeout) clearTimeout(retryTimeout);
       es?.close();
     };
-  }, [filterDate, effectiveBranchId]);
+  }, [filterDate, effectiveBranchId, loadAppointments]);
 
   // ---- load scheduled doctors ----
   const loadScheduledDoctors = useCallback(async () => {

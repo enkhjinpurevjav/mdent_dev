@@ -85,6 +85,7 @@ export default function PatientProfilePage() {
     visitCardTypeDraft,
     visitCardAnswers,
     visitCardSaving,
+    visitCardSavedAt,
     signatureSaving,
     sharedSignature,
     sharedSignatureLoading,
@@ -126,17 +127,18 @@ export default function PatientProfilePage() {
   const [orthoResetKey, setOrthoResetKey] = useState(0);
 
   // Visit card section collapsible state:
-  // Open by default; auto-collapse once the card is complete (consent + signature).
+  // Open by default; auto-collapse once the card is complete AND a save has succeeded.
   const [visitCardOpen, setVisitCardOpen] = useState(true);
   const visitCardComplete =
     visitCardAnswers.sharedConsentAccepted === true &&
     !!sharedSignature?.filePath;
-  // Auto-collapse when card becomes complete and data has finished loading
+  // Auto-collapse only when the card is complete AND a successful save has been persisted
+  // (visitCardSavedAt > 0). This prevents premature collapse on consent tick before save.
   useEffect(() => {
-    if (!visitCardLoading && !sharedSignatureLoading && visitCardComplete) {
+    if (!visitCardLoading && !sharedSignatureLoading && visitCardComplete && visitCardSavedAt > 0) {
       setVisitCardOpen(false);
     }
-  }, [visitCardLoading, sharedSignatureLoading, visitCardComplete]);
+  }, [visitCardLoading, sharedSignatureLoading, visitCardComplete, visitCardSavedAt]);
 
   // Appointments tab filter/pagination state
   const [apptDateFrom, setApptDateFrom] = useState("");
