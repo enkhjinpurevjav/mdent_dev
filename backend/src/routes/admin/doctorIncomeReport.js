@@ -285,45 +285,43 @@ router.get("/reports/appointments/doctors-income", async (req, res) => {
     ]);
 
     // ── Fetch invoices ────────────────────────────────────────────────────────
-    // Build the encounter filter to scope by branch/doctor
-    const encounterFilter = {
-      doctor: { isNot: null },
-    };
+    // Build the encounter filter to scope by doctor (branch scope is on Invoice.branchId)
+    const encounterFilter = {};
     if (doctorId) {
       encounterFilter.doctorId = doctorId;
-    } else if (branchId) {
-      encounterFilter.doctor = { branchId };
     }
 
     const invoiceWhere = {
-      OR: [
-        { createdAt: { gte: rangeStart, lt: rangeEnd } },
-        { payments: { some: { timestamp: { gte: rangeStart, lt: rangeEnd } } } },
-      ],
-      encounter: encounterFilter,
-    };
+  OR: [
+    { createdAt: { gte: rangeStart, lt: rangeEnd } },
+    { payments: { some: { timestamp: { gte: rangeStart, lt: rangeEnd } } } },
+  ],
+  encounter: encounterFilter,
+  ...(branchId ? { branchId } : {}), // ✅ branch-at-time
+};
 
     const invoices = await prisma.invoice.findMany({
-      where: invoiceWhere,
+  where: invoiceWhere,
+  include: {
+    branch: { select: { id: true, name: true } }, // ✅ invoice branch (branch-at-time)
+    encounter: {
       include: {
-        encounter: {
+        doctor: {
           include: {
-            doctor: {
-              include: {
-                branch: { select: { id: true, name: true } },
-                commissionConfig: true,
-              },
-            },
-          },
-        },
-        items: { include: { service: true } },
-        payments: {
-          include: {
-            allocations: { select: { invoiceItemId: true, amount: true } },
+            branch: { select: { id: true, name: true } }, // optional; ok to keep
+            commissionConfig: true,
           },
         },
       },
-    });
+    },
+    items: { include: { service: true } },
+    payments: {
+      include: {
+        allocations: { select: { invoiceItemId: true, amount: true } },
+      },
+    },
+  },
+});
 
     // ── Build time-series ─────────────────────────────────────────────────────
     // Group invoices by bucket key (YYYY-MM or YYYY-MM-DD).
@@ -404,7 +402,7 @@ router.get("/reports/appointments/doctors-income", async (req, res) => {
       totalIncomeMnt += incomeMnt;
 
       // Breakdown: branch (use doctor's branch at time of encounter)
-      const branch = doctor.branch;
+      const branch = inv.branch; // ✅ branch-at-time comes from Invoice
       if (branch) {
         if (!breakdownByBranch.has(branch.id)) {
           breakdownByBranch.set(branch.id, { id: branch.id, label: branch.name, incomeMnt: 0 });
