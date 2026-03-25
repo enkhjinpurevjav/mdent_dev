@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { AuthUser } from "../../utils/auth";
-import { getMe, logout } from "../../utils/auth";
-import { useRouter } from "next/router";
+import { getMe } from "../../utils/auth";
 import { toAbsoluteFileUrl } from "../../utils/toAbsoluteFileUrl";
+import { useAuth } from "../../contexts/AuthContext";
 
 type DoctorDetails = {
   id: number;
@@ -24,7 +24,7 @@ function formatDoctorDisplayName(d: DoctorDetails | null, fallbackEmail?: string
 }
 
 export default function DoctorProfilePage() {
-  const router = useRouter();
+  const { logoutAndRedirect } = useAuth();
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [doctor, setDoctor] = useState<DoctorDetails | null>(null);
@@ -120,8 +120,7 @@ export default function DoctorProfilePage() {
   };
 
   const handleLogout = async () => {
-    await logout();
-    router.replace("/login");
+    await logoutAndRedirect();
   };
 
   const displayName = useMemo(() => formatDoctorDisplayName(doctor, user?.email ?? null), [doctor, user?.email]);

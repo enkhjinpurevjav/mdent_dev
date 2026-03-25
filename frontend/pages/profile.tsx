@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { logout } from "../utils/auth";
-import { useRouter } from "next/router";
+import { useAuth } from "../contexts/AuthContext";
 
 type UserDetails = {
   id: number;
@@ -35,7 +34,7 @@ function formatRole(role?: string | null): string {
 }
 
 export default function ProfilePage() {
-  const router = useRouter();
+  const { logoutAndRedirect } = useAuth();
 
   const [user, setUser] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,8 +77,7 @@ export default function ProfilePage() {
   }, []);
 
   const handleLogout = async () => {
-    await logout();
-    router.replace("/login");
+    await logoutAndRedirect();
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {

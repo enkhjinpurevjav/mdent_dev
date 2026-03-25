@@ -1,7 +1,6 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { logout } from "../utils/auth";
 import { useAuth } from "../contexts/AuthContext";
 import { Bell, CalendarDays, CalendarRange, Clock, ClipboardList, LogOut, User } from "lucide-react";
 
@@ -61,12 +60,11 @@ function BottomIcon({
 
 export default function ReceptionLayout({ children, wide }: Props) {
   const router = useRouter();
-  const { me } = useAuth();
+  const { me, logoutAndRedirect } = useAuth();
   const isActive = (href: string) => router.pathname.startsWith(href);
 
   const handleLogout = async () => {
-    await logout();
-    router.replace("/login");
+    await logoutAndRedirect();
   };
 
   /** Format: Овгийн эхний үсэг.Нэр (e.g. П.Энхжин). Falls back to name or "Рецепшн". */

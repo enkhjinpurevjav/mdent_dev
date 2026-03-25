@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { logout } from "../utils/auth";
+import { useAuth } from "../contexts/AuthContext";
 import { Bell, Clock, LogOut, CalendarRange, User } from "lucide-react";
 
 type Props = {
