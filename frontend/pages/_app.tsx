@@ -3,6 +3,7 @@ import AdminLayout from "../components/AdminLayout";
 import DoctorLayout from "../components/DoctorLayout";
 import NurseLayout from "../components/NurseLayout";
 import ReceptionLayout from "../components/ReceptionLayout";
+import XrayLayout from "../components/XrayLayout";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
@@ -25,6 +26,10 @@ function isNursePath(pathname: string) {
 
 function isReceptionPath(pathname: string) {
   return pathname === "/reception" || pathname.startsWith("/reception/");
+}
+
+function isXrayPath(pathname: string) {
+  return pathname === "/xray" || pathname.startsWith("/xray/");
 }
 
 function isAppointmentsPath(pathname: string) {
@@ -91,6 +96,7 @@ function AppContent({ Component, pageProps }: AppProps) {
     isDoctorPath(router.pathname) || ((isPatientPath || isEncounterPath) && userRole === "doctor");
   const useNurseLayout = isNursePath(router.pathname);
   const useReceptionLayout = isReceptionPath(router.pathname);
+  const useXrayLayout = isXrayPath(router.pathname);
 
   // Wide layout for appointments pages (admin + reception) to support many doctor columns
   const wide = isAppointmentsPath(router.pathname);
@@ -117,6 +123,14 @@ function AppContent({ Component, pageProps }: AppProps) {
       <ReceptionLayout wide={wide}>
         <Component {...pageProps} />
       </ReceptionLayout>
+    );
+  }
+
+  if (useXrayLayout) {
+    return (
+      <XrayLayout>
+        <Component {...pageProps} />
+      </XrayLayout>
     );
   }
 

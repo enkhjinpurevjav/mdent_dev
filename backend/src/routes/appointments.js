@@ -433,8 +433,24 @@ router.get("/", async (req, res) => {
 
     const where = {};
 
+    // ----------------- Xray role: enforce own-branch restriction -----------------
+    // Xray users may only query appointments for their own branch.
+    // - If branchId is supplied and differs from the user's branch → 403.
+    // - If branchId is omitted → silently scope to user's branch.
+    if (req.user?.role === "xray") {
+      const userBranchId = req.user.branchId;
+      // Always scope to xray user's own branch first
+      where.branchId = userBranchId;
+      if (branchId) {
+        const parsed = Number(branchId);
+        if (!Number.isNaN(parsed) && parsed !== userBranchId) {
+          return res.status(403).json({ error: "Зөвхөн өөрийн салбарын цагийг харах боломжтой." });
+        }
+      }
+    }
+
     // ----------------- Branch / doctor / patient filters -----------------
-    if (branchId) {
+    if (!where.branchId && branchId) {
       const parsed = Number(branchId);
       if (!Number.isNaN(parsed)) where.branchId = parsed;
     }

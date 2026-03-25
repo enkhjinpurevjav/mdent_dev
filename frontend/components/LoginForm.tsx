@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { login, getMe } from "../utils/auth";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -8,6 +9,7 @@ export default function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { refreshMe } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,16 +32,22 @@ export default function LoginForm() {
         return;
       }
 
+      // Synchronize AuthContext so route guards in _app.tsx immediately know
+      // the user is authenticated and don't bounce them back to /login.
+      await refreshMe();
+
       const redirectParam =
         typeof router.query.redirect === "string" ? router.query.redirect : "";
 
       const isDoctor = user?.role === "doctor";
       const isNurse = user?.role === "nurse";
       const isReceptionist = user?.role === "receptionist";
+      const isXray = user?.role === "xray";
+      const isAdminRole = ["admin", "super_admin"].includes(user?.role ?? "");
 
       // Role-scoped redirect safety:
       // Doctors stay in /doctor/*, nurses stay in /nurse/*, receptionists stay in /reception/*,
-      // others can use any redirect (or go to /).
+      // xray stays in /xray/*, admin/super_admin can use any redirect.
       let safeRedirect = "";
       if (redirectParam) {
         if (isDoctor && redirectParam.startsWith("/doctor")) {
@@ -48,7 +56,9 @@ export default function LoginForm() {
           safeRedirect = redirectParam;
         } else if (isReceptionist && redirectParam.startsWith("/reception")) {
           safeRedirect = redirectParam;
-        } else if (!isDoctor && !isNurse && !isReceptionist) {
+        } else if (isXray && redirectParam.startsWith("/xray")) {
+          safeRedirect = redirectParam;
+        } else if (isAdminRole) {
           safeRedirect = redirectParam;
         }
       }
@@ -59,6 +69,8 @@ export default function LoginForm() {
         ? "/nurse/schedule"
         : isReceptionist
         ? "/reception/appointments"
+        : isXray
+        ? "/xray"
         : "/bookings";
 
       router.replace(safeRedirect || fallback);
