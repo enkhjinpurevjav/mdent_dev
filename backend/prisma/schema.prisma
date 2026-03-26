@@ -762,6 +762,9 @@ model User {
   commissionConfig DoctorCommissionConfig?
   nurseCommissionConfig NurseCommissionConfig?
 
+  // Nurse revenue sharing: true = хувьтай (receives income share), false = хувьгүй (salary-only)
+  nurseRevenueSharingEnabled Boolean @default(true)
+
   passwordResetTokens PasswordResetToken[]
 
   // Attendance sessions

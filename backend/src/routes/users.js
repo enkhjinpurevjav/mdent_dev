@@ -106,6 +106,7 @@ router.get("/", async (req, res) => {
         : null,
       calendarOrder: u.calendarOrder ?? null,
       createdAt: u.createdAt.toISOString(),
+      nurseRevenueSharingEnabled: u.nurseRevenueSharingEnabled,
     }));
 
     // Data minimization: receptionist only receives the fields needed by
@@ -995,6 +996,49 @@ router.post("/:id/nurse-schedule/bulk", async (req, res) => {
   } catch (err) {
     console.error("POST /api/users/:id/nurse-schedule/bulk error:", err);
     return res.status(500).json({ error: "Failed to bulk-save nurse schedule" });
+  }
+});
+
+/**
+ * PATCH /api/users/:id/nurse-revenue-sharing
+ * Toggles the nurseRevenueSharingEnabled flag for a nurse user.
+ * Body: { nurseRevenueSharingEnabled: boolean }
+ * Requires admin or super_admin (enforced at router level in index.js via /api/users gate).
+ */
+router.patch("/:id/nurse-revenue-sharing", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id || Number.isNaN(id)) {
+    return res.status(400).json({ error: "Invalid user id" });
+  }
+
+  const { nurseRevenueSharingEnabled } = req.body || {};
+
+  if (typeof nurseRevenueSharingEnabled !== "boolean") {
+    return res
+      .status(400)
+      .json({ error: "nurseRevenueSharingEnabled must be a boolean" });
+  }
+
+  try {
+    const nurse = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, role: true },
+    });
+
+    if (!nurse || nurse.role !== UserRole.nurse) {
+      return res.status(404).json({ error: "Nurse not found" });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { nurseRevenueSharingEnabled },
+      select: { id: true, nurseRevenueSharingEnabled: true },
+    });
+
+    return res.status(200).json(updated);
+  } catch (err) {
+    console.error("PATCH /api/users/:id/nurse-revenue-sharing error:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 

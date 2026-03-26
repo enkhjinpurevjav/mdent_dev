@@ -20,6 +20,7 @@ type Nurse = {
   branch?: Branch | null;
   branches?: Branch[];
   createdAt?: string;
+  nurseRevenueSharingEnabled?: boolean;
 };
 
 function NurseForm({
@@ -236,6 +237,8 @@ export default function NursesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [confirmNurse, setConfirmNurse] = useState<Nurse | null>(null);
 
   const [summary, setSummary] = useState<{
     total: number;
@@ -306,6 +309,35 @@ export default function NursesPage() {
     }
   };
 
+  const handleToggleRevenue = async (nurse: Nurse) => {
+    const newValue = !(nurse.nurseRevenueSharingEnabled ?? true);
+    setTogglingId(nurse.id);
+    setConfirmNurse(null);
+    try {
+      const res = await fetch(`/api/users/${nurse.id}/nurse-revenue-sharing`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nurseRevenueSharingEnabled: newValue }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        alert((data && data.error) || "Алдаа гарлаа");
+        return;
+      }
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === nurse.id
+            ? { ...u, nurseRevenueSharingEnabled: newValue }
+            : u
+        )
+      );
+    } catch {
+      alert("Сүлжээгээ шалгана уу");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   useEffect(() => {
     getMe().then((u) => setCurrentUserRole(u?.role ?? null));
     loadBranches();
@@ -362,6 +394,46 @@ export default function NursesPage() {
       {loading && <p className="text-gray-500 text-sm">Ачааллаж байна...</p>}
       {!loading && error && <p className="text-red-600 text-sm">{error}</p>}
 
+      {/* Revenue sharing confirm dialog */}
+      {confirmNurse && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-base font-bold mb-3 text-gray-900">
+              {(confirmNurse.nurseRevenueSharingEnabled ?? true)
+                ? "Орлого хуваалцахыг зогсоох уу?"
+                : "Орлого хуваалцахыг идэвхжүүлэх үү?"}
+            </h3>
+            <p className="text-sm text-gray-600 mb-5">
+              {(confirmNurse.nurseRevenueSharingEnabled ?? true)
+                ? `"${(confirmNurse.ovog ? confirmNurse.ovog.charAt(0) + ". " : "") + (confirmNurse.name || confirmNurse.email)}" сувилагчийн орлого хуваалцахыг идэвхгүй болгох уу? Цаашид орлого бодогдохгүй болно.`
+                : `"${(confirmNurse.ovog ? confirmNurse.ovog.charAt(0) + ". " : "") + (confirmNurse.name || confirmNurse.email)}" сувилагчийн орлого хуваалцахыг идэвхжүүлэх үү?`}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+                onClick={() => setConfirmNurse(null)}
+              >
+                Болих
+              </button>
+              <button
+                type="button"
+                className={`px-4 py-2 rounded-lg text-sm font-semibold text-white ${
+                  (confirmNurse.nurseRevenueSharingEnabled ?? true)
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-green-600 hover:bg-green-700"
+                }`}
+                onClick={() => handleToggleRevenue(confirmNurse)}
+              >
+                {(confirmNurse.nurseRevenueSharingEnabled ?? true)
+                  ? "Хувьгүй болгох"
+                  : "Хувьтай болгох"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!loading && !error && (
         <div className="overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full border-collapse text-sm">
@@ -383,6 +455,8 @@ export default function NursesPage() {
                 const tooltipCls = "pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100";
                 return users.map((u, index) => {
                   const baseUrl = `/users/nurse/${u.id}`;
+                  const isRevenue = u.nurseRevenueSharingEnabled ?? true;
+                  const isToggling = togglingId === u.id;
                   return (
                     <tr key={u.id} className="odd:bg-white even:bg-gray-50 hover:bg-gray-100">
                       <td className="border-b border-gray-100 py-2 px-3">{index + 1}</td>
@@ -399,7 +473,7 @@ export default function NursesPage() {
                           : "-"}
                       </td>
                       <td className="border-b border-gray-100 py-2 px-3">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 flex-wrap">
                           {/* Профайл */}
                           <div className="group relative inline-block">
                             <a href={baseUrl} aria-label="Профайл" className={btnCls}>
@@ -425,6 +499,27 @@ export default function NursesPage() {
                                 <span className="text-xs font-bold leading-none">₮</span>
                               </a>
                               <span className={tooltipCls}>Орлого</span>
+                            </div>
+                          )}
+                          {/* Revenue sharing toggle — admin only */}
+                          {isAdminRole && (
+                            <div className="group relative inline-block">
+                              <button
+                                type="button"
+                                disabled={isToggling}
+                                aria-label={isRevenue ? "Хувьтай" : "Хувьгүй"}
+                                onClick={() => setConfirmNurse(u)}
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                                  isRevenue
+                                    ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
+                                    : "border-gray-300 bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                }`}
+                              >
+                                {isToggling ? "..." : isRevenue ? "Хувьтай" : "Хувьгүй"}
+                              </button>
+                              <span className={tooltipCls}>
+                                {isRevenue ? "Хувьгүй болгох" : "Хувьтай болгох"}
+                              </span>
                             </div>
                           )}
                           {/* Нууц үг сэргээх */}

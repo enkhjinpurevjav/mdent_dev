@@ -23,6 +23,7 @@ type NurseIncomeDetailsData = {
   nurseId: number;
   startDate: string;
   endDate: string;
+  revenueSharingEnabled?: boolean;
   nurseImagingPct: number;
   imagingLines: ImagingLine[];
   assistLines: AssistLine[];
@@ -129,6 +130,14 @@ export default function NurseIncomeDetails({ nurseId, startDate, endDate, apiBas
 
   if (!details) {
     return null;
+  }
+
+  if (details.revenueSharingEnabled === false) {
+    return (
+      <div className="px-4 py-6 rounded-xl bg-gray-50 border border-gray-200 text-center text-gray-500 text-sm">
+        Бодогдсон орлого байхгүй байна
+      </div>
+    );
   }
 
   return (

@@ -904,12 +904,14 @@ router.get("/nurses-income", async (req, res) => {
     });
     const nurseImagingPct = Number(nurseImagingPctSetting?.value ?? 0) || 0;
 
-    // Load all nurses for name lookup
+    // Load all nurses for name lookup (only revenue-sharing enabled nurses by default)
     const nurses = await prisma.user.findMany({
-      where: { role: "nurse" },
+      where: { role: "nurse", nurseRevenueSharingEnabled: true },
       select: { id: true, name: true, ovog: true },
     });
     const nurseById = new Map(nurses.map((n) => [n.id, n]));
+    // Only aggregate income for nurses that have revenue sharing enabled
+    const revenueNurseIds = new Set(nurses.map((n) => n.id));
 
     // Query invoices with payments in date range; include encounter for nurseId
     const invoices = await prisma.invoice.findMany({
@@ -1019,6 +1021,7 @@ router.get("/nurses-income", async (req, res) => {
 
       for (const it of nurseImagingItems) {
         const nurseId = Number(it.meta.nurseId);
+        if (!revenueNurseIds.has(nurseId)) continue; // skip salary-only nurses
         const lineBase = (itemAllocationBase.get(it.id) || 0) * feeMultiplier;
         if (lineBase <= 0) continue;
         const income = lineBase * (nurseImagingPct / 100);
@@ -1027,7 +1030,7 @@ router.get("/nurses-income", async (req, res) => {
 
       // --- ASSIST income for nurse assigned to encounter ---
       const assistNurseId = inv.encounter?.nurseId;
-      if (assistNurseId) {
+      if (assistNurseId && revenueNurseIds.has(assistNurseId)) {
         const nonImagingItems = serviceItems.filter(
           (it) => it.service?.category !== "IMAGING"
         );
@@ -1106,6 +1109,29 @@ router.get("/nurses-income/:nurseId/details", async (req, res) => {
   endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
 
   try {
+    // Check if this nurse has revenue sharing enabled
+    const nurseUser = await prisma.user.findUnique({
+      where: { id: NURSE_ID },
+      select: { nurseRevenueSharingEnabled: true },
+    });
+
+    if (!nurseUser?.nurseRevenueSharingEnabled) {
+      return res.json({
+        nurseId: NURSE_ID,
+        startDate: String(startDate),
+        endDate: String(endDate),
+        revenueSharingEnabled: false,
+        nurseImagingPct: 0,
+        imagingLines: [],
+        assistLines: [],
+        totals: {
+          imagingIncomeMnt: 0,
+          assistIncomeMnt: 0,
+          totalIncomeMnt: 0,
+        },
+      });
+    }
+
     // Load global nurse imaging percent from settings
     const nurseImagingPctSetting = await prisma.settings.findFirst({
       where: { key: "finance.nurseImagingPct" },
