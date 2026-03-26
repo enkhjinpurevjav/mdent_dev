@@ -68,6 +68,7 @@ router.get(
         phone: user.phone,
         idPhotoPath: user.idPhotoPath,
         role: user.role,
+        nurseRevenueSharingEnabled: user.nurseRevenueSharingEnabled,
       });
     } catch (err) {
       console.error("GET /api/nurse/me error:", err);
@@ -156,6 +157,29 @@ router.get("/income/details", async (req, res) => {
   endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
 
   try {
+    // Check if this nurse has revenue sharing enabled
+    const nurseUser = await prisma.user.findUnique({
+      where: { id: NURSE_ID },
+      select: { nurseRevenueSharingEnabled: true },
+    });
+
+    if (!nurseUser?.nurseRevenueSharingEnabled) {
+      return res.json({
+        nurseId: NURSE_ID,
+        startDate: String(startDate),
+        endDate: String(endDate),
+        revenueSharingEnabled: false,
+        nurseImagingPct: 0,
+        imagingLines: [],
+        assistLines: [],
+        totals: {
+          imagingIncomeMnt: 0,
+          assistIncomeMnt: 0,
+          totalIncomeMnt: 0,
+        },
+      });
+    }
+
     // Load global nurse imaging percent from settings
     const nurseImagingPctSetting = await prisma.settings.findFirst({
       where: { key: "finance.nurseImagingPct" },
