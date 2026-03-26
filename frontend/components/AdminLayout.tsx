@@ -95,6 +95,12 @@ const navItems: NavItem[] = [
   ],
 },
 
+  {
+  label: "Рентген",
+  href: "/xray",
+  icon: "🩻",
+}
+
   // 6. Санхүү
   {
     label: "Санхүү",
