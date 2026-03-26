@@ -25,8 +25,8 @@ import {
 type Branch = { id: number; name: string };
 type Doctor = { id: number; name: string | null; ovog: string | null; branchId: number | null };
 
-type SeriesPoint = { key: string; incomeMnt: number };
-type BreakdownRow = { id: string | number; label: string; incomeMnt: number; pct: number };
+type SeriesPoint = { key: string; salesMnt: number; incomeMnt: number };
+type BreakdownRow = { id: string | number; label: string; salesMnt: number; incomeMnt: number; pctSales: number; pctIncome: number };
 type Breakdown = { type: "branches" | "doctors" | "categories"; rows: BreakdownRow[] };
 
 type ReportData = {
@@ -36,6 +36,7 @@ type ReportData = {
   endDate: string;
   scope: { branchId: number | null; doctorId: number | null };
   series: SeriesPoint[];
+  totalSalesMnt: number;
   totalIncomeMnt: number;
   breakdown: Breakdown;
   filters: { branches: Branch[]; doctors: Doctor[] };
@@ -78,11 +79,15 @@ function ChartTooltip({
   active,
   label,
   payload,
+  metricLabel = "Орлого:",
+  barColor = "#3b82f6",
 }: {
   active?: boolean;
   label?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload?: ReadonlyArray<any>;
+  metricLabel?: string;
+  barColor?: string;
 }) {
   if (!active || !payload?.length) return null;
   const item = payload[0];
@@ -96,10 +101,10 @@ function ChartTooltip({
             width: 8,
             height: 8,
             borderRadius: "50%",
-            background: item.fill || "#3b82f6",
+            background: item.fill || barColor,
           }}
         />
-        <span className="text-gray-700">Эмчийн орлого:</span>
+        <span className="text-gray-700">{metricLabel}</span>
         <span className="font-bold text-gray-900 ml-auto">
           {formatMoney(item.value)}
         </span>
@@ -111,26 +116,41 @@ function ChartTooltip({
 // ─────────────────────────────────────────────
 // Breakdown panel (right side)
 // ─────────────────────────────────────────────
-function BreakdownPanel({ breakdown, total }: { breakdown: Breakdown; total: number }) {
+function BreakdownPanel({
+  breakdown,
+  total,
+  metric = "income",
+  title,
+}: {
+  breakdown: Breakdown;
+  total: number;
+  metric?: "sales" | "income";
+  title?: string;
+}) {
   const typeLabel: Record<string, string> = {
     branches: "Салбарын оролцоо",
     doctors: "Эмчийн оролцоо",
-    categories: "Бүрдүүлэлтйин ангилал",
+    categories: "Бүрдүүлэлтийн ангилал",
   };
 
   const rows = breakdown.rows;
 
   const pieData = rows.map((r, i) => ({
     name: r.label,
-    value: r.incomeMnt,
+    value: metric === "sales" ? r.salesMnt : r.incomeMnt,
     color: BREAKDOWN_COLORS[i % BREAKDOWN_COLORS.length],
   }));
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-4 min-w-0">
-      <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-        {typeLabel[breakdown.type] ?? "Задаргаа"}
-      </h3>
+      <div>
+        {title && (
+          <h3 className="text-sm font-bold text-gray-800 mb-0.5">{title}</h3>
+        )}
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          {typeLabel[breakdown.type] ?? "Задаргаа"}
+        </h3>
+      </div>
 
       {rows.length === 0 ? (
         <p className="text-sm text-gray-400">Мэдээлэл байхгүй</p>
@@ -174,34 +194,38 @@ function BreakdownPanel({ breakdown, total }: { breakdown: Breakdown; total: num
               <thead>
                 <tr className="text-xs text-gray-500 uppercase tracking-wide border-b border-gray-100">
                   <th className="py-2 text-left font-semibold">Нэр</th>
-                  <th className="py-2 text-right font-semibold">Орлого</th>
+                  <th className="py-2 text-right font-semibold">Дүн</th>
                   <th className="py-2 text-right font-semibold">Хувь</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => (
-                  <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-2 flex items-center gap-2">
-                      <span
-                        style={{
-                          display: "inline-block",
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          background: BREAKDOWN_COLORS[i % BREAKDOWN_COLORS.length],
-                          flexShrink: 0,
-                        }}
-                      />
-                      <span className="text-gray-800 truncate">{r.label}</span>
-                    </td>
-                    <td className="py-2 text-right font-medium text-gray-900">
-                      {formatMoney(r.incomeMnt)}
-                    </td>
-                    <td className="py-2 text-right text-gray-500">
-                      {r.pct.toFixed(1)}%
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((r, i) => {
+                  const amt = metric === "sales" ? r.salesMnt : r.incomeMnt;
+                  const pct = metric === "sales" ? r.pctSales : r.pctIncome;
+                  return (
+                    <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="py-2 flex items-center gap-2">
+                        <span
+                          style={{
+                            display: "inline-block",
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            background: BREAKDOWN_COLORS[i % BREAKDOWN_COLORS.length],
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span className="text-gray-800 truncate">{r.label}</span>
+                      </td>
+                      <td className="py-2 text-right font-medium text-gray-900">
+                        {formatMoney(amt)}
+                      </td>
+                      <td className="py-2 text-right text-gray-500">
+                        {pct.toFixed(1)}%
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
               {total > 0 && (
                 <tfoot>
@@ -316,6 +340,7 @@ export default function DoctorIncomeReportPage() {
   // Chart data
   const chartData = (data?.series ?? []).map((s) => ({
     label: seriesLabel(s.key, data?.mode ?? "monthly"),
+    salesMnt: s.salesMnt,
     incomeMnt: s.incomeMnt,
   }));
 
@@ -448,120 +473,201 @@ export default function DoctorIncomeReportPage() {
         {data && (
           <>
             {/* Summary card */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-start gap-4">
-              <div className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center bg-blue-50">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-wrap items-start gap-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center bg-blue-50">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Нийт борлуулалт
+                    {data.mode === "monthly"
+                      ? ` · ${data.year} он`
+                      : ` · ${data.startDate} – ${data.endDate}`}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 mt-0.5">
+                    {formatMoney(data.totalSalesMnt)}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {data.mode === "monthly" ? "Сарын задаргаа" : "Өдрийн задаргаа"}
+                    {appliedBranchId && data.filters.branches.find((b) => String(b.id) === appliedBranchId)
+                      ? ` · ${data.filters.branches.find((b) => String(b.id) === appliedBranchId)?.name}`
+                      : ""}
+                    {appliedDoctorId && availableDoctors.find((d) => String(d.id) === appliedDoctorId)
+                      ? ` · ${availableDoctors.find((d) => String(d.id) === appliedDoctorId)?.name}`
+                      : ""}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Нийт эмчийн хувь
-                  {data.mode === "monthly"
-                    ? ` · ${data.year} он`
-                    : ` · ${data.startDate} – ${data.endDate}`}
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-0.5">
-                  {formatMoney(data.totalIncomeMnt)}
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {data.mode === "monthly" ? "Сарын задаргаа" : "Өдрийн задаргаа"}
-                  {appliedBranchId && data.filters.branches.find((b) => String(b.id) === appliedBranchId)
-                    ? ` · ${data.filters.branches.find((b) => String(b.id) === appliedBranchId)?.name}`
-                    : ""}
-                  {appliedDoctorId && availableDoctors.find((d) => String(d.id) === appliedDoctorId)
-                    ? ` · ${availableDoctors.find((d) => String(d.id) === appliedDoctorId)?.name}`
-                    : ""}
-                </p>
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center bg-purple-50">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Нийт эмчийн орлого
+                    {data.mode === "monthly"
+                      ? ` · ${data.year} он`
+                      : ` · ${data.startDate} – ${data.endDate}`}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 mt-0.5">
+                    {formatMoney(data.totalIncomeMnt)}
+                  </p>
+                </div>
               </div>
             </div>
 
             {/* Chart + Breakdown */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Left: chart */}
-              <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3">
-                <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                  Эмчийн хувь ·{" "}
-                  {data.mode === "monthly"
-                    ? `${data.year} он — сарын задаргаа`
-                    : `${data.startDate} – ${data.endDate} (өдрийн задаргаа)`}
-                </h2>
+              {/* Left: two charts stacked */}
+              <div className="lg:col-span-2 flex flex-col gap-4">
+                {/* Sales chart */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3">
+                  <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                    Борлуулалтын орлого ·{" "}
+                    {data.mode === "monthly"
+                      ? `${data.year} он — сарын задаргаа`
+                      : `${data.startDate} – ${data.endDate} (өдрийн задаргаа)`}
+                  </h2>
 
-                {chartData.length === 0 ? (
-                  <p className="text-sm text-gray-400">Мэдээлэл байхгүй</p>
-                ) : (
-                  <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={chartData}
-                        margin={{ top: 4, right: 8, left: 4, bottom: 4 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis
-                          dataKey="label"
-                          tick={{ fontSize: 11, fill: "#6b7280" }}
-                          axisLine={false}
-                          tickLine={false}
-                          interval={data.mode === "daily" && chartData.length > 20 ? Math.floor(chartData.length / 10) : 0}
-                        />
-                        <YAxis
-                          tickFormatter={formatYAxis}
-                          tick={{ fontSize: 11, fill: "#6b7280" }}
-                          axisLine={false}
-                          tickLine={false}
-                          width={56}
-                        />
-                        <Tooltip content={<ChartTooltip />} />
-                        <Bar dataKey="incomeMnt" radius={[4, 4, 0, 0]} maxBarSize={48}>
-                          {chartData.map((_, i) => (
-                            <Cell
-                              key={i}
-                              fill={BREAKDOWN_COLORS[0]}
-                              opacity={0.85}
-                            />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-
-                {/* Series table (collapsible would add complexity; show a compact one) */}
-                {data.series.length > 0 && (
-                  <details className="mt-2">
-                    <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700 select-none">
-                      Хүснэгт харах
-                    </summary>
-                    <div className="mt-2 overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="text-xs text-gray-500 uppercase tracking-wide border-b border-gray-100">
-                            <th className="py-2 text-left font-semibold">
-                              {data.mode === "monthly" ? "Сар" : "Огноо"}
-                            </th>
-                            <th className="py-2 text-right font-semibold">Эмчийн хувь</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {data.series.map((s) => (
-                            <tr key={s.key} className="border-b border-gray-50 hover:bg-gray-50">
-                              <td className="py-1.5 text-gray-700">
-                                {seriesLabel(s.key, data.mode)}
-                              </td>
-                              <td className="py-1.5 text-right font-medium text-gray-900">
-                                {formatMoney(s.incomeMnt)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  {chartData.length === 0 ? (
+                    <p className="text-sm text-gray-400">Мэдээлэл байхгүй</p>
+                  ) : (
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={chartData}
+                          margin={{ top: 4, right: 8, left: 4, bottom: 4 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                          <XAxis
+                            dataKey="label"
+                            tick={{ fontSize: 11, fill: "#6b7280" }}
+                            axisLine={false}
+                            tickLine={false}
+                            interval={data.mode === "daily" && chartData.length > 20 ? Math.floor(chartData.length / 10) : 0}
+                          />
+                          <YAxis
+                            tickFormatter={formatYAxis}
+                            tick={{ fontSize: 11, fill: "#6b7280" }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={56}
+                          />
+                          <Tooltip content={<ChartTooltip metricLabel="Борлуулалт:" barColor="#3b82f6" />} />
+                          <Bar dataKey="salesMnt" radius={[4, 4, 0, 0]} maxBarSize={48}>
+                            {chartData.map((_, i) => (
+                              <Cell key={i} fill="#3b82f6" opacity={0.85} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
                     </div>
-                  </details>
-                )}
+                  )}
+                </div>
+
+                {/* Income chart */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3">
+                  <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                    Эмчийн орлого ·{" "}
+                    {data.mode === "monthly"
+                      ? `${data.year} он — сарын задаргаа`
+                      : `${data.startDate} – ${data.endDate} (өдрийн задаргаа)`}
+                  </h2>
+
+                  {chartData.length === 0 ? (
+                    <p className="text-sm text-gray-400">Мэдээлэл байхгүй</p>
+                  ) : (
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={chartData}
+                          margin={{ top: 4, right: 8, left: 4, bottom: 4 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                          <XAxis
+                            dataKey="label"
+                            tick={{ fontSize: 11, fill: "#6b7280" }}
+                            axisLine={false}
+                            tickLine={false}
+                            interval={data.mode === "daily" && chartData.length > 20 ? Math.floor(chartData.length / 10) : 0}
+                          />
+                          <YAxis
+                            tickFormatter={formatYAxis}
+                            tick={{ fontSize: 11, fill: "#6b7280" }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={56}
+                          />
+                          <Tooltip content={<ChartTooltip metricLabel="Эмчийн орлого:" barColor="#8b5cf6" />} />
+                          <Bar dataKey="incomeMnt" radius={[4, 4, 0, 0]} maxBarSize={48}>
+                            {chartData.map((_, i) => (
+                              <Cell key={i} fill="#8b5cf6" opacity={0.85} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+
+                  {/* Series table */}
+                  {data.series.length > 0 && (
+                    <details className="mt-2">
+                      <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700 select-none">
+                        Хүснэгт харах
+                      </summary>
+                      <div className="mt-2 overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-xs text-gray-500 uppercase tracking-wide border-b border-gray-100">
+                              <th className="py-2 text-left font-semibold">
+                                {data.mode === "monthly" ? "Сар" : "Огноо"}
+                              </th>
+                              <th className="py-2 text-right font-semibold">Борлуулалт</th>
+                              <th className="py-2 text-right font-semibold">Эмчийн орлого</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {data.series.map((s) => (
+                              <tr key={s.key} className="border-b border-gray-50 hover:bg-gray-50">
+                                <td className="py-1.5 text-gray-700">
+                                  {seriesLabel(s.key, data.mode)}
+                                </td>
+                                <td className="py-1.5 text-right font-medium text-gray-900">
+                                  {formatMoney(s.salesMnt)}
+                                </td>
+                                <td className="py-1.5 text-right font-medium text-gray-900">
+                                  {formatMoney(s.incomeMnt)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </details>
+                  )}
+                </div>
               </div>
 
-              {/* Right: breakdown */}
-              <BreakdownPanel breakdown={data.breakdown} total={data.totalIncomeMnt} />
+              {/* Right: two breakdown panels stacked */}
+              <div className="flex flex-col gap-4">
+                <BreakdownPanel
+                  breakdown={data.breakdown}
+                  total={data.totalSalesMnt}
+                  metric="sales"
+                  title="Борлуулалтын орлого"
+                />
+                <BreakdownPanel
+                  breakdown={data.breakdown}
+                  total={data.totalIncomeMnt}
+                  metric="income"
+                  title="Эмчийн орлого"
+                />
+              </div>
             </div>
           </>
         )}
