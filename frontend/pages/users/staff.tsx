@@ -28,7 +28,7 @@ const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: "manager", label: "Менежер" },
   { value: "admin", label: "Админ" },
   { value: "super_admin", label: "Супер Админ" },
-  { value: "sterilization", label: "Стерилизация" },
+  { value: "sterilization", label: "Ариутгал" },
   { value: "other", label: "Бусад" },
   { value: "receptionist", label: "Ресепшн" },
   { value: "nurse", label: "Сувилагч" },
