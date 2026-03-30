@@ -8,6 +8,16 @@ type Doctor = {
   ovog: string | null;
   email: string;
   branchId: number | null;
+  branches: Array<{ id: number; name: string }>;
+};
+
+type NurseUser = {
+  id: number;
+  email: string;
+  name?: string | null;
+  ovog?: string | null;
+  branchId?: number | null;
+  branches?: Array<{ id: number; name: string }>;
 };
 
 type Tool = {
@@ -62,6 +72,13 @@ function doctorLabel(d: Doctor | ReturnRecord["doctor"] | null | undefined) {
   return full || (d as any).email || "—";
 }
 
+function formatUserLabel(u: { id: number; email: string; name?: string | null; ovog?: string | null }): string {
+  if (u.ovog && u.ovog.trim() && u.name && u.name.trim()) return `${u.ovog.trim().charAt(0)}.${u.name.trim()}`;
+  if (u.name && u.name.trim()) return u.name.trim();
+  if (u.email) return u.email;
+  return `User #${u.id}`;
+}
+
 function sumLines(lines: ReturnLine[]) {
   return (lines || []).reduce((s, ln) => s + Number(ln.returnedQty || 0), 0);
 }
@@ -72,8 +89,14 @@ export default function SterilizationReturnsPage() {
 
   // Lookup data
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [allDoctors, setAllDoctors] = useState<Doctor[]>([]);
+  const [allNurses, setAllNurses] = useState<NurseUser[]>([]);
   const [tools, setTools] = useState<Tool[]>([]);
+
+  // Filtered lists derived from selected branch
+  const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([]);
+  const [filteredNurses, setFilteredNurses] = useState<NurseUser[]>([]);
+  const [loadingStaff, setLoadingStaff] = useState(false);
 
   // Create form fields
   const [branchId, setBranchId] = useState<number | "">("");
@@ -103,18 +126,27 @@ export default function SterilizationReturnsPage() {
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  // Load branches + doctors on mount
+  // Load branches + doctors + nurses on mount
   useEffect(() => {
     (async () => {
+      setLoadingStaff(true);
       try {
-        const [bRes, dRes] = await Promise.all([fetch("/api/branches"), fetch("/api/sterilization/doctors")]);
+        const [bRes, dRes, nRes] = await Promise.all([
+          fetch("/api/branches"),
+          fetch("/api/users?role=doctor"),
+          fetch("/api/users?role=nurse"),
+        ]);
         const bJson = await bRes.json().catch(() => []);
         const dJson = await dRes.json().catch(() => []);
+        const nJson = await nRes.json().catch(() => []);
 
         if (bRes.ok) setBranches(Array.isArray(bJson) ? bJson : []);
-        if (dRes.ok) setDoctors(Array.isArray(dJson) ? dJson : []);
+        if (dRes.ok) setAllDoctors(Array.isArray(dJson) ? dJson : []);
+        if (nRes.ok) setAllNurses(Array.isArray(nJson) ? nJson : []);
       } catch {
         // ignore
+      } finally {
+        setLoadingStaff(false);
       }
     })();
   }, []);
@@ -160,6 +192,28 @@ export default function SterilizationReturnsPage() {
     if (branchId) setFilterBranchId(branchId);
   }, [branchId]);
 
+  // Filter doctors and nurses by selected branch, auto-select first
+  useEffect(() => {
+    if (!branchId) {
+      setFilteredDoctors([]);
+      setFilteredNurses([]);
+      setDoctorId("");
+      setNurseName("");
+      return;
+    }
+    const bid = Number(branchId);
+    const docs = allDoctors.filter(
+      (d) => d.branchId === bid || (d.branches && d.branches.some((b) => b.id === bid))
+    );
+    const nurses = allNurses.filter(
+      (n) => n.branchId === bid || (n.branches && n.branches.some((b) => b.id === bid))
+    );
+    setFilteredDoctors(docs);
+    setFilteredNurses(nurses);
+    setDoctorId(docs.length > 0 ? docs[0].id : "");
+    setNurseName(nurses.length > 0 ? formatUserLabel(nurses[0]) : "");
+  }, [branchId, allDoctors, allNurses]);
+
   const filteredTools = useMemo(() => {
     const q = toolFilter.trim().toLowerCase();
     if (!q) return tools;
@@ -173,8 +227,8 @@ export default function SterilizationReturnsPage() {
   const resetForm = () => {
     setDate(todayYmd);
     setTime(formatHHmm(new Date()));
-    setDoctorId("");
-    setNurseName("");
+    setDoctorId(filteredDoctors.length > 0 ? filteredDoctors[0].id : "");
+    setNurseName(filteredNurses.length > 0 ? formatUserLabel(filteredNurses[0]) : "");
     setNotes("");
     setToolFilter("");
     setExpandedId(null);
@@ -322,19 +376,21 @@ export default function SterilizationReturnsPage() {
             <select
               value={doctorId}
               onChange={(e) => setDoctorId(e.target.value ? Number(e.target.value) : "")}
+              disabled={!branchId || loadingStaff}
               style={{ width: "100%", padding: 8, fontSize: 14, borderRadius: 4, border: "1px solid #ccc" }}
             >
-              <option value="">-- Сонгох --</option>
-              {doctors.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {doctorLabel(d)}
-                  {d.branchId ? ` (Branch #${d.branchId})` : ""}
-                </option>
-              ))}
+              {!branchId && <option value="">-- Эхлээд салбар сонгоно уу --</option>}
+              {branchId && loadingStaff && <option value="">Ачаалж байна...</option>}
+              {branchId && !loadingStaff && filteredDoctors.length === 0 && (
+                <option value="">Энэ салбарт эмч олдсонгүй</option>
+              )}
+              {branchId && !loadingStaff &&
+                filteredDoctors.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {formatUserLabel(d)}
+                  </option>
+                ))}
             </select>
-            <div style={{ fontSize: 12, color: "#6b7280", marginTop: 3 }}>
-              Эмчийг салбараар хязгаарлахгүй (олон салбарт ажиллаж болно).
-            </div>
           </div>
 
           {/* Date */}
@@ -368,13 +424,24 @@ export default function SterilizationReturnsPage() {
             <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>
               Сувилагчийн нэр <span style={{ color: "red" }}>*</span>
             </label>
-            <input
-              type="text"
+            <select
               value={nurseName}
               onChange={(e) => setNurseName(e.target.value)}
-              placeholder="Сувилагчийн нэр"
+              disabled={!branchId || loadingStaff}
               style={{ width: "100%", padding: 8, fontSize: 14, borderRadius: 4, border: "1px solid #ccc" }}
-            />
+            >
+              {!branchId && <option value="">-- Эхлээд салбар сонгоно уу --</option>}
+              {branchId && loadingStaff && <option value="">Ачаалж байна...</option>}
+              {branchId && !loadingStaff && filteredNurses.length === 0 && (
+                <option value="">Энэ салбарт сувилагч олдсонгүй</option>
+              )}
+              {branchId && !loadingStaff &&
+                filteredNurses.map((n) => (
+                  <option key={n.id} value={formatUserLabel(n)}>
+                    {formatUserLabel(n)}
+                  </option>
+                ))}
+            </select>
           </div>
 
           {/* Notes */}
@@ -507,9 +574,9 @@ export default function SterilizationReturnsPage() {
               style={{ padding: 8, fontSize: 14, borderRadius: 4, border: "1px solid #ccc", minWidth: 240 }}
             >
               <option value="">-- Бүгд --</option>
-              {doctors.map((d) => (
+              {allDoctors.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {doctorLabel(d)}
+                  {formatUserLabel(d)}
                 </option>
               ))}
             </select>

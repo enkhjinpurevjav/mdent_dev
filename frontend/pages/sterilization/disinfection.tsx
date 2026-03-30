@@ -2,6 +2,20 @@ import { useEffect, useMemo, useState } from "react";
 
 type Branch = { id: number; name: string };
 
+type SterilizationUser = {
+  id: number;
+  email: string;
+  name?: string | null;
+  ovog?: string | null;
+};
+
+function formatUserLabel(u: SterilizationUser): string {
+  if (u.ovog && u.ovog.trim() && u.name && u.name.trim()) return `${u.ovog.trim().charAt(0)}.${u.name.trim()}`;
+  if (u.name && u.name.trim()) return u.name.trim();
+  if (u.email) return u.email;
+  return `User #${u.id}`;
+}
+
 type DisinfectionLog = {
   id: number;
   branchId: number;
@@ -89,6 +103,10 @@ export default function DisinfectionPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [logs, setLogs] = useState<DisinfectionLog[]>([]);
 
+  // Sterilization users for nurse select
+  const [sterilizationUsers, setSterilizationUsers] = useState<SterilizationUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
   // Create form
   const [branchId, setBranchId] = useState<number | "">("");
   const [date, setDate] = useState<string>(todayYmd);
@@ -131,6 +149,34 @@ export default function DisinfectionPage() {
   // If branch selected in form, default filter branch too (optional UX)
   useEffect(() => {
     if (branchId) setFilterBranchId(branchId);
+  }, [branchId]);
+
+  // Load sterilization users when branch changes
+  useEffect(() => {
+    if (!branchId) {
+      setSterilizationUsers([]);
+      setNurseName("");
+      return;
+    }
+    setLoadingUsers(true);
+    (async () => {
+      try {
+        const res = await fetch(`/api/users?role=sterilization&branchId=${branchId}`);
+        const data = await res.json().catch(() => []);
+        if (res.ok && Array.isArray(data)) {
+          setSterilizationUsers(data);
+          setNurseName(data.length > 0 ? formatUserLabel(data[0]) : "");
+        } else {
+          setSterilizationUsers([]);
+          setNurseName("");
+        }
+      } catch {
+        setSterilizationUsers([]);
+        setNurseName("");
+      } finally {
+        setLoadingUsers(false);
+      }
+    })();
   }, [branchId]);
 
   const loadLogs = async () => {
@@ -178,7 +224,7 @@ export default function DisinfectionPage() {
     setEndTime(formatHHmm(new Date()));
     setRinsedWithDistilledWater(true);
     setDriedInUVCabinet(false);
-    setNurseName("");
+    setNurseName(sterilizationUsers.length > 0 ? formatUserLabel(sterilizationUsers[0]) : "");
     setNotes("");
     const cleared: Record<QtyKey, number> = {} as any;
     for (const f of TOOL_FIELDS) cleared[f.key] = 0;
@@ -357,13 +403,24 @@ export default function DisinfectionPage() {
             <label style={{ display: "block", marginBottom: 5, fontWeight: "bold" }}>
               Сувилагчийн нэр <span style={{ color: "red" }}>*</span>
             </label>
-            <input
-              type="text"
+            <select
               value={nurseName}
               onChange={(e) => setNurseName(e.target.value)}
-              placeholder="Сувилагчийн нэр"
+              disabled={!branchId || loadingUsers}
               style={{ width: "100%", padding: 8, fontSize: 14, borderRadius: 4, border: "1px solid #ccc" }}
-            />
+            >
+              {!branchId && <option value="">-- Эхлээд салбар сонгоно уу --</option>}
+              {branchId && loadingUsers && <option value="">Ачаалж байна...</option>}
+              {branchId && !loadingUsers && sterilizationUsers.length === 0 && (
+                <option value="">Ариутгалын ажилтан олдсонгүй</option>
+              )}
+              {branchId && !loadingUsers &&
+                sterilizationUsers.map((u) => (
+                  <option key={u.id} value={formatUserLabel(u)}>
+                    {formatUserLabel(u)}
+                  </option>
+                ))}
+            </select>
           </div>
 
           {/* Notes */}
