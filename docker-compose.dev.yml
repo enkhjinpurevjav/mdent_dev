@@ -43,7 +43,7 @@ services:
       retries: 3
       start_period: 25s
     ports:
-      - "8082:8080"
+      - "8083:8080"
     volumes:
       - media_data_dev:/data/media
 
