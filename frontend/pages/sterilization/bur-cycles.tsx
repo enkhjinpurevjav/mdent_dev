@@ -1,6 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Branch = { id: number; name: string };
+
+type SterilizationUser = {
+  id: number;
+  email: string;
+  name?: string | null;
+  ovog?: string | null;
+};
 
 type Machine = {
   id: number;
@@ -49,10 +56,26 @@ function formatDateOnly(date: Date) {
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
+function addMinutes(dateTimeLocal: string, minutes: number): string {
+  const d = new Date(dateTimeLocal);
+  d.setMinutes(d.getMinutes() + minutes);
+  return formatDateTime(d);
+}
+
+function formatUserLabel(u: SterilizationUser): string {
+  if (u.ovog && u.ovog.trim() && u.name && u.name.trim()) return `${u.ovog.trim().charAt(0)}.${u.name.trim()}`;
+  if (u.name && u.name.trim()) return u.name.trim();
+  if (u.email) return u.email;
+  return `User #${u.id}`;
+}
+
 export default function BurCyclesPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
   const [burCycles, setBurCycles] = useState<BurCycle[]>([]);
+
+  // Sterilization users for operator select
+  const [sterilizationUsers, setSterilizationUsers] = useState<SterilizationUser[]>([]);
 
   // Form fields
   const [branchId, setBranchId] = useState<number | "">("");
@@ -64,9 +87,16 @@ export default function BurCyclesPage() {
   const [lastCheckedRunNumber, setLastCheckedRunNumber] = useState("");
   const [machineId, setMachineId] = useState<number | "">("");
   const [startedAt, setStartedAt] = useState(formatDateTime(new Date()));
-  const [pressure, setPressure] = useState("");
-  const [temperature, setTemperature] = useState("");
-  const [finishedAt, setFinishedAt] = useState(formatDateTime(new Date()));
+  const [pressure, setPressure] = useState("0247");
+  const [temperature, setTemperature] = useState("138");
+  const [finishedAt, setFinishedAt] = useState(() => addMinutes(formatDateTime(new Date()), 10));
+  // Track whether the user has manually overridden finishedAt
+  const finishedAtOverridden = useRef(false);
+  // Keep a ref to always have the current startedAt value available in effects
+  const startedAtRef = useRef(startedAt);
+  useEffect(() => {
+    startedAtRef.current = startedAt;
+  }, [startedAt]);
   const [removedFromAutoclaveAt, setRemovedFromAutoclaveAt] = useState("");
   const [result, setResult] = useState<"PASS" | "FAIL">("PASS");
   const [operator, setOperator] = useState("");
@@ -101,8 +131,15 @@ export default function BurCyclesPage() {
     if (!branchId) {
       setMachines([]);
       setMachineId("");
+      setSterilizationUsers([]);
+      setOperator("");
       return;
     }
+
+    // Reset finishedAt override when branch changes
+    finishedAtOverridden.current = false;
+    const newFinishedAt = addMinutes(startedAtRef.current || formatDateTime(new Date()), 10);
+    setFinishedAt(newFinishedAt);
 
     (async () => {
       try {
@@ -119,6 +156,23 @@ export default function BurCyclesPage() {
         }
       } catch {
         setMachines([]);
+      }
+    })();
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/users?role=sterilization&branchId=${branchId}`);
+        const data = await res.json().catch(() => []);
+        if (res.ok && Array.isArray(data)) {
+          setSterilizationUsers(data);
+          setOperator(data.length > 0 ? formatUserLabel(data[0]) : "");
+        } else {
+          setSterilizationUsers([]);
+          setOperator("");
+        }
+      } catch {
+        setSterilizationUsers([]);
+        setOperator("");
       }
     })();
   }, [branchId]);
@@ -253,13 +307,15 @@ export default function BurCyclesPage() {
         // Reset form
         setCode("");
         setSterilizationRunNumber("");
-        setPressure("");
-        setTemperature("");
+        setPressure("0247");
+        setTemperature("138");
         setNotes("");
         setFastBurQty(0);
         setSlowBurQty(0);
-        setStartedAt(formatDateTime(new Date()));
-        setFinishedAt(formatDateTime(new Date()));
+        const newStartedAt = formatDateTime(new Date());
+        setStartedAt(newStartedAt);
+        finishedAtOverridden.current = false;
+        setFinishedAt(addMinutes(newStartedAt, 10));
         setRemovedFromAutoclaveAt("");
         setCodeWarning("");
         setRunNumberWarning("");
@@ -385,7 +441,12 @@ export default function BurCyclesPage() {
             <input
               type="datetime-local"
               value={startedAt}
-              onChange={(e) => setStartedAt(e.target.value)}
+              onChange={(e) => {
+                setStartedAt(e.target.value);
+                if (!finishedAtOverridden.current) {
+                  setFinishedAt(addMinutes(e.target.value, 10));
+                }
+              }}
               style={{ width: "100%", padding: "8px", fontSize: "14px", borderRadius: "4px", border: "1px solid #ccc" }}
             />
           </div>
@@ -398,7 +459,10 @@ export default function BurCyclesPage() {
             <input
               type="datetime-local"
               value={finishedAt}
-              onChange={(e) => setFinishedAt(e.target.value)}
+              onChange={(e) => {
+                finishedAtOverridden.current = true;
+                setFinishedAt(e.target.value);
+              }}
               style={{ width: "100%", padding: "8px", fontSize: "14px", border: "1px solid #ccc", borderRadius: "4px" }}
             />
           </div>
@@ -419,7 +483,7 @@ export default function BurCyclesPage() {
           <div>
             <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Температур (°C)</label>
             <input
-              type="number"
+              type="text"
               value={temperature}
               onChange={(e) => setTemperature(e.target.value)}
               style={{ width: "100%", padding: "8px", fontSize: "14px", borderRadius: "4px", border: "1px solid #ccc" }}
@@ -458,13 +522,25 @@ export default function BurCyclesPage() {
             <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>
               Сувилагчийн нэр <span style={{ color: "red" }}>*</span>
             </label>
-            <input
-              type="text"
+            <select
               value={operator}
               onChange={(e) => setOperator(e.target.value)}
+              disabled={!branchId}
               style={{ width: "100%", padding: "8px", fontSize: "14px", borderRadius: "4px", border: "1px solid #ccc" }}
-              placeholder="Сувилагчийн нэр"
-            />
+            >
+              {sterilizationUsers.length === 0 ? (
+                <option value="">-- Сонгох --</option>
+              ) : (
+                sterilizationUsers.map((u) => {
+                  const label = formatUserLabel(u);
+                  return (
+                    <option key={u.id} value={label}>
+                      {label}
+                    </option>
+                  );
+                })
+              )}
+            </select>
           </div>
 
           {/* Fast Bur Qty */}
