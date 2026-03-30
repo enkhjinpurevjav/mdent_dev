@@ -6,44 +6,31 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      - RUN_SEED=false
-      - DATABASE_URL=${DATABASE_URL}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - DISABLE_AUTH=false
-
-      - JWT_SECRET=${JWT_SECRET}
-
-      - COOKIE_DOMAIN=${COOKIE_DOMAIN}
-      - CORS_ORIGIN=${CORS_ORIGIN}
-
-      # Password reset email (SMTP) - for DEV you can leave these blank in Portainer env
-      - APP_URL=${APP_URL}
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_PORT=${SMTP_PORT}
-      - SMTP_SECURE=${SMTP_SECURE}
-      - SMTP_USER=${SMTP_USER}
-      - SMTP_PASS=${SMTP_PASS}
-      - SMTP_FROM_NAME=${SMTP_FROM_NAME}
-      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL}
-
-      # POS API
-      - POSAPI_BASE_URL=${POSAPI_BASE_URL}
-      - POSAPI_MERCHANT_TIN=37900846788
-      - POSAPI_POS_NO=10013198
-      - POSAPI_BRANCH_NO=001
-      - POSAPI_DISTRICT_CODE=2501
-
+      RUN_SEED: "false"
+      DATABASE_URL: ${DATABASE_URL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      DISABLE_AUTH: "false"
+      JWT_SECRET: ${JWT_SECRET}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      APP_URL: ${APP_URL}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
+      POSAPI_BASE_URL: ${POSAPI_BASE_URL}
+      POSAPI_MERCHANT_TIN: "37900846788"
+      POSAPI_POS_NO: "10013198"
+      POSAPI_BRANCH_NO: "001"
+      POSAPI_DISTRICT_CODE: "2501"
+    ports:
+      - "8083:8080"
     networks:
       - mdent-dev-net
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health >/dev/null || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 25s
-    ports:
-      - "8083:8080"
     volumes:
       - media_data_dev:/data/media
 
@@ -51,20 +38,14 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_PORTAL_URL: ${NEXT_PUBLIC_PORTAL_URL}
+    ports:
+      - "3001:3000"
     networks:
       - mdent-dev-net
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:3000 >/dev/null || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 25s
-    ports:
-      - "3001:3000"
-    # Remove the prod bind-mount (it points to /root/mdent-cloud/... on the server)
-    # volumes:
-    #   - /root/mdent-cloud/frontend/public:/app/public:ro
 
 networks:
   mdent-dev-net: {}
