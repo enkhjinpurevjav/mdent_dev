@@ -46,13 +46,9 @@ const getRoleLabel = (role: string) => {
     case "super_admin":
       return "Супер Админ";
     case "sterilization":
-      return "Стерилизация";
+      return "Ариутгал";
     case "other":
       return "Бусад";
-    case "receptionist":
-      return "Ресепшн";
-    case "nurse":
-      return "Сувилагч";
     case "xray":
       return "Рентген";
     default:
