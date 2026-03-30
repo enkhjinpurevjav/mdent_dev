@@ -2,6 +2,30 @@ import React, { useEffect, useState } from "react";
 
 type Branch = { id: number; name: string };
 
+type SterilizationUser = {
+  id: number;
+  name: string | null;
+  ovog: string | null;
+  email: string;
+};
+
+function formatUserLabel(user: SterilizationUser): string {
+  const ovog = user.ovog?.trim();
+  const name = user.name?.trim();
+  if (ovog && name) return `${ovog[0]}.${name}`;
+  if (name) return name;
+  if (user.email) return user.email;
+  return `User #${user.id}`;
+}
+
+function addMinutes(datetimeLocal: string, minutes: number): string {
+  if (!datetimeLocal) return "";
+  const date = new Date(datetimeLocal);
+  if (isNaN(date.getTime())) return "";
+  date.setMinutes(date.getMinutes() + minutes);
+  return formatDateTime(date);
+}
+
 type SterilizationItem = {
   id: number;
   name: string;
@@ -43,7 +67,8 @@ export default function CycleCreatePage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [tools, setTools] = useState<SterilizationItem[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
-  
+  const [sterilizationUsers, setSterilizationUsers] = useState<SterilizationUser[]>([]);
+
   const [branchId, setBranchId] = useState<number | "">("");
   const [code, setCode] = useState("");
   const [codeWarning, setCodeWarning] = useState("");
@@ -51,9 +76,9 @@ export default function CycleCreatePage() {
   const [sterilizationRunNumber, setSterilizationRunNumber] = useState("");
   const [machineId, setMachineId] = useState<number | "">("");
   const [startedAt, setStartedAt] = useState(formatDateTime(new Date()));
-  const [pressure, setPressure] = useState("");
-  const [temperature, setTemperature] = useState("");
-  const [finishedAt, setFinishedAt] = useState(formatDateTime(new Date()));
+  const [pressure, setPressure] = useState("90-230");
+  const [temperature, setTemperature] = useState("134");
+  const finishedAt = addMinutes(startedAt, 90);
   const [removedFromAutoclaveAt, setRemovedFromAutoclaveAt] = useState("");
   const [result, setResult] = useState<"PASS" | "FAIL">("PASS");
   const [operator, setOperator] = useState("");
@@ -106,6 +131,27 @@ export default function CycleCreatePage() {
       } catch {
         setTools([]);
         setMachines([]);
+      }
+    })();
+  }, [branchId]);
+
+  useEffect(() => {
+    setSterilizationUsers([]);
+    setOperator("");
+    if (!branchId) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/users?role=sterilization&branchId=${branchId}`);
+        const data = await res.json().catch(() => []);
+        if (res.ok) {
+          const users: SterilizationUser[] = Array.isArray(data) ? data : [];
+          setSterilizationUsers(users);
+          if (users.length > 0) {
+            setOperator(formatUserLabel(users[0]));
+          }
+        }
+      } catch {
+        setSterilizationUsers([]);
       }
     })();
   }, [branchId]);
@@ -189,7 +235,7 @@ export default function CycleCreatePage() {
     if (!machineId) return setError("Машин сонгоно уу.");
     if (!startedAt) return setError("Эхэлсэн цаг оруулна уу.");
     if (!finishedAt) return setError("Дууссан цаг оруулна уу.");
-    if (!operator.trim()) return setError("Сувилагчийн нэр оруулна уу.");
+    if (!operator.trim()) return setError("Сувилагч сонгоно уу.");
 
     const validLines = toolLines.filter((line) => line.toolId && line.producedQty >= 1);
     if (validLines.length === 0) {
@@ -247,11 +293,14 @@ export default function CycleCreatePage() {
       setLastCheckedCode("");
       setSterilizationRunNumber("");
       setStartedAt(formatDateTime(new Date()));
-      setPressure("");
-      setTemperature("");
-      setFinishedAt(formatDateTime(new Date()));
+      setPressure("90-230");
+      setTemperature("134");
       setRemovedFromAutoclaveAt("");
-      setOperator("");
+      if (sterilizationUsers.length > 0) {
+        setOperator(formatUserLabel(sterilizationUsers[0]));
+      } else {
+        setOperator("");
+      }
       setNotes("");
       setToolLines([{ id: generateId(), toolId: "", producedQty: 1, toolSearch: "", showDropdown: false, duplicateError: "" }]);
       // Reset machine to first one if available
@@ -394,8 +443,8 @@ export default function CycleCreatePage() {
             <input
               type="datetime-local"
               value={finishedAt}
-              onChange={(e) => setFinishedAt(e.target.value)}
-              style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
+              readOnly
+              style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13, background: "#f9fafb", cursor: "default" }}
             />
           </div>
 
@@ -443,12 +492,19 @@ export default function CycleCreatePage() {
             <label style={{ fontSize: 12, color: "#6b7280", marginBottom: 4, display: "block" }}>
               Сувилагчийн нэр <span style={{ color: "#dc2626" }}>*</span>
             </label>
-            <input
+            <select
               value={operator}
               onChange={(e) => setOperator(e.target.value)}
-              placeholder="Сувилагчийн нэр"
+              disabled={!branchId}
               style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
-            />
+            >
+              {!branchId && <option value="">Эхлээд салбар сонгоно уу</option>}
+              {branchId && sterilizationUsers.length === 0 && <option value="">Сувилагч байхгүй</option>}
+              {sterilizationUsers.map((u) => {
+                const label = formatUserLabel(u);
+                return <option key={u.id} value={label}>{label}</option>;
+              })}
+            </select>
           </div>
 
           <div style={{ gridColumn: "1 / -1" }}>
